@@ -19,28 +19,28 @@ export default function PaymentPage({ onPaymentComplete }: PaymentPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-brand-darker py-8 pb-24">
-      <div className="container mx-auto px-4 max-w-3xl">
-        <div className="text-center mb-10 pt-8">
-          <h1 className="text-3xl md:text-5xl font-bold font-serif text-brand-yellow mb-3">Secure Payment</h1>
-          <div className="flex items-center justify-center gap-2 text-gray-400">
-            <Shield className="w-4 h-4" />
-            <p className="text-sm uppercase tracking-wider">Encrypted Transaction</p>
+    <div className="min-h-screen bg-brand-darker py-6 pb-24">
+      <div className="container mx-auto px-4 max-w-2xl">
+        <div className="text-center mb-8 pt-4">
+          <h1 className="text-3xl md:text-5xl font-bold font-serif text-brand-yellow mb-2">Secure Payment</h1>
+          <div className="flex items-center justify-center gap-2 text-gray-500">
+            <Shield className="w-3 h-3" />
+            <p className="text-xs uppercase tracking-wider">Encrypted Transaction</p>
           </div>
         </div>
 
-        <div className="bg-brand-dark rounded-3xl p-6 md:p-8 border border-white/5 shadow-2xl relative overflow-hidden">
+        <div className="bg-brand-dark rounded-3xl p-5 md:p-8 border border-white/5 shadow-2xl relative overflow-hidden">
           {/* Decorative background blob */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-brand-yellow/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
 
-          <div className="text-center mb-8 pb-8 border-b border-white/10 relative z-10">
-            <p className="text-gray-400 text-sm uppercase tracking-widest mb-2">Total Amount</p>
-            <div className="inline-block bg-brand-yellow/10 px-8 py-4 rounded-2xl border border-brand-yellow/20">
-              <p className="text-4xl md:text-5xl font-bold text-white">₹{getTotalPrice()}</p>
+          <div className="text-center mb-6 pb-6 border-b border-white/10 relative z-10">
+            <p className="text-gray-500 text-xs uppercase tracking-widest mb-2">Total Amount</p>
+            <div className="inline-block bg-brand-yellow/10 px-6 py-3 rounded-2xl border border-brand-yellow/20">
+              <p className="text-3xl md:text-5xl font-bold text-white">₹{getTotalPrice()}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
             {[
               { id: 'qr', icon: QrCode, label: 'Scan QR' },
               { id: 'upi', icon: Smartphone, label: 'UPI ID' },
@@ -49,24 +49,24 @@ export default function PaymentPage({ onPaymentComplete }: PaymentPageProps) {
               <button
                 key={method.id}
                 onClick={() => setPaymentMethod(method.id as 'qr' | 'upi' | 'card')}
-                className={`p-4 rounded-xl border transition-all duration-300 flex md:flex-col items-center justify-center gap-3 md:gap-2 ${paymentMethod === method.id
+                className={`p-3 md:p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 ${paymentMethod === method.id
                     ? 'bg-brand-yellow text-brand-darker border-brand-yellow shadow-lg shadow-brand-yellow/20'
                     : 'bg-brand-gray/50 text-gray-400 border-transparent hover:border-brand-yellow/30 hover:bg-brand-gray'
                   }`}
               >
-                <method.icon className="w-6 h-6" />
-                <span className="font-semibold">{method.label}</span>
+                <method.icon className="w-5 h-5 md:w-6 md:h-6" />
+                <span className="font-semibold text-xs md:text-sm">{method.label}</span>
               </button>
             ))}
           </div>
 
-          <div className="min-h-[300px] bg-brand-gray/30 rounded-2xl p-6 border border-white/5 mb-8">
+          <div className="min-h-[300px] bg-brand-gray/30 rounded-2xl p-4 md:p-6 border border-white/5 mb-6">
             {paymentMethod === 'qr' && (
               <div className="text-center py-4">
                 <div className="bg-white p-4 rounded-xl inline-block mb-6 shadow-xl relative group">
                   <div className="absolute inset-0 bg-brand-yellow/20 blur-xl group-hover:blur-2xl transition-all"></div>
                   <div className="relative bg-white p-2 rounded-lg">
-                    <QrCode className="w-48 h-48 text-brand-dark" />
+                    <QrCode className="w-40 h-40 md:w-48 md:h-48 text-brand-dark" />
                   </div>
                 </div>
                 <p className="text-gray-300 mb-2">Scan with <span className="text-brand-yellow font-bold">Any UPI App</span></p>
