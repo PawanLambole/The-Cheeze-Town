@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import PaymentModal from '../../components/PaymentModal';
+import { printAddedItemsReceipt, printPaymentReceipt } from '../../services/thermalPrinter';
+import ReceiptViewer from '../../components/ReceiptViewer';
 
 interface OrderItem {
     name: string;
@@ -18,23 +21,29 @@ interface Order {
     customerName?: string;
     items: OrderItem[];
     isServed: boolean;
+    isPaid: boolean;
     totalAmount: number;
     time: string;
     duration: string;
+    transactionId?: string;
+    paymentMethod?: string;
 }
 
 export default function OrdersScreen() {
     const router = useRouter();
     const { t } = useTranslation();
-    const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'completed'>('all');
+    const [selectedStatus, setSelectedStatus] = useState<'all' | 'pending' | 'served' | 'completed'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [showOrderModal, setShowOrderModal] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [showAddItemModal, setShowAddItemModal] = useState(false);
     const [orderForAddItem, setOrderForAddItem] = useState<Order | null>(null);
     const [selectedItems, setSelectedItems] = useState<Array<{ name: string, price: number, quantity: number }>>([]);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [showReceipt, setShowReceipt] = useState(false);
+    const [currentReceipt, setCurrentReceipt] = useState('');
 
-    const statusOptions: ('all' | 'active' | 'completed')[] = ['all', 'active', 'completed'];
+    const statusOptions: ('all' | 'pending' | 'served' | 'completed')[] = ['all', 'pending', 'served', 'completed'];
 
     // Mock orders data - matching the structure from the homepage
     const [orders, setOrders] = useState<Order[]>([
@@ -49,6 +58,7 @@ export default function OrdersScreen() {
                 { name: 'Coke', quantity: 2, price: 50 }
             ],
             isServed: false,
+            isPaid: false,
             totalAmount: 650,
             time: '10 mins ago',
             duration: '10 min',
@@ -62,6 +72,7 @@ export default function OrdersScreen() {
                 { name: 'French Fries', quantity: 1, price: 150 }
             ],
             isServed: true,
+            isPaid: false,
             totalAmount: 480,
             time: '25 mins ago',
             duration: '25 min',
@@ -78,6 +89,7 @@ export default function OrdersScreen() {
                 { name: 'Ice Cream', quantity: 1, price: 110 }
             ],
             isServed: false,
+            isPaid: false,
             totalAmount: 890,
             time: '32 mins ago',
             duration: '32 min',
@@ -91,6 +103,7 @@ export default function OrdersScreen() {
                 { name: 'Garlic Bread', quantity: 1, price: 150 }
             ],
             isServed: true,
+            isPaid: false,
             totalAmount: 520,
             time: '45 mins ago',
             duration: '45 min',
@@ -106,6 +119,7 @@ export default function OrdersScreen() {
                 { name: 'Sprite', quantity: 1, price: 50 }
             ],
             isServed: true,
+            isPaid: false,
             totalAmount: 780,
             time: '1 hour ago',
             duration: '1h',
@@ -119,6 +133,7 @@ export default function OrdersScreen() {
                 { name: 'Coke', quantity: 1, price: 50 }
             ],
             isServed: false,
+            isPaid: false,
             totalAmount: 350,
             time: '15 mins ago',
             duration: '15 min',
@@ -135,6 +150,7 @@ export default function OrdersScreen() {
                 { name: 'Pepsi', quantity: 2, price: 50 }
             ],
             isServed: true,
+            isPaid: false,
             totalAmount: 760,
             time: '1h 20min ago',
             duration: '1h 20min',
@@ -148,6 +164,7 @@ export default function OrdersScreen() {
                 { name: 'French Fries', quantity: 1, price: 150 }
             ],
             isServed: false,
+            isPaid: false,
             totalAmount: 490,
             time: '8 mins ago',
             duration: '8 min',
@@ -157,8 +174,9 @@ export default function OrdersScreen() {
     // Filter orders based on status
     const getFilteredByStatus = () => {
         if (selectedStatus === 'all') return orders;
-        if (selectedStatus === 'active') return orders.filter(o => !o.isServed);
-        return orders.filter(o => o.isServed);
+        if (selectedStatus === 'pending') return orders.filter(o => !o.isServed);
+        if (selectedStatus === 'served') return orders.filter(o => o.isServed && !o.isPaid);
+        return orders.filter(o => o.isPaid); // Completed = paid orders
     };
 
     // Apply search filter
@@ -168,8 +186,9 @@ export default function OrdersScreen() {
         order.tableNo.toString().includes(searchQuery)
     );
 
-    const activeOrdersCount = orders.filter(o => !o.isServed).length;
-    const completedOrdersCount = orders.filter(o => o.isServed).length;
+    const pendingOrdersCount = orders.filter(o => !o.isServed).length;
+    const servedOrdersCount = orders.filter(o => o.isServed && !o.isPaid).length;
+    const completedOrdersCount = orders.filter(o => o.isPaid).length;
 
     const handleOrderClick = (order: Order) => {
         setSelectedOrder(order);
@@ -185,11 +204,12 @@ export default function OrdersScreen() {
         }
     };
 
-    const getStatusLabel = (status: 'all' | 'active' | 'completed') => {
+    const getStatusLabel = (status: 'all' | 'pending' | 'served' | 'completed') => {
         switch (status) {
-            case 'all': return t('manager.orders.allOrders');
-            case 'active': return t('manager.orders.activeOrders');
-            case 'completed': return t('manager.orders.completedOrders');
+            case 'all': return 'All Orders';
+            case 'pending': return 'Pending';
+            case 'served': return 'Served';
+            case 'completed': return 'Completed';
             default: return status;
         }
     };
@@ -209,11 +229,15 @@ export default function OrdersScreen() {
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{orders.length}</Text>
-                        <Text style={styles.statLabel}>Total Orders</Text>
+                        <Text style={styles.statLabel}>Total</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={[styles.statValue, { color: '#F59E0B' }]}>{activeOrdersCount}</Text>
-                        <Text style={styles.statLabel}>Active</Text>
+                        <Text style={[styles.statValue, { color: '#F59E0B' }]}>{pendingOrdersCount}</Text>
+                        <Text style={styles.statLabel}>Pending</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={[styles.statValue, { color: '#3B82F6' }]}>{servedOrdersCount}</Text>
+                        <Text style={styles.statLabel}>Served</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statValue, { color: '#10B981' }]}>{completedOrdersCount}</Text>
@@ -396,7 +420,35 @@ export default function OrdersScreen() {
                                     {selectedOrder.items.map((item, index) => (
                                         <View key={index} style={styles.orderItem}>
                                             <View style={styles.orderItemLeft}>
-                                                <Text style={styles.orderItemQuantity}>{item.quantity}</Text>
+                                                <TouchableOpacity
+                                                    style={styles.orderQuantityButton}
+                                                    onPress={() => {
+                                                        const updatedItems = [...selectedOrder.items];
+                                                        if (item.quantity > 1) {
+                                                            updatedItems[index] = { ...item, quantity: item.quantity - 1 };
+                                                        } else {
+                                                            // Remove item if quantity would be 0
+                                                            updatedItems.splice(index, 1);
+                                                        }
+                                                        const newTotal = updatedItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+
+                                                        // Update selectedOrder
+                                                        const updatedOrder = {
+                                                            ...selectedOrder,
+                                                            items: updatedItems,
+                                                            totalAmount: newTotal
+                                                        };
+                                                        setSelectedOrder(updatedOrder);
+
+                                                        // Update orders state
+                                                        setOrders(prev => prev.map(o =>
+                                                            o.id === selectedOrder.id ? updatedOrder : o
+                                                        ));
+                                                    }}
+                                                >
+                                                    <Text style={styles.orderQuantityButtonText}>-</Text>
+                                                </TouchableOpacity>
+                                                <Text style={styles.orderItemQuantityText}>{item.quantity}x</Text>
                                                 <Text style={styles.orderItemName}>{item.name}</Text>
                                             </View>
                                             <Text style={styles.orderItemPrice}>₹{(item.price * item.quantity).toFixed(2)}</Text>
@@ -421,9 +473,7 @@ export default function OrdersScreen() {
                                     style={[styles.paymentButton, !selectedOrder.isServed && styles.paymentButtonDisabled]}
                                     onPress={() => {
                                         if (selectedOrder.isServed) {
-                                            // Handle payment logic here
-                                            console.log('Processing payment for order:', selectedOrder.orderId);
-                                            setShowOrderModal(false);
+                                            setShowPaymentModal(true);
                                         }
                                     }}
                                     disabled={!selectedOrder.isServed}
@@ -569,14 +619,69 @@ export default function OrdersScreen() {
                                         );
                                     })}
                                 </View>
-
                                 {/* Confirm Button */}
                                 {selectedItems.length > 0 && (
                                     <TouchableOpacity
                                         style={styles.confirmButton}
-                                        onPress={() => {
-                                            console.log('Confirm adding items:', selectedItems);
-                                            // Here you would add the items to the order
+                                        onPress={async () => {
+                                            if (orderForAddItem) {
+                                                // Merge new items with existing items
+                                                const updatedItems = [...orderForAddItem.items];
+
+                                                selectedItems.forEach(newItem => {
+                                                    const existingIndex = updatedItems.findIndex(i => i.name === newItem.name);
+                                                    if (existingIndex >= 0) {
+                                                        // Item exists, increase quantity
+                                                        updatedItems[existingIndex] = {
+                                                            ...updatedItems[existingIndex],
+                                                            quantity: updatedItems[existingIndex].quantity + newItem.quantity
+                                                        };
+                                                    } else {
+                                                        // New item, add to list
+                                                        updatedItems.push(newItem);
+                                                    }
+                                                });
+
+                                                const newTotal = updatedItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+
+                                                // Update the order
+                                                const updatedOrder = {
+                                                    ...orderForAddItem,
+                                                    items: updatedItems,
+                                                    totalAmount: newTotal
+                                                };
+
+                                                // Update orders state
+                                                setOrders(prev => prev.map(o =>
+                                                    o.id === orderForAddItem.id ? updatedOrder : o
+                                                ));
+
+                                                // Update selectedOrder if it's the same order
+                                                if (selectedOrder?.id === orderForAddItem.id) {
+                                                    setSelectedOrder(updatedOrder);
+                                                }
+
+                                                // Generate added items receipt
+                                                try {
+                                                    const printResult = await printAddedItemsReceipt(
+                                                        orderForAddItem.orderId,
+                                                        orderForAddItem.tableNo,
+                                                        selectedItems
+                                                    );
+
+                                                    if (printResult.success && printResult.receipt) {
+                                                        // Show receipt in app
+                                                        setCurrentReceipt(printResult.receipt);
+                                                        setShowReceipt(true);
+                                                    } else {
+                                                        Alert.alert('Error', printResult.message || 'Failed to generate receipt');
+                                                    }
+                                                } catch (error) {
+                                                    console.error('Error generating added items receipt:', error);
+                                                    Alert.alert('Error', 'Failed to generate receipt');
+                                                }
+                                            }
+
                                             setSelectedItems([]);
                                             setShowAddItemModal(false);
                                         }}
@@ -593,6 +698,79 @@ export default function OrdersScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {/* Payment Modal */}
+            {selectedOrder && (
+                <PaymentModal
+                    visible={showPaymentModal}
+                    onClose={() => setShowPaymentModal(false)}
+                    orderId={selectedOrder.orderId}
+                    amount={selectedOrder.totalAmount}
+                    customerName={selectedOrder.customerName}
+                    onPaymentSuccess={async (transactionId, method) => {
+                        console.log('Payment successful:', { transactionId, method, orderId: selectedOrder.orderId });
+
+                        // Update order to mark as paid/completed
+                        setOrders(prev => prev.map(o =>
+                            o.id === selectedOrder.id
+                                ? {
+                                    ...o,
+                                    isPaid: true,
+                                    transactionId,
+                                    paymentMethod: method
+                                }
+                                : o
+                        ));
+
+                        // Update selected order state
+                        const updatedOrder = {
+                            ...selectedOrder,
+                            isPaid: true,
+                            transactionId,
+                            paymentMethod: method
+                        };
+                        setSelectedOrder(updatedOrder);
+
+                        setShowPaymentModal(false);
+                        setShowOrderModal(false);
+
+                        // Generate payment receipt
+                        try {
+                            const paymentData = {
+                                orderId: selectedOrder.orderId,
+                                tableNo: selectedOrder.tableNo,
+                                customerName: selectedOrder.customerName,
+                                items: selectedOrder.items,
+                                subtotal: selectedOrder.totalAmount,
+                                tax: 0,
+                                discount: 0,
+                                totalAmount: selectedOrder.totalAmount,
+                                paymentMethod: method,
+                                transactionId: transactionId,
+                                timestamp: new Date(),
+                                orderType: 'dine-in' as const
+                            };
+
+                            const receiptResult = await printPaymentReceipt(paymentData);
+
+                            if (receiptResult.success && receiptResult.receipt) {
+                                setCurrentReceipt(receiptResult.receipt);
+                                setShowReceipt(true);
+                            }
+                        } catch (error) {
+                            console.error('Error generating payment receipt:', error);
+                        }
+                    }}
+                />
+            )}
+
+            {/* Receipt Viewer */}
+            <ReceiptViewer
+                visible={showReceipt}
+                onClose={() => setShowReceipt(false)}
+                receipt={currentReceipt}
+                title="Receipt"
+            />
         </SafeAreaView>
     );
 }
@@ -1295,5 +1473,28 @@ const styles = StyleSheet.create({
     },
     statusToggleCompactTextServed: {
         color: '#047857',
+    },
+    // Order Item Quantity Controls
+    orderQuantityButton: {
+        width: 26,
+        height: 26,
+        borderRadius: 6,
+        backgroundColor: '#EF4444',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#DC2626',
+        marginRight: 8,
+    },
+    orderQuantityButtonText: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#FFFFFF',
+    },
+    orderItemQuantityText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#1F2937',
+        marginRight: 6,
     },
 });

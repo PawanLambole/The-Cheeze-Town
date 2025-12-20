@@ -3,6 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Users, Clock, Plus, X, ShoppingBag, User } from 'lucide-react-native';
+import PaymentModal from '../../components/PaymentModal';
+import { printPaymentReceipt } from '../../services/thermalPrinter';
+import ReceiptViewer from '../../components/ReceiptViewer';
 
 interface Table {
   id: string;
@@ -15,6 +18,9 @@ interface Table {
   customerName?: string;
   items?: { name: string; quantity: number; price: number }[];
   isServed?: boolean;
+  isPaid?: boolean;
+  transactionId?: string;
+  paymentMethod?: string;
 }
 
 export default function TablesScreen() {
@@ -25,6 +31,9 @@ export default function TablesScreen() {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [newTableNumber, setNewTableNumber] = useState('');
   const [newTableCapacity, setNewTableCapacity] = useState('');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [currentReceipt, setCurrentReceipt] = useState('');
 
   const statusOptions = ['all', 'available', 'occupied'];
 
@@ -204,40 +213,63 @@ export default function TablesScreen() {
               <TouchableOpacity
                 key={table.id}
                 onPress={() => handleTableClick(table)}
-                style={[styles.tableCard, { backgroundColor: getStatusBackground(table.status) }]}
+                style={styles.tableWrapper}
               >
-                <View style={styles.tableNumber}>
-                  <Text style={styles.tableNumberText}>Table {table.number}</Text>
-                </View>
-                <View style={styles.tableCapacity}>
-                  <Users size={16} color="#6B7280" />
-                  <Text style={styles.tableCapacityText}>{table.capacity} seats</Text>
-                </View>
-                <View style={[styles.tableStatus, { backgroundColor: getStatusColor(table.status) }]}>
-                  <Text style={styles.tableStatusText}>{table.status}</Text>
-                </View>
-                {table.status === 'occupied' && (
-                  <>
-                    <View style={styles.tableDuration}>
-                      <Clock size={14} color="#6B7280" />
-                      <Text style={styles.tableDurationText}>{table.duration}</Text>
+                {/* Top Chair */}
+                <View style={styles.chairTop} />
+
+                {/* Table Surface */}
+                <View style={[
+                  styles.tableSurface,
+                  table.status === 'occupied' && styles.tableSurfaceOccupied
+                ]}>
+                  {/* Table Wood Grain Effect (simplified as border/color) */}
+
+                  <View style={styles.tableHeader}>
+                    <Text style={styles.tableNumberText}>Table {table.number}</Text>
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: table.status === 'available' ? '#10B981' : '#EF4444' }
+                    ]}>
+                      <Text style={styles.statusBadgeText}>{table.status}</Text>
                     </View>
-                    <Text style={styles.tableAmount}>₹{table.orderAmount}</Text>
-                    <TouchableOpacity
-                      style={[styles.servedToggle, table.isServed && styles.servedToggleActive]}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        setTables(prev => prev.map(t =>
-                          t.id === table.id ? { ...t, isServed: !t.isServed } : t
-                        ));
-                      }}
-                    >
-                      <Text style={[styles.servedToggleText, table.isServed && styles.servedToggleTextActive]}>
-                        {table.isServed ? '✓ Served' : 'Pending'}
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
+                  </View>
+
+                  <View style={styles.tableInfoRow}>
+                    <Users size={14} color="#5D4037" />
+                    <Text style={styles.tableInfoText}>{table.capacity} Seats</Text>
+                  </View>
+
+                  {table.status === 'occupied' && (
+                    <View style={styles.activeOrderInfo}>
+                      <View style={styles.tableInfoRow}>
+                        <Clock size={14} color="#5D4037" />
+                        <Text style={styles.tableInfoText}>{table.duration}</Text>
+                      </View>
+                      <Text style={styles.tableAmount}>₹{table.orderAmount}</Text>
+
+                      <TouchableOpacity
+                        style={[styles.servedToggle, table.isServed && styles.servedToggleActive]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setTables(prev => prev.map(t =>
+                            t.id === table.id ? { ...t, isServed: !t.isServed } : t
+                          ));
+                        }}
+                      >
+                        <Text style={[
+                          styles.servedToggleText,
+                          table.isServed && styles.servedToggleTextActive
+                        ]}>
+                          {table.isServed ? '✓ Served' : 'Pending'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+
+                {/* Bottom Chair */}
+                <View style={styles.chairBottom} />
               </TouchableOpacity>
             ))}
           </View>
@@ -280,122 +312,75 @@ export default function TablesScreen() {
         </View>
       </Modal>
 
-      {/* Order Details Modal */}
-      <Modal visible={showOrderModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Order Details</Text>
-              <TouchableOpacity onPress={() => setShowOrderModal(false)}>
-                <X size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
+      {/* Payment Modal */}
+      {selectedTable && (
+        <PaymentModal
+          visible={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          orderId={selectedTable.orderId || `TABLE_${selectedTable.number}`}
+          amount={selectedTable.orderAmount || 0}
+          customerName={selectedTable.customerName}
+          onPaymentSuccess={async (transactionId, method) => {
+            console.log('Payment successful:', { transactionId, method, tableId: selectedTable.id });
 
-            {selectedTable && (
-              <ScrollView>
-                {/* Table & Order Info */}
-                <View style={styles.orderHeader}>
-                  <View style={styles.orderHeaderLeft}>
-                    <Text style={styles.orderTableText}>Table {selectedTable.number}</Text>
-                    <Text style={styles.orderIdText}>#{selectedTable.orderId}</Text>
-                  </View>
-                  <View style={styles.orderDurationBadge}>
-                    <Clock size={14} color="#F59E0B" />
-                    <Text style={styles.orderDurationText}>{selectedTable.duration}</Text>
-                  </View>
-                </View>
+            // Generate payment receipt before clearing table data
+            try {
+              const paymentData = {
+                orderId: selectedTable.orderId || `TABLE_${selectedTable.number}`,
+                tableNo: selectedTable.number,
+                customerName: selectedTable.customerName,
+                items: selectedTable.items || [],
+                subtotal: selectedTable.orderAmount || 0,
+                tax: 0,
+                discount: 0,
+                totalAmount: selectedTable.orderAmount || 0,
+                paymentMethod: method,
+                transactionId: transactionId,
+                timestamp: new Date(),
+                orderType: 'dine-in' as const
+              };
 
-                {/* Customer Info */}
-                {selectedTable.customerName && (
-                  <View style={styles.customerInfo}>
-                    <User size={16} color="#6B7280" />
-                    <Text style={styles.customerName}>{selectedTable.customerName}</Text>
-                  </View>
-                )}
+              const receiptResult = await printPaymentReceipt(paymentData);
 
-                {/* Order Items */}
-                <View style={styles.orderItemsSection}>
-                  <Text style={styles.sectionLabel}>Order Items</Text>
-                  {selectedTable.items?.map((item, index) => (
-                    <View key={index} style={styles.orderItem}>
-                      <View style={styles.orderItemLeft}>
-                        <TouchableOpacity
-                          style={styles.minusButton}
-                          onPress={() => {
-                            if (selectedTable.items) {
-                              const updatedItems = [...selectedTable.items];
-                              if (updatedItems[index].quantity > 1) {
-                                updatedItems[index] = {
-                                  ...updatedItems[index],
-                                  quantity: updatedItems[index].quantity - 1
-                                };
-                              } else {
-                                updatedItems.splice(index, 1);
-                              }
-                              const newTotal = updatedItems.reduce((sum, itm) => sum + (itm.price * itm.quantity), 0);
-                              setTables(prev => prev.map(t =>
-                                t.id === selectedTable.id
-                                  ? { ...t, items: updatedItems, orderAmount: newTotal }
-                                  : t
-                              ));
-                              setSelectedTable({
-                                ...selectedTable,
-                                items: updatedItems,
-                                orderAmount: newTotal
-                              });
-                            }
-                          }}
-                        >
-                          <Text style={styles.minusButtonText}>−</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.orderItemQuantity}>{item.quantity}x</Text>
-                        <Text style={styles.orderItemName}>{item.name}</Text>
-                      </View>
-                      <Text style={styles.orderItemPrice}>₹{item.price * item.quantity}</Text>
-                    </View>
-                  ))}
-                </View>
+              if (receiptResult.success && receiptResult.receipt) {
+                setCurrentReceipt(receiptResult.receipt);
+                setShowReceipt(true);
+              }
+            } catch (error) {
+              console.error('Error generating payment receipt:', error);
+            }
 
-                {/* Total */}
-                <View style={styles.orderTotal}>
-                  <Text style={styles.orderTotalLabel}>Total Amount</Text>
-                  <Text style={styles.orderTotalAmount}>₹{selectedTable.orderAmount}</Text>
-                </View>
+            // Update table status to available after payment (order is completed)
+            setTables(prev => prev.map(t =>
+              t.id === selectedTable.id
+                ? {
+                  ...t,
+                  status: 'available' as const,
+                  orderAmount: undefined,
+                  duration: undefined,
+                  orderId: undefined,
+                  customerName: undefined,
+                  items: undefined,
+                  isServed: undefined,
+                  isPaid: undefined,
+                  transactionId: undefined,
+                  paymentMethod: undefined
+                }
+                : t
+            ));
+            setShowPaymentModal(false);
+            setShowOrderModal(false);
+          }}
+        />
+      )}
 
-                {/* Action Buttons */}
-                <View style={styles.orderActions}>
-                  <TouchableOpacity
-                    style={styles.actionButtonPrimary}
-                    onPress={() => {
-                      if (selectedTable) {
-                        setTables(prev => prev.map(t =>
-                          t.id === selectedTable.id
-                            ? { ...t, isServed: !t.isServed }
-                            : t
-                        ));
-                        setSelectedTable({ ...selectedTable, isServed: !selectedTable.isServed });
-                      }
-                    }}
-                  >
-                    <ShoppingBag size={18} color="#FFFFFF" />
-                    <Text style={styles.actionButtonPrimaryText}>
-                      {selectedTable.isServed ? 'Mark as Pending' : 'Mark as Served'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity
-                  style={[styles.paymentButton, !selectedTable.isServed && styles.paymentButtonDisabled]}
-                  disabled={!selectedTable.isServed}
-                >
-                  <Text style={[styles.paymentButtonText, !selectedTable.isServed && styles.paymentButtonTextDisabled]}>
-                    {selectedTable.isServed ? 'Proceed to Payment' : 'Payment Locked (Not Served)'}
-                  </Text>
-                </TouchableOpacity>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* Receipt Viewer */}
+      <ReceiptViewer
+        visible={showReceipt}
+        onClose={() => setShowReceipt(false)}
+        receipt={currentReceipt}
+        title="Payment Receipt"
+      />
     </SafeAreaView>
   );
 }
@@ -483,58 +468,94 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 20,
   },
-  tableCard: {
+  tableWrapper: {
     width: '48%',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 12,
+    marginBottom: 20,
+    alignItems: 'center',
   },
-  tableNumber: {
+  chairTop: {
+    width: '60%',
+    height: 8,
+    backgroundColor: '#3E2723', // Dark wood for chair
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    marginBottom: -2, // Slight overlap
+    zIndex: 1,
+  },
+  chairBottom: {
+    width: '60%',
+    height: 8,
+    backgroundColor: '#3E2723',
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+    marginTop: -2,
+    zIndex: 1,
+  },
+  tableSurface: {
+    width: '100%',
+    backgroundColor: '#E3C099', // Light wood table top
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#8B5E3C', // Darker wood border
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+    minHeight: 100,
+  },
+  tableSurfaceOccupied: {
+    borderColor: '#EF4444', // Red border if occupied, or keep wood and just show badge
+    borderWidth: 2,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   tableNumberText: {
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#3E2723',
+  },
+  statusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  statusBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
-    color: '#1F2937',
-  },
-  tableCapacity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 8,
-  },
-  tableCapacityText: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  tableStatus: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  tableStatusText: {
-    fontSize: 11,
-    fontWeight: '600',
     color: '#FFFFFF',
+    textTransform: 'capitalize',
   },
-  tableDuration: {
+  tableInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginBottom: 4,
   },
-  tableDurationText: {
+  tableInfoText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#5D4037',
+    fontWeight: '600',
+  },
+  activeOrderInfo: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 94, 60, 0.2)',
+    paddingTop: 8,
   },
   tableAmount: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: '800',
+    color: '#3E2723',
+    marginVertical: 4,
   },
   modalOverlay: {
     flex: 1,
@@ -726,25 +747,26 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   servedToggle: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#8B5E3C',
+    alignSelf: 'flex-start',
   },
   servedToggleActive: {
-    backgroundColor: '#D1FAE5',
-    borderColor: '#10B981',
+    backgroundColor: '#10B981', // Keep green for served as it's a clear status
+    borderColor: '#059669',
   },
   servedToggleText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontWeight: '700',
+    color: '#3E2723',
   },
   servedToggleTextActive: {
-    color: '#047857',
+    color: '#FFFFFF',
   },
   minusButton: {
     width: 24,

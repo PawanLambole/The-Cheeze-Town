@@ -1,9 +1,11 @@
 // Force re-bundle
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, Plus } from 'lucide-react-native';
+import { printKitchenReceipt } from '../../services/thermalPrinter';
+import ReceiptViewer from '../../components/ReceiptViewer';
 
 function CreateOrderScreen() {
     const router = useRouter();
@@ -11,6 +13,8 @@ function CreateOrderScreen() {
     const [selectedTable, setSelectedTable] = useState<string | null>(null);
     const [menuSearch, setMenuSearch] = useState('');
     const [orderItems, setOrderItems] = useState<{ id: string; name: string; price: number; quantity: number }[]>([]);
+    const [showReceipt, setShowReceipt] = useState(false);
+    const [currentReceipt, setCurrentReceipt] = useState('');
 
     // Dummy data
     const tables = Array.from({ length: 10 }, (_, i) => ({ id: String(i + 1), number: i + 1, status: i % 3 === 0 ? 'occupied' : 'available' }));
@@ -43,9 +47,45 @@ function CreateOrderScreen() {
 
     const totalAmount = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    const handleCreateOrder = () => {
-        // Logic to save order would go here
-        // For now, just navigate to orders list
+    const handleCreateOrder = async () => {
+        if (orderItems.length === 0) {
+            Alert.alert('No Items', 'Please add at least one item to the order');
+            return;
+        }
+
+        // Generate order ID
+        const orderId = `ORD${Date.now().toString().slice(-6)}`;
+
+        // Prepare order for printing
+        const orderForPrint = {
+            orderId,
+            tableNo: selectedTable ? tables.find(t => t.id === selectedTable)?.number : 'Takeaway',
+            items: orderItems,
+            totalAmount,
+            timestamp: new Date(),
+            orderType: selectedTable ? 'dine-in' as const : 'takeaway' as const
+        };
+
+        try {
+            // Generate kitchen receipt
+            const printResult = await printKitchenReceipt(orderForPrint);
+
+            if (printResult.success && printResult.receipt) {
+                // Show receipt in app
+                setCurrentReceipt(printResult.receipt);
+                setShowReceipt(true);
+            } else {
+                Alert.alert('Error', printResult.message || 'Failed to generate receipt');
+            }
+        } catch (error) {
+            console.error('Error creating order:', error);
+            Alert.alert('Error', 'Failed to create order. Please try again.');
+        }
+    };
+
+    const handleReceiptClose = () => {
+        setShowReceipt(false);
+        // Navigate to orders after closing receipt
         router.push('/manager/orders');
     };
 
@@ -155,7 +195,29 @@ function CreateOrderScreen() {
                                 <ScrollView style={{ maxHeight: 100 }}>
                                     {orderItems.map(item => (
                                         <View key={item.id} style={styles.cartItem}>
-                                            <Text style={styles.cartItemName}>{item.quantity}x {item.name}</Text>
+                                            <View style={styles.cartItemLeft}>
+                                                <TouchableOpacity
+                                                    style={styles.cartQuantityButton}
+                                                    onPress={() => {
+                                                        setOrderItems(prev => {
+                                                            const updated = prev.map(i =>
+                                                                i.id === item.id && i.quantity > 1
+                                                                    ? { ...i, quantity: i.quantity - 1 }
+                                                                    : i
+                                                            );
+                                                            // Remove item if quantity is 1 (will become 0)
+                                                            if (item.quantity === 1) {
+                                                                return prev.filter(i => i.id !== item.id);
+                                                            }
+                                                            return updated;
+                                                        });
+                                                    }}
+                                                >
+                                                    <Text style={styles.cartQuantityButtonText}>-</Text>
+                                                </TouchableOpacity>
+                                                <Text style={styles.cartItemQuantityText}>{item.quantity}x</Text>
+                                                <Text style={styles.cartItemName}>{item.name}</Text>
+                                            </View>
                                             <Text style={styles.cartItemPrice}>₹{item.price * item.quantity}</Text>
                                         </View>
                                     ))}
@@ -169,6 +231,14 @@ function CreateOrderScreen() {
                     </>
                 )}
             </View>
+
+            {/* Receipt Viewer */}
+            <ReceiptViewer
+                visible={showReceipt}
+                onClose={handleReceiptClose}
+                receipt={currentReceipt}
+                title="Kitchen Order Receipt"
+            />
         </SafeAreaView>
     );
 }
@@ -353,7 +423,34 @@ const styles = StyleSheet.create({
     cartItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 4,
+    },
+    cartItemLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        gap: 8,
+    },
+    cartQuantityButton: {
+        width: 24,
+        height: 24,
+        borderRadius: 5,
+        backgroundColor: '#EF4444',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#DC2626',
+    },
+    cartQuantityButtonText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#FFFFFF',
+    },
+    cartItemQuantityText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#1F2937',
     },
     cartItemName: {
         fontSize: 14,
