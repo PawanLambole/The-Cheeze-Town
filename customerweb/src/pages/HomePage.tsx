@@ -1,4 +1,4 @@
-import { Coffee } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 interface HomePageProps {
   onNavigate: () => void;
@@ -6,60 +6,66 @@ interface HomePageProps {
 
 export default function HomePage({ onNavigate }: HomePageProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-800 via-zinc-700 to-zinc-800">
-      <div className="relative overflow-hidden">
-        <svg className="absolute top-0 left-0 w-full h-32" preserveAspectRatio="none" viewBox="0 0 1200 120">
-          <path
-            d="M0,0 Q50,40 100,20 T200,20 T300,20 T400,20 T500,20 T600,20 T700,20 T800,20 T900,20 T1000,20 T1100,20 L1200,20 L1200,0 Z"
-            fill="#fbbf24"
-          />
-        </svg>
-      </div>
+    <div className="min-h-screen bg-brand-darker relative overflow-hidden">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-yellow/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-yellow/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
 
-      <div className="container mx-auto px-6 py-20">
-        <div className="text-center mb-12 pt-16">
-          <img
-            src="/logo.jpeg"
-            alt="The Cheese Town"
-            className="w-48 h-48 mx-auto mb-8 rounded-full shadow-2xl"
-          />
-          <h1 className="text-6xl font-bold text-yellow-400 mb-4" style={{ fontFamily: 'Georgia, serif' }}>
-            The Cheese Town
-          </h1>
-          <p className="text-2xl text-yellow-300 mb-8">Where Every Bite is Cheesy Delight!</p>
+      {/* Hero Section */}
+      <div className="relative z-10">
+        <div className="container mx-auto px-4 pt-12 pb-24 md:py-24">
+          <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
+
+            {/* Logo Badge */}
+            <div className="mb-8 relative group">
+              <div className="absolute inset-0 bg-brand-yellow/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+              <img
+                src="/logo.jpeg"
+                alt="The Cheese Town"
+                className="relative w-32 h-32 md:w-48 md:h-48 rounded-full shadow-2xl border-4 border-brand-dark ring-4 ring-brand-yellow/20 object-cover"
+              />
+            </div>
+
+            <h1 className="text-4xl md:text-7xl font-bold font-serif text-white mb-6 leading-tight">
+              The <span className="text-brand-yellow">Cheese</span> Town
+            </h1>
+
+            <p className="text-lg md:text-2xl text-gray-300 mb-10 max-w-2xl font-light leading-relaxed">
+              Where every bite is a <span className="text-brand-yellow italic font-serif">cheesy delight</span>.
+              Experience the perfect blend of gourmet flavors and cozy moments.
+            </p>
+
+            <button
+              onClick={onNavigate}
+              className="group relative bg-brand-yellow text-brand-darker font-bold text-lg md:text-xl py-4 px-8 md:px-12 rounded-full overflow-hidden transition-all duration-300 transform hover:scale-105 hover:shadow-[0_0_20px_rgba(251,191,36,0.4)]"
+            >
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+              <span className="relative flex items-center gap-2">
+                Order Now
+                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </button>
+          </div>
         </div>
 
-        <div className="max-w-2xl mx-auto bg-zinc-900/80 backdrop-blur-sm rounded-3xl p-10 shadow-2xl border-4 border-yellow-400">
-          <div className="text-center mb-8">
-            <Coffee className="w-16 h-16 mx-auto text-yellow-400 mb-4" />
-            <h2 className="text-3xl font-bold text-white mb-4">Welcome to Our Café</h2>
-            <p className="text-gray-300 text-lg leading-relaxed">
-              Indulge in our delicious selection of cheesy delights, gourmet coffees, and delectable treats.
-              Experience the perfect blend of comfort and flavor in every visit.
-            </p>
+        {/* Features Grid */}
+        <div className="container mx-auto px-4 pb-20">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {[
+              { icon: '🧀', title: 'Fresh Cheese', desc: 'Premium quality artisan cheese in every dish' },
+              { icon: '☕', title: 'Hot Beverages', desc: 'Specialty coffee and rich hot chocolates' },
+              { icon: '🍰', title: 'Sweet Treats', desc: 'Decadent desserts to satisfy your cravings' }
+            ].map((item, index) => (
+              <div
+                key={index}
+                className="bg-brand-dark/50 backdrop-blur-sm p-8 rounded-3xl border border-white/5 hover:border-brand-yellow/30 transition-all duration-300 hover:-translate-y-1"
+              >
+                <div className="text-4xl mb-4">{item.icon}</div>
+                <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+                <p className="text-gray-400">{item.desc}</p>
+              </div>
+            ))}
           </div>
-
-          <div className="grid grid-cols-3 gap-6 my-8 text-center">
-            <div className="bg-yellow-400/10 rounded-xl p-4 border-2 border-yellow-400/30">
-              <p className="text-4xl mb-2">🧀</p>
-              <p className="text-yellow-400 font-semibold">Fresh Cheese</p>
-            </div>
-            <div className="bg-yellow-400/10 rounded-xl p-4 border-2 border-yellow-400/30">
-              <p className="text-4xl mb-2">☕</p>
-              <p className="text-yellow-400 font-semibold">Hot Beverages</p>
-            </div>
-            <div className="bg-yellow-400/10 rounded-xl p-4 border-2 border-yellow-400/30">
-              <p className="text-4xl mb-2">🍰</p>
-              <p className="text-yellow-400 font-semibold">Sweet Treats</p>
-            </div>
-          </div>
-
-          <button
-            onClick={onNavigate}
-            className="w-full bg-yellow-400 hover:bg-yellow-500 text-zinc-900 font-bold text-xl py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg"
-          >
-            View Our Menu
-          </button>
         </div>
       </div>
     </div>
