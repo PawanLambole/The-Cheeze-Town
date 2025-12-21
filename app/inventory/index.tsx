@@ -14,7 +14,11 @@ interface InventoryItem {
   lastRestocked: string;
 }
 
-export default function InventoryScreen() {
+interface InventoryScreenProps {
+  showBack?: boolean;
+}
+
+export default function InventoryScreen({ showBack = true }: InventoryScreenProps) {
   const router = useRouter();
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -72,9 +76,11 @@ export default function InventoryScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#1F2937" />
-        </TouchableOpacity>
+        {showBack && (
+          <TouchableOpacity onPress={() => router.back()}>
+            <ArrowLeft size={24} color="#1F2937" />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>Inventory</Text>
         <TouchableOpacity onPress={() => setShowAddModal(true)}>
           <Plus size={24} color="#FDB813" />

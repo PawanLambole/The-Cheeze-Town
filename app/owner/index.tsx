@@ -57,6 +57,12 @@ export default function OwnerDashboardScreen() {
           <Text style={styles.appName}>The Cheeze Town</Text>
           <Text style={styles.greeting}>Owner Admin Dashboard</Text>
         </View>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => router.push('/owner/settings')}
+        >
+          <Settings size={24} color="#1F2937" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.main}>
@@ -76,25 +82,32 @@ export default function OwnerDashboardScreen() {
             />
             <OwnerCard
               icon={<ClipboardList size={22} color="#2563EB" />}
-              title="Total Orders"
+              title="Today's Total Orders"
               value="87"
               subtitle="Across all tables"
             />
           </View>
 
-          <View style={styles.overviewRow}>
-            <OwnerCard
-              icon={<BarChart3 size={22} color="#F97316" />}
-              title="Avg. Order Value"
-              value="₹373"
-              subtitle="Sales efficiency"
-            />
-            <OwnerCard
-              icon={<Users size={22} color="#7C3AED" />}
-              title="Active Staff"
-              value="12"
-              subtitle="On duty now"
-            />
+          <View style={styles.reportCard}>
+            <Text style={styles.reportTitle}>Today's Financial Report</Text>
+            <View style={styles.reportRow}>
+              <View style={styles.reportItem}>
+                <Text style={styles.reportLabel}>Total Sales</Text>
+                <Text style={[styles.reportValue, { color: '#16A34A' }]}>₹32,450</Text>
+              </View>
+              <View style={styles.reportDivider} />
+              <View style={styles.reportItem}>
+                <Text style={styles.reportLabel}>Total Expense</Text>
+                <Text style={[styles.reportValue, { color: '#EF4444' }]}>₹12,000</Text>
+              </View>
+              <View style={styles.reportDivider} />
+              <View style={styles.reportItem}>
+                <Text style={styles.reportLabel}>Net Profit</Text>
+                <Text style={[styles.reportValue, { color: '#FDB813' }]}>
+                  ₹{(32450 - 12000).toLocaleString()}
+                </Text>
+              </View>
+            </View>
           </View>
 
           <Text style={styles.sectionTitle}>Management</Text>
@@ -105,21 +118,21 @@ export default function OwnerDashboardScreen() {
               title="Menu"
               subtitle="Configure & price items"
               variant="management"
-              onPress={() => router.push('/menu')}
+              onPress={() => router.push('/owner/menu')}
             />
             <OwnerCard
               icon={<ClipboardList size={24} color="#FDB813" />}
               title="Orders"
               subtitle="Monitor live orders"
               variant="management"
-              onPress={() => router.push('/manager/orders')}
+              onPress={() => router.push('/owner/orders')}
             />
             <OwnerCard
               icon={<Table size={24} color="#FDB813" />}
               title="Tables"
               subtitle="Seating & occupancy"
               variant="management"
-              onPress={() => router.push('/manager/tables')}
+              onPress={() => router.push('/owner/tables')}
             />
             <OwnerCard
               icon={<Package size={24} color="#FDB813" />}
@@ -140,38 +153,11 @@ export default function OwnerDashboardScreen() {
               title="Staff"
               subtitle="Roles & shifts"
               variant="management"
-              onPress={() => router.push('/manager/staff')}
+              onPress={() => router.push('/owner/staff')}
             />
-            <OwnerCard
-              icon={<Settings size={24} color="#FDB813" />}
-              title="Settings"
-              subtitle="Branches & taxes"
-              variant="management"
-              onPress={() => router.push('/manager/settings')}
-            />
+
           </View>
         </ScrollView>
-
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.bottomNavItem}>
-            <BarChart3 size={20} color="#FDB813" />
-            <Text style={styles.bottomNavLabel}>Overview</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.bottomNavItem}
-            onPress={() => router.push('/manager/staff')}
-          >
-            <Users size={20} color="#6B7280" />
-            <Text style={styles.bottomNavLabelInactive}>Managers</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.bottomNavItem}
-            onPress={() => router.push('/manager/settings')}
-          >
-            <Settings size={20} color="#6B7280" />
-            <Text style={styles.bottomNavLabelInactive}>Settings</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -191,6 +177,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   appName: {
     fontSize: 24,
@@ -293,6 +284,43 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#6B7280',
     marginTop: 4,
+  },
+  reportCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+    marginBottom: 24,
+  },
+  reportTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  reportRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reportItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  reportLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  reportValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  reportDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#E5E7EB',
   },
 });
 

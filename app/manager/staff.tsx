@@ -14,10 +14,14 @@ interface StaffMember {
   joinDate: string;
 }
 
-export default function StaffScreen() {
+interface StaffScreenProps {
+  isOwner?: boolean;
+}
+
+export default function StaffScreen({ isOwner }: StaffScreenProps) {
   const router = useRouter();
   const params = useLocalSearchParams<{ role?: string }>();
-  const isOwnerView = params.role !== 'manager';
+  const isOwnerView = isOwner ?? false;
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -177,7 +181,7 @@ export default function StaffScreen() {
             <TouchableOpacity
               key={member.id}
               style={styles.staffCard}
-              onPress={() => router.push(`/manager/staff/${member.id}` as any)}
+              onPress={() => router.push(`${isOwnerView ? '/owner' : '/manager'}/staff/${member.id}` as any)}
               activeOpacity={0.7}
             >
               <View style={styles.staffAvatar}>

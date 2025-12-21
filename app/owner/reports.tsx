@@ -32,9 +32,6 @@ export default function ReportsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#1F2937" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Reports & Analytics</Text>
         <View style={{ width: 24 }} />
       </View>

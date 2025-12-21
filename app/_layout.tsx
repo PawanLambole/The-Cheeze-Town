@@ -13,7 +13,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login/index" options={{ headerShown: false }} />
         <Stack.Screen name="manager" options={{ headerShown: false }} />
-        <Stack.Screen name="owner/index" options={{ headerShown: false }} />
+        <Stack.Screen name="owner" options={{ headerShown: false }} />
         <Stack.Screen name="menu/index" options={{ headerShown: false }} />
         <Stack.Screen name="inventory/index" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
