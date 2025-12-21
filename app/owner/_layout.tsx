@@ -1,6 +1,6 @@
 import { View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Home, BarChart3, Package, Users, Settings, User } from 'lucide-react-native';
+import { Home, ShoppingCart, Package, Users, Settings, User } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 
@@ -36,11 +36,11 @@ export default function OwnerTabLayout() {
                 }}
             />
             <Tabs.Screen
-                name="reports"
+                name="purchases"
                 options={{
-                    title: 'Reports',
+                    title: 'Purchases',
                     tabBarIcon: ({ size, color }) => (
-                        <BarChart3 size={size} color={color} />
+                        <ShoppingCart size={size} color={color} />
                     ),
                 }}
             />
