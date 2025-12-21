@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Plus, X, Camera, User, Package, DollarSign, Calendar, FileText } from 'lucide-react-native';
+import { ArrowLeft, Plus, X, Camera, User, Package, DollarSign, Calendar, Image as ImageIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/Theme';
 
@@ -497,7 +497,7 @@ export default function PurchasesScreen() {
                                     <Text style={styles.photoButtonText}>Take Photo</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
-                                    <FileText size={20} color="#000000" />
+                                    <ImageIcon size={20} color="#000000" />
                                     <Text style={styles.photoButtonText}>Choose from Gallery</Text>
                                 </TouchableOpacity>
                             </View>
