@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
-  BarChart3,
+  ShoppingCart,
   DollarSign,
   ClipboardList,
   Users,
@@ -143,11 +143,11 @@ export default function OwnerDashboardScreen() {
               onPress={() => router.push('/inventory')}
             />
             <OwnerCard
-              icon={<BarChart3 size={24} color={Colors.dark.primary} />}
-              title="Reports"
-              subtitle="Sales & trends"
+              icon={<ShoppingCart size={24} color={Colors.dark.primary} />}
+              title="Purchases"
+              subtitle="Track all purchases"
               variant="management"
-              onPress={() => router.push('/owner/reports')}
+              onPress={() => router.push('/owner/purchases')}
             />
             <OwnerCard
               icon={<Users size={24} color={Colors.dark.primary} />}
