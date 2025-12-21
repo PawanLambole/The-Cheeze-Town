@@ -1,7 +1,7 @@
 // Force re-bundle
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, Plus } from 'lucide-react-native';
 import { printKitchenReceipt } from '../../services/thermalPrinter';
@@ -102,9 +102,11 @@ function CreateOrderScreen() {
         }
     };
 
+    const insets = useSafeAreaInsets();
+
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
+        <View style={styles.container}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                 <TouchableOpacity onPress={handleBack}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
@@ -242,7 +244,7 @@ function CreateOrderScreen() {
                 receipt={currentReceipt}
                 title="Kitchen Order Receipt"
             />
-        </SafeAreaView>
+        </View>
     );
 }
 

@@ -1,27 +1,48 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Users, Clock, Plus, X, ShoppingBag, User } from 'lucide-react-native';
 import PaymentModal from '../../components/PaymentModal';
 import { printPaymentReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
 import { Colors } from '@/constants/Theme';
+import { database, supabase } from '@/services/database';
+
+interface OrderItem {
+  id: number;
+  menu_item_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
+
+interface Order {
+  id: number;
+  order_number: string;
+  table_id: number;
+  status: string;
+  total_amount: number;
+  order_time: string;
+  created_at: string;
+  order_items?: OrderItem[];
+}
 
 interface Table {
-  id: string;
-  number: number;
+  id: number;
+  table_number: number;
   capacity: number;
-  status: 'available' | 'occupied';
+  status: 'available' | 'occupied' | 'reserved' | 'maintenance';
+  current_order_id?: number;
+  location?: string;
+  // Computed fields from order
+  order?: Order;
   orderAmount?: number;
   duration?: string;
   orderId?: string;
   customerName?: string;
   items?: { name: string; quantity: number; price: number }[];
   isServed?: boolean;
-  isPaid?: boolean;
-  transactionId?: string;
-  paymentMethod?: string;
 }
 
 export default function TablesScreen() {
@@ -35,100 +56,106 @@ export default function TablesScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [currentReceipt, setCurrentReceipt] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const statusOptions = ['all', 'available', 'occupied'];
 
-  const [tables, setTables] = useState<Table[]>([
-    { id: '1', number: 1, capacity: 4, status: 'available' },
-    {
-      id: '2',
-      number: 2,
-      capacity: 2,
-      status: 'occupied',
-      orderAmount: 850,
-      duration: '45 min',
-      orderId: 'ORD001',
-      customerName: 'Rahul Sharma',
-      isServed: false,
-      items: [
-        { name: 'Margherita Pizza', quantity: 2, price: 250 },
-        { name: 'Garlic Bread', quantity: 1, price: 150 },
-        { name: 'Coke', quantity: 2, price: 100 }
-      ]
-    },
-    {
-      id: '3',
-      number: 3,
-      capacity: 6,
-      status: 'occupied',
-      orderAmount: 580,
-      duration: '30 min',
-      orderId: 'ORD002',
-      customerName: 'Priya Patel',
-      isServed: true,
-      items: [
-        { name: 'Paneer Tikka Pizza', quantity: 1, price: 280 },
-        { name: 'French Fries', quantity: 1, price: 150 },
-        { name: 'Pepsi', quantity: 1, price: 50 }
-      ]
-    },
-    { id: '4', number: 4, capacity: 4, status: 'available' },
-    {
-      id: '5',
-      number: 5,
-      capacity: 4,
-      status: 'occupied',
-      orderAmount: 650,
-      duration: '25 min',
-      orderId: 'ORD003',
-      isServed: false,
-      items: [
-        { name: 'Cheese Burst Pizza', quantity: 1, price: 450 },
-        { name: 'Garlic Bread', quantity: 1, price: 150 },
-        { name: 'Sprite', quantity: 1, price: 50 }
-      ]
-    },
-    {
-      id: '6',
-      number: 6,
-      capacity: 2,
-      status: 'occupied',
-      orderAmount: 420,
-      duration: '1h 10min',
-      orderId: 'ORD004',
-      customerName: 'Amit Kumar',
-      isServed: true,
-      items: [
-        { name: 'Veg Supreme Pizza', quantity: 1, price: 320 },
-        { name: 'Coke', quantity: 1, price: 100 }
-      ]
-    },
-    {
-      id: '7',
-      number: 7,
-      capacity: 4,
-      status: 'occupied',
-      orderAmount: 200,
-      duration: '15 min',
-      orderId: 'ORD005',
-      isServed: false,
-      items: [
-        { name: 'French Fries', quantity: 2, price: 150 },
-        { name: 'Pepsi', quantity: 1, price: 50 }
-      ]
-    },
-    { id: '8', number: 8, capacity: 8, status: 'available' },
-    { id: '9', number: 9, capacity: 4, status: 'available' },
-    { id: '10', number: 10, capacity: 2, status: 'available' },
-  ]);
+  const [tables, setTables] = useState<Table[]>([]);
+
+  // Fetch tables from database
+  useEffect(() => {
+    fetchTables();
+
+    // Set up real-time subscription
+    const subscription = database.subscribe('restaurant_tables', () => {
+      fetchTables();
+    });
+
+    return () => {
+      database.unsubscribe(subscription);
+    };
+  }, []);
+
+  const fetchTables = async () => {
+    setLoading(true);
+    try {
+      // Fetch tables with their current orders
+      const { data: tablesData, error } = await supabase
+        .from('restaurant_tables')
+        .select(`
+          *,
+          order:orders!current_order_id (
+            id,
+            order_number,
+            status,
+            total_amount,
+            created_at,
+            order_items (
+              id,
+              menu_item_name,
+              quantity,
+              unit_price,
+              total_price
+            )
+          )
+        `)
+        .order('table_number', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching tables:', error);
+        Alert.alert('Error', 'Failed to load tables');
+      } else {
+        // Transform data to match UI expectations
+        const transformedTables: Table[] = (tablesData || []).map(table => {
+          const order = table.order as unknown as Order | null;
+          const isServed = order?.status === 'ready' || order?.status === 'served';
+
+          return {
+            ...table,
+            order,
+            orderAmount: order?.total_amount,
+            orderId: order?.order_number,
+            duration: order ? calculateDuration(order.created_at) : undefined,
+            items: order?.order_items?.map(item => ({
+              name: item.menu_item_name,
+              quantity: item.quantity,
+              price: item.unit_price
+            })),
+            isServed,
+          };
+        });
+
+        setTables(transformedTables);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateDuration = (createdAt: string) => {
+    const now = new Date();
+    const orderTime = new Date(createdAt);
+    const diffMs = now.getTime() - orderTime.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 60) {
+      return `${diffMins} min`;
+    } else {
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      return `${hours}h ${mins}min`;
+    }
+  };
 
   const filteredTables = tables.filter(table =>
     selectedStatus === 'all' || table.status === selectedStatus
   );
 
-  const handleAddTable = () => {
+  const handleAddTable = async () => {
     if (!newTableNumber || !newTableCapacity) {
-      alert('Please fill in all fields');
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
@@ -136,23 +163,32 @@ export default function TablesScreen() {
     const capacity = parseInt(newTableCapacity);
 
     // Check if table number already exists
-    if (tables.find(t => t.number === tableNumber)) {
-      alert('Table number already exists');
+    if (tables.find(t => t.table_number === tableNumber)) {
+      Alert.alert('Error', 'Table number already exists');
       return;
     }
 
-    const newTable: Table = {
-      id: String(Date.now()),
-      number: tableNumber,
-      capacity: capacity,
-      status: 'available',
-      // No order info for new table
-    };
+    try {
+      const { data, error } = await database.insert('restaurant_tables', {
+        table_number: tableNumber,
+        capacity: capacity,
+        status: 'available',
+        location: 'indoor'
+      });
 
-    setTables(prev => [...prev, newTable].sort((a, b) => a.number - b.number));
-    setShowAddModal(false);
-    setNewTableNumber('');
-    setNewTableCapacity('');
+      if (error) {
+        console.error('Error adding table:', error);
+        Alert.alert('Error', 'Failed to add table');
+      } else {
+        setShowAddModal(false);
+        setNewTableNumber('');
+        setNewTableCapacity('');
+        // Table will be added via real-time subscription
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      Alert.alert('Error', 'Failed to add table');
+    }
   };
 
   const handleTableClick = (table: Table) => {
@@ -162,9 +198,11 @@ export default function TablesScreen() {
     }
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
@@ -201,78 +239,91 @@ export default function TablesScreen() {
           ))}
         </ScrollView>
 
-        <ScrollView style={styles.tablesList} showsVerticalScrollIndicator={false}>
-          <View style={styles.tablesGrid}>
-            {filteredTables.map(table => (
-              <TouchableOpacity
-                key={table.id}
-                onPress={() => handleTableClick(table)}
-                style={styles.tableWrapper}
-              >
-                {/* Top Chair */}
-                <View style={styles.chairTop} />
-
-                {/* Table Surface */}
-                <View style={[
-                  styles.tableSurface,
-                  table.status === 'occupied' && styles.tableSurfaceOccupied
-                ]}>
-
-                  <View style={styles.tableHeader}>
-                    <Text style={[
-                      styles.tableNumberText,
-                      table.status === 'occupied' && { color: Colors.dark.text }
-                    ]}>Table {table.number}</Text>
-                    <View style={[
-                      styles.statusBadge,
-                      { backgroundColor: table.status === 'available' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }
-                    ]}>
-                      <Text style={[
-                        styles.statusBadgeText,
-                        { color: table.status === 'available' ? '#10B981' : '#EF4444' }
-                      ]}>{table.status}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.tableInfoRow}>
-                    <Users size={14} color={Colors.dark.textSecondary} />
-                    <Text style={styles.tableInfoText}>{table.capacity} Seats</Text>
-                  </View>
-
-                  {table.status === 'occupied' && (
-                    <View style={styles.activeOrderInfo}>
-                      <View style={styles.tableInfoRow}>
-                        <Clock size={14} color={Colors.dark.textSecondary} />
-                        <Text style={styles.tableInfoText}>{table.duration}</Text>
-                      </View>
-                      <Text style={styles.tableAmount}>₹{table.orderAmount}</Text>
-
-                      <TouchableOpacity
-                        style={[styles.servedToggle, table.isServed && styles.servedToggleActive]}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          setTables(prev => prev.map(t =>
-                            t.id === table.id ? { ...t, isServed: !t.isServed } : t
-                          ));
-                        }}
-                      >
-                        <Text style={[
-                          styles.servedToggleText,
-                          table.isServed && styles.servedToggleTextActive
-                        ]}>
-                          {table.isServed ? '✓ Served' : 'Pending'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-
-                {/* Bottom Chair */}
-                <View style={styles.chairBottom} />
-              </TouchableOpacity>
-            ))}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.dark.primary} />
+            <Text style={styles.loadingText}>Loading tables...</Text>
           </View>
-        </ScrollView>
+        ) : (
+          <ScrollView style={styles.tablesList} showsVerticalScrollIndicator={false}>
+            <View style={styles.tablesGrid}>
+              {filteredTables.map(table => (
+                <TouchableOpacity
+                  key={table.id}
+                  onPress={() => handleTableClick(table)}
+                  style={styles.tableWrapper}
+                >
+                  {/* Top Chair */}
+                  <View style={styles.chairTop} />
+
+                  {/* Table Surface */}
+                  <View style={[
+                    styles.tableSurface,
+                    table.status === 'occupied' && styles.tableSurfaceOccupied
+                  ]}>
+
+                    <View style={styles.tableHeader}>
+                      <Text style={[
+                        styles.tableNumberText,
+                        table.status === 'occupied' && { color: Colors.dark.text }
+                      ]}>Table {table.table_number}</Text>
+                      <View style={[
+                        styles.statusBadge,
+                        { backgroundColor: table.status === 'available' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }
+                      ]}>
+                        <Text style={[
+                          styles.statusBadgeText,
+                          { color: table.status === 'available' ? '#10B981' : '#EF4444' }
+                        ]}>{table.status}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.tableInfoRow}>
+                      <Users size={14} color={Colors.dark.textSecondary} />
+                      <Text style={styles.tableInfoText}>{table.capacity} Seats</Text>
+                    </View>
+
+                    {table.status === 'occupied' && (
+                      <View style={styles.activeOrderInfo}>
+                        <View style={styles.tableInfoRow}>
+                          <Clock size={14} color={Colors.dark.textSecondary} />
+                          <Text style={styles.tableInfoText}>{table.duration}</Text>
+                        </View>
+                        <Text style={styles.tableAmount}>₹{table.orderAmount}</Text>
+
+                        <TouchableOpacity
+                          style={[styles.servedToggle, table.isServed && styles.servedToggleActive]}
+                          onPress={async (e) => {
+                            e.stopPropagation();
+                            if (table.order?.id) {
+                              try {
+                                const newStatus = table.isServed ? 'preparing' : 'ready';
+                                await database.update('orders', table.order.id, { status: newStatus });
+                                // Will refresh via subscription
+                              } catch (error) {
+                                console.error('Error updating order:', error);
+                              }
+                            }
+                          }}
+                        >
+                          <Text style={[
+                            styles.servedToggleText,
+                            table.isServed && styles.servedToggleTextActive
+                          ]}>
+                            {table.isServed ? '✓ Served' : 'Pending'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Bottom Chair */}
+                  <View style={styles.chairBottom} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        )}
       </View>
 
       {/* Add Table Modal */}
@@ -316,17 +367,17 @@ export default function TablesScreen() {
         <PaymentModal
           visible={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
-          orderId={selectedTable.orderId || `TABLE_${selectedTable.number}`}
+          orderId={selectedTable.orderId || `TABLE_${selectedTable.table_number}`}
           amount={selectedTable.orderAmount || 0}
           customerName={selectedTable.customerName}
           onPaymentSuccess={async (transactionId, method) => {
             console.log('Payment successful:', { transactionId, method, tableId: selectedTable.id });
 
-            // Generate payment receipt before clearing table data
+            // Generate payment receipt
             try {
               const paymentData = {
-                orderId: selectedTable.orderId || `TABLE_${selectedTable.number}`,
-                tableNo: selectedTable.number,
+                orderId: selectedTable.orderId || `TABLE_${selectedTable.table_number}`,
+                tableNo: selectedTable.table_number,
                 customerName: selectedTable.customerName,
                 items: selectedTable.items || [],
                 subtotal: selectedTable.orderAmount || 0,
@@ -349,24 +400,21 @@ export default function TablesScreen() {
               console.error('Error generating payment receipt:', error);
             }
 
-            // Update table status to available after payment (order is completed)
-            setTables(prev => prev.map(t =>
-              t.id === selectedTable.id
-                ? {
-                  ...t,
-                  status: 'available' as const,
-                  orderAmount: undefined,
-                  duration: undefined,
-                  orderId: undefined,
-                  customerName: undefined,
-                  items: undefined,
-                  isServed: undefined,
-                  isPaid: undefined,
-                  transactionId: undefined,
-                  paymentMethod: undefined
-                }
-                : t
-            ));
+            // Update order and table in database
+            if (selectedTable.order?.id) {
+              try {
+                await database.update('orders', selectedTable.order.id, {
+                  status: 'completed',
+                  completed_time: new Date().toISOString()
+                });
+                await database.update('restaurant_tables', selectedTable.id, {
+                  status: 'available',
+                  current_order_id: null
+                });
+              } catch (error) {
+                console.error('Error completing order:', error);
+              }
+            }
             setShowPaymentModal(false);
             setShowOrderModal(false);
           }}
@@ -396,7 +444,7 @@ export default function TablesScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.orderHeaderCard}>
                   <View style={styles.orderHeaderLeft}>
-                    <Text style={styles.orderTableText}>Table {selectedTable.number}</Text>
+                    <Text style={styles.orderTableText}>Table {selectedTable.table_number}</Text>
                     <Text style={styles.orderIdText}>#{selectedTable.orderId}</Text>
                   </View>
                   <View style={styles.orderDurationBadge}>
@@ -453,7 +501,7 @@ export default function TablesScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -505,6 +553,17 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: Colors.dark.textSecondary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: Colors.dark.textSecondary,
+    marginTop: 16,
   },
   statusContainer: {
     marginBottom: 16,

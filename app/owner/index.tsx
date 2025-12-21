@@ -1,17 +1,24 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   ShoppingCart,
-  DollarSign,
+  IndianRupee,
   ClipboardList,
   Users,
   UtensilsCrossed,
   Package,
   Table,
   Settings,
+  Clock,
+  TrendingDown,
+
 } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
+import { useAuth } from '@/contexts/AuthContext';
+import { database, supabase } from '@/services/database';
+import { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 
 interface OwnerCardProps {
   icon: React.ReactNode;
@@ -50,20 +57,97 @@ function OwnerCard({ icon, title, value, subtitle, onPress, variant = 'overview'
 
 export default function OwnerDashboardScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { userData } = useAuth();
+
+  const [stats, setStats] = useState({
+    todayRevenue: 0,
+    todayOrders: 0,
+    pendingOrders: 0,
+    todayExpense: 0
+  });
+
+  const fetchDashboardData = async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+
+      // 1. Get today's orders
+      const { data: todaysOrdersData, error: ordersError } = await database.query(
+        'orders',
+        'created_at',
+        'gte',
+        todayISO
+      );
+
+      if (ordersError) throw ordersError;
+
+      const ordersList = todaysOrdersData || [];
+      const orderCount = ordersList.length;
+
+      // Calculate Revenue
+      const revenue = ordersList
+        .filter((o: any) => o.status !== 'cancelled')
+        .reduce((sum: number, order: any) => sum + (Number(order.total_amount) || 0), 0);
+
+      // 2. Get pending orders count
+      const { data: pendingData } = await database.query('orders', 'status', 'eq', 'pending');
+      const { data: preparingData } = await database.query('orders', 'status', 'eq', 'preparing');
+      const pendingCount = (pendingData?.length || 0) + (preparingData?.length || 0);
+
+      // 3. Get generic expenses (if any table existed, for now mock or simple logic)
+      // Since we don't have an 'expenses' table defined in widely used context yet, we'll keep it 0 or use a placeholder
+      // If you have an expenses table, query it here.
+      const expenses = 0;
+
+      setStats({
+        todayRevenue: revenue,
+        todayOrders: orderCount,
+        pendingOrders: pendingCount,
+        todayExpense: expenses
+      });
+
+    } catch (error) {
+      console.error("Error fetching owner dashboard data", error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+    }, [])
+  );
+
+  useEffect(() => {
+    const sub = database.subscribe('orders', () => {
+      fetchDashboardData();
+    });
+    return () => {
+      database.unsubscribe(sub);
+    };
+  }, []);
+
+
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View>
           <Text style={styles.appName}>The Cheeze Town</Text>
-          <Text style={styles.greeting}>Owner Admin Dashboard</Text>
+          <Text style={styles.greeting}>
+            {userData?.name || 'Owner'} Admin Dashboard
+          </Text>
         </View>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => router.push('/owner/settings')}
-        >
-          <Settings size={24} color={Colors.dark.text} />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => router.push('/owner/settings')}
+          >
+            <Settings size={24} color={Colors.dark.text} />
+          </TouchableOpacity>
+
+        </View>
       </View>
 
       <View style={styles.main}>
@@ -76,16 +160,31 @@ export default function OwnerDashboardScreen() {
 
           <View style={styles.overviewRow}>
             <OwnerCard
-              icon={<DollarSign size={22} color="#16A34A" />}
+              icon={<IndianRupee size={22} color="#16A34A" />}
               title="Today's Revenue"
-              value="₹32,450"
-              subtitle="+18% vs yesterday"
+              value={`₹${stats.todayRevenue.toLocaleString()}`}
+              subtitle="vs yesterday"
             />
             <OwnerCard
               icon={<ClipboardList size={22} color="#2563EB" />}
               title="Today's Total Orders"
-              value="87"
+              value={stats.todayOrders.toString()}
               subtitle="Across all tables"
+            />
+          </View>
+
+          <View style={styles.overviewRow}>
+            <OwnerCard
+              icon={<TrendingDown size={22} color="#EF4444" />}
+              title="Today's Expense"
+              value={`₹${stats.todayExpense.toLocaleString()}`}
+              subtitle="Operational costs"
+            />
+            <OwnerCard
+              icon={<Clock size={22} color="#F59E0B" />}
+              title="Pending Orders"
+              value={stats.pendingOrders.toString()}
+              subtitle="Active right now"
             />
           </View>
 
@@ -94,18 +193,18 @@ export default function OwnerDashboardScreen() {
             <View style={styles.reportRow}>
               <View style={styles.reportItem}>
                 <Text style={styles.reportLabel}>Total Sales</Text>
-                <Text style={[styles.reportValue, { color: '#16A34A' }]}>₹32,450</Text>
+                <Text style={[styles.reportValue, { color: '#16A34A' }]}>₹{stats.todayRevenue.toLocaleString()}</Text>
               </View>
               <View style={styles.reportDivider} />
               <View style={styles.reportItem}>
                 <Text style={styles.reportLabel}>Total Expense</Text>
-                <Text style={[styles.reportValue, { color: '#EF4444' }]}>₹12,000</Text>
+                <Text style={[styles.reportValue, { color: '#EF4444' }]}>₹{stats.todayExpense.toLocaleString()}</Text>
               </View>
               <View style={styles.reportDivider} />
               <View style={styles.reportItem}>
                 <Text style={styles.reportLabel}>Net Profit</Text>
                 <Text style={[styles.reportValue, { color: Colors.dark.primary }]}>
-                  ₹{(32450 - 12000).toLocaleString()}
+                  ₹{(stats.todayRevenue - stats.todayExpense).toLocaleString()}
                 </Text>
               </View>
             </View>
@@ -160,7 +259,7 @@ export default function OwnerDashboardScreen() {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -179,11 +278,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.dark.border,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   headerButton: {
     padding: 8,
     borderRadius: 8,
     backgroundColor: Colors.dark.secondary,
   },
+
   appName: {
     fontSize: 24,
     fontWeight: '700',
@@ -228,29 +332,30 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.border,
   },
   ownerCardInner: {
-    padding: 14,
+    padding: 16,
   },
   ownerCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   ownerCardIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   ownerCardTitle: {
     fontSize: 13,
     fontWeight: '600',
     color: Colors.dark.textSecondary,
+    flex: 1,
   },
   ownerCardValue: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.dark.text,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   ownerCardSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.dark.textSecondary,
   },
   grid: {

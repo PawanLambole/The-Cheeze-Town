@@ -14,7 +14,11 @@
     },
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIViewControllerBasedStatusBarAppearance": false,
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +29,12 @@
         "VIBRATE",
         "POST_NOTIFICATIONS"
       ],
-      "useNextNotificationsApi": true
+      "useNextNotificationsApi": true,
+      "statusBar": {
+        "backgroundColor": "transparent",
+        "barStyle": "light-content",
+        "translucent": true
+      }
     },
     "web": {
       "bundler": "metro",

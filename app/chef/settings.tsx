@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ChevronRight, Bell, Lock, Volume2, Settings as SettingsIcon, Info, LogOut, Languages, Clock } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/i18n';
 import { loadChefSettings, saveChefSettings, ChefSettings } from '@/utils/chefSettings';
 import { Colors } from '@/constants/Theme';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SettingItemProps {
     icon: React.ReactNode;
@@ -50,9 +51,12 @@ function SettingItem({ icon, title, subtitle, onPress, showArrow = true, value, 
     );
 }
 
+
+
 export default function ChefSettingsScreen() {
     const router = useRouter();
     const { t, i18n } = useTranslation();
+    const { signOut } = useAuth();
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [vibrationEnabled, setVibrationEnabled] = useState(true);
@@ -86,15 +90,20 @@ export default function ChefSettingsScreen() {
         await changeLanguage(language);
     };
 
-    const handleLogout = () => {
-        router.push('/');
-        setTimeout(() => router.navigate('/'), 0);
+    const handleLogout = async () => {
+        try {
+            await signOut();
+            router.replace('/login');
+        } catch (error) {
+            console.error('Error signing out:', error);
+        }
     };
 
+    const insets = useSafeAreaInsets();
+
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <StatusBar barStyle="light-content" backgroundColor={Colors.dark.background} />
-            <View style={styles.header}>
+        <View style={styles.container}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                 <TouchableOpacity onPress={() => router.back()}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
@@ -207,7 +216,7 @@ export default function ChefSettingsScreen() {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 

@@ -1,15 +1,36 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import '@/i18n'; // Initialize i18n
 
-export default function RootLayout() {
-  useFrameworkReady();
+function RootLayoutNav() {
+  const { isAuthenticated, loading, userData } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === 'login';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // Redirect to login if not authenticated
+      router.replace('/login');
+      // Redirect logic for authenticated users is now handled in login/index.tsx
+      // to allow for role verification before redirecting.
+    }
+  }, [isAuthenticated, loading, segments, userData]);
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar
+        style="light"
+        backgroundColor="transparent"
+        translucent={true}
+      />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -27,5 +48,15 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
     </>
+  );
+}
+
+export default function RootLayout() {
+  useFrameworkReady();
+
+  return (
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
   );
 }

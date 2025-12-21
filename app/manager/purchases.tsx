@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Plus, X, Camera, User, Package, DollarSign, Calendar, Image as ImageIcon } from 'lucide-react-native';
+import { ArrowLeft, Plus, X, Camera, User, Package, IndianRupee, Calendar, Image as ImageIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/Theme';
 
@@ -190,9 +190,11 @@ export default function PurchasesScreen() {
         resetForm();
     };
 
+    const insets = useSafeAreaInsets();
+
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
+        <View style={styles.container}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                 <TouchableOpacity onPress={() => router.back()}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
@@ -344,7 +346,7 @@ export default function PurchasesScreen() {
                                     ]}
                                     onPress={() => setFormPurchaseType('other')}
                                 >
-                                    <DollarSign size={20} color={formPurchaseType === 'other' ? '#000000' : Colors.dark.textSecondary} />
+                                    <IndianRupee size={20} color={formPurchaseType === 'other' ? '#000000' : Colors.dark.textSecondary} />
                                     <Text style={[
                                         styles.purchaseTypeText,
                                         formPurchaseType === 'other' && styles.purchaseTypeTextActive
@@ -521,7 +523,7 @@ export default function PurchasesScreen() {
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -802,14 +804,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: Colors.dark.primary,
-        paddingVertical: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 12,
         borderRadius: 8,
         gap: 8,
     },
     photoButtonText: {
         color: '#000000',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: 13,
+        flexShrink: 1,
+        textAlign: 'center',
     },
     previewContainer: {
         position: 'relative',

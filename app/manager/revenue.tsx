@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, TrendingUp, DollarSign, ShoppingBag, Clock, Users } from 'lucide-react-native';
+import { ArrowLeft, TrendingUp, IndianRupee, ShoppingBag, Clock, Users } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
 
 interface RevenueItem {
@@ -76,9 +76,11 @@ export default function RevenueScreen() {
     ];
     const maxHourly = Math.max(...hourlyData.map(d => d.amount));
 
+    const insets = useSafeAreaInsets();
+
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
+        <View style={styles.container}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                 <TouchableOpacity onPress={() => router.back()}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
@@ -107,7 +109,7 @@ export default function RevenueScreen() {
                         <Text style={styles.quickStatLabel}>Total Orders</Text>
                     </View>
                     <View style={styles.quickStatCard}>
-                        <DollarSign size={20} color="#3B82F6" />
+                        <IndianRupee size={20} color="#3B82F6" />
                         <Text style={styles.quickStatValue}>₹{Math.round(totalRevenue / totalOrders)}</Text>
                         <Text style={styles.quickStatLabel}>Avg Order</Text>
                     </View>
@@ -192,7 +194,7 @@ export default function RevenueScreen() {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 

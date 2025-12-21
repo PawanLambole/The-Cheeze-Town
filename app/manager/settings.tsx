@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ChevronRight, Bell, Lock, Globe, DollarSign, Printer, Database, Info, LogOut, Languages } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, Bell, Lock, Globe, IndianRupee, Printer, Database, Info, LogOut, Languages } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/i18n';
 import { Colors } from '@/constants/Theme';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -52,23 +53,28 @@ function SettingItem({ icon, title, subtitle, onPress, showArrow = true, value, 
 export default function SettingsScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
+  const { signOut } = useAuth();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handleLanguageChange = async (language: string) => {
     await changeLanguage(language);
   };
 
-  const handleLogout = () => {
-    // Navigate to login screen (ensure exit from any stack)
-    router.push('/');
-    setTimeout(() => router.navigate('/'), 0);
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.replace('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
@@ -141,7 +147,7 @@ export default function SettingsScreen() {
               onPress={() => console.log('Restaurant info')}
             />
             <SettingItem
-              icon={<DollarSign size={20} color={Colors.dark.textSecondary} />}
+              icon={<IndianRupee size={20} color={Colors.dark.textSecondary} />}
               title="Tax Settings"
               subtitle="Configure tax rates and types"
               value="5%"
@@ -218,7 +224,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

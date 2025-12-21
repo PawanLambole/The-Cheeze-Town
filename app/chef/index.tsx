@@ -1,26 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LogOut, Clock, CheckCircle, Settings } from 'lucide-react-native';
 import { useAudioPlayer } from 'expo-audio';
 import * as Notifications from 'expo-notifications';
 import { loadChefSettings, ChefSettings } from '@/utils/chefSettings';
 import { Colors } from '@/constants/Theme';
+import { useSupabaseRealtimeQuery } from '@/hooks/useSupabase';
+import { database, supabase } from '@/services/database';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface OrderItem {
-    name: string;
+    id?: number;
+    menu_item_name: string;
     quantity: number;
+    special_instructions?: string;
 }
 
 interface Order {
-    id: string;
-    orderId: string;
-    tableNo: number;
-    items: OrderItem[];
-    isServed: boolean;
-    time: string;
-    duration: string; // e.g., "10m"
+    id: number;
+    order_number: string;
+    table_id: number;
+    status: string;
+    total_amount: number;
+    notes?: string;
+    order_time: string;
+    created_at: string;
+    order_items?: OrderItem[];
 }
 
 // Configure how notifications should be handled when app is in foreground
@@ -36,45 +43,8 @@ Notifications.setNotificationHandler({
 
 export default function ChefDashboard() {
     const router = useRouter();
-    const [orders, setOrders] = useState<Order[]>([
-        {
-            id: '1',
-            orderId: 'ORD006',
-            tableNo: 7,
-            items: [
-                { name: 'Farmhouse Pizza', quantity: 1 },
-                { name: 'Coke', quantity: 1 }
-            ],
-            isServed: false,
-            time: '12:30 PM',
-            duration: '15m'
-        },
-        {
-            id: '2',
-            orderId: 'ORD008',
-            tableNo: 10,
-            items: [
-                { name: 'Tandoori Paneer Pizza', quantity: 1 },
-                { name: 'French Fries', quantity: 1 }
-            ],
-            isServed: false,
-            time: '12:45 PM',
-            duration: '8m'
-        },
-        {
-            id: '3',
-            orderId: 'ORD001',
-            tableNo: 5,
-            items: [
-                { name: 'Margherita Pizza', quantity: 2 },
-                { name: 'Garlic Bread', quantity: 1 },
-                { name: 'Coke', quantity: 2 }
-            ],
-            isServed: false,
-            time: '12:50 PM',
-            duration: '5m'
-        }
-    ]);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [loading, setLoading] = useState(true);
 
     // Settings state
     const [settings, setSettings] = useState<ChefSettings>({
@@ -89,6 +59,63 @@ export default function ChefDashboard() {
             loadChefSettings().then(setSettings);
         }, [])
     );
+
+    // Fetch orders from database
+    useEffect(() => {
+        fetchOrders();
+
+        // Set up real-time subscription for new orders
+        const subscription = database.subscribe('orders', (payload) => {
+            if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
+                // New order received
+                fetchOrders();
+                setNewOrderInfo({
+                    tableNo: payload.new.table_id,
+                    orderId: payload.new.order_number
+                });
+                setShowNewOrderModal(true);
+                sendOrderNotification(payload.new);
+                playOrderNotification();
+            } else if (payload.eventType === 'UPDATE') {
+                // Order updated
+                fetchOrders();
+            }
+        });
+
+        return () => {
+            database.unsubscribe(subscription);
+        };
+    }, []);
+
+    const fetchOrders = async () => {
+        setLoading(true);
+        try {
+            // Fetch orders with status 'pending' or 'preparing' with their items
+            const { data, error } = await supabase
+                .from('orders')
+                .select(`
+                    *,
+                    order_items (
+                        id,
+                        menu_item_name,
+                        quantity,
+                        special_instructions
+                    )
+                `)
+                .in('status', ['pending', 'preparing'])
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error('Error fetching orders:', error);
+            } else {
+                setOrders(data || []);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Use local bell sound file
     const bellPlayer = useAudioPlayer(require('../../assets/sounds/belli.m4a'));
@@ -120,13 +147,13 @@ export default function ChefDashboard() {
         if (!settings.notificationsEnabled) return;
 
         // Create items list text
-        const itemsText = order.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
+        const itemsText = order.order_items?.map(item => `${item.quantity}x ${item.menu_item_name}`).join(', ') || 'No items';
 
         await Notifications.scheduleNotificationAsync({
             content: {
                 title: '🔔 New Order Received!',
-                body: `Table ${order.tableNo} - ${itemsText}`,
-                data: { orderId: order.orderId, tableNo: order.tableNo },
+                body: `Table ${order.table_id} - ${itemsText}`,
+                data: { orderId: order.order_number, tableNo: order.table_id },
                 sound: settings.soundEnabled,
                 priority: Notifications.AndroidNotificationPriority.HIGH,
                 vibrate: settings.vibrationEnabled ? [0, 250, 250, 250] : [],
@@ -179,32 +206,58 @@ export default function ChefDashboard() {
     */
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
     const [showNewOrderModal, setShowNewOrderModal] = useState(false);
     const [newOrderInfo, setNewOrderInfo] = useState<{ tableNo: number; orderId: string } | null>(null);
 
-    const handleMarkServed = (orderId: string) => {
+    const handleMarkServed = (orderId: number) => {
         setSelectedOrderId(orderId);
         setShowConfirmModal(true);
     };
 
-    const confirmMarkServed = () => {
+    const confirmMarkServed = async () => {
         if (selectedOrderId) {
-            setOrders(prev => prev.filter(o => o.id !== selectedOrderId));
-            setShowConfirmModal(false);
-            setSelectedOrderId(null);
+            try {
+                // Update order status to 'ready' in database
+                await database.update('orders', selectedOrderId, {
+                    status: 'ready',
+                    prepared_time: new Date().toISOString()
+                });
+                // Orders will be refreshed via real-time subscription
+                setShowConfirmModal(false);
+                setSelectedOrderId(null);
+            } catch (error) {
+                console.error('Error updating order:', error);
+                Alert.alert('Error', 'Failed to update order status');
+            }
         }
     };
 
-    const handleLogout = () => {
-        router.push('/');
-        setTimeout(() => router.navigate('/'), 0);
+    const { signOut } = useAuth();
+
+    const handleLogout = async () => {
+        await signOut();
+        // Layout will handle redirect when isAuthenticated becomes false
+        // But we can explicit replace to be sure
+        // router.replace('/login/index'); 
+    };
+
+    /* ... existing code ... */
+    const insets = useSafeAreaInsets();
+
+    // Helper function to calculate order duration
+    const getOrderDuration = (orderTime: string) => {
+        const now = new Date();
+        const orderDate = new Date(orderTime);
+        const diffMs = now.getTime() - orderDate.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'Just now';
+        return `${diffMins}m`;
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <StatusBar barStyle="light-content" backgroundColor={Colors.dark.background} />
-            <View style={styles.header}>
+        <View style={styles.container}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                 <View>
                     <Text style={styles.headerTitle}>Kitchen Display</Text>
                     <Text style={styles.headerSubtitle}>{orders.length} Active Orders</Text>
@@ -220,7 +273,12 @@ export default function ChefDashboard() {
             </View>
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {orders.length === 0 ? (
+                {loading ? (
+                    <View style={styles.emptyContainer}>
+                        <ActivityIndicator size="large" color={Colors.dark.primary} />
+                        <Text style={styles.emptyText}>Loading orders...</Text>
+                    </View>
+                ) : orders.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <CheckCircle size={64} color={Colors.dark.secondary} />
                         <Text style={styles.emptyText}>All orders completed!</Text>
@@ -230,27 +288,38 @@ export default function ChefDashboard() {
                         <View key={order.id} style={styles.orderCard}>
                             <View style={styles.orderHeader}>
                                 <View style={styles.orderInfo}>
-                                    <Text style={styles.tableNumber}>Table {order.tableNo}</Text>
-                                    <Text style={styles.orderId}>#{order.orderId}</Text>
+                                    <Text style={styles.tableNumber}>Table {order.table_id}</Text>
+                                    <Text style={styles.orderId}>#{order.order_number}</Text>
                                 </View>
                                 <View style={styles.timerBadge}>
                                     <Clock size={14} color="#F59E0B" />
-                                    <Text style={styles.timerText}>{order.duration}</Text>
+                                    <Text style={styles.timerText}>{getOrderDuration(order.created_at)}</Text>
                                 </View>
                             </View>
 
                             <View style={styles.divider} />
 
                             <View style={styles.itemsList}>
-                                {order.items.map((item, index) => (
+                                {order.order_items?.map((item, index) => (
                                     <View key={index} style={styles.itemRow}>
                                         <View style={styles.quantityBadge}>
                                             <Text style={styles.quantityText}>{item.quantity}x</Text>
                                         </View>
-                                        <Text style={styles.itemName}>{item.name}</Text>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.itemName}>{item.menu_item_name}</Text>
+                                            {item.special_instructions && (
+                                                <Text style={styles.itemNotes}>Note: {item.special_instructions}</Text>
+                                            )}
+                                        </View>
                                     </View>
                                 ))}
                             </View>
+
+                            {order.notes && (
+                                <View style={styles.orderNotes}>
+                                    <Text style={styles.orderNotesText}>📝 {order.notes}</Text>
+                                </View>
+                            )}
 
                             <TouchableOpacity
                                 style={styles.completeButton}
@@ -310,7 +379,7 @@ export default function ChefDashboard() {
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -430,6 +499,25 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: Colors.dark.text,
         flex: 1,
+    },
+    itemNotes: {
+        fontSize: 13,
+        color: Colors.dark.textSecondary,
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    orderNotes: {
+        backgroundColor: 'rgba(251, 191, 36, 0.1)',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+        borderLeftWidth: 3,
+        borderLeftColor: '#F59E0B',
+    },
+    orderNotesText: {
+        fontSize: 14,
+        color: Colors.dark.text,
+        lineHeight: 20,
     },
     completeButton: {
         backgroundColor: '#10B981',

@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   UtensilsCrossed,
@@ -13,9 +13,14 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
+import { database, supabase } from '@/services/database';
+import { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
+
 
 interface StatCardProps {
   value: string | number;
@@ -63,6 +68,24 @@ interface OrderItemProps {
   time: string;
   onPress: () => void;
 }
+
+interface DashboardStats {
+  todayOrders: number;
+  pendingOrders: number;
+  todayRevenue: number;
+  todayExpense: number;
+}
+
+interface DatabaseOrder {
+  id: number;
+  order_number: string;
+  table_id: number;
+  status: string;
+  total_amount: number;
+  created_at: string;
+  customer_name?: string;
+}
+
 
 function OrderItem({ orderId, tableNo, customerName, items, isServed, totalAmount, time, onPress }: OrderItemProps) {
   const { t } = useTranslation();
@@ -114,71 +137,160 @@ function OrderItem({ orderId, tableNo, customerName, items, isServed, totalAmoun
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
-  // Mock data - Replace with actual data from your backend
-  const stats = {
-    todayOrders: 24,
-    pendingOrders: 5,
-    todayRevenue: 12450,
-    todayExpense: 3250,
+
+  const [stats, setStats] = useState({
+    todayOrders: 0,
+    pendingOrders: 0,
+    todayRevenue: 0,
+    todayExpense: 0, // Note: We might need an expenses table or similar logic
+  });
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+
+  const fetchDashboardData = async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+
+      // 1. Get today's orders count and revenue
+      // Note: Supabase JS client doesn't support complex aggregations directly in one simple call without RPC usually,
+      // but we can fetch today's orders and calculate length/sum client-side for small-medium scale.
+      const { data: todaysOrdersData, error: ordersError } = await database.query(
+        'orders',
+        'created_at',
+        'gte',
+        todayISO
+      );
+
+      if (ordersError) throw ordersError;
+
+      const ordersList = todaysOrdersData || [];
+      const orderCount = ordersList.length;
+
+      // Calculate Revenue: Sum of total_amount for orders that are not cancelled
+      const revenue = ordersList
+        .filter((o: DatabaseOrder) => o.status !== 'cancelled')
+        .reduce((sum: number, order: DatabaseOrder) => sum + (Number(order.total_amount) || 0), 0);
+
+      // 2. Get pending orders count (all time or just today/recent? Usually 'pending' status implies current)
+      const { data: pendingData, error: pendingError } = await database.query(
+        'orders',
+        'status',
+        'eq',
+        'pending'
+      );
+
+      // Also checking for 'preparing' if that counts as pending workflow
+      const { data: preparingData } = await database.query(
+        'orders',
+        'status',
+        'eq',
+        'preparing'
+      );
+
+      const pendingCount = (pendingData?.length || 0) + (preparingData?.length || 0);
+
+      // 3. Recent Orders - Fetch top 5 sorted by created_at desc
+      // The generic query in database.ts is limited. Let's use supabase direct for sorting/limit.
+      const { data: recentData, error: recentError } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (recentError) throw recentError;
+
+      // Map recent orders to partial view format
+      const formattedRecentOrders = (recentData || []).map((order: DatabaseOrder) => {
+        // We need order items. Since we didn't join, let's just show a placeholder or fetch items if critical.
+        // For dashboard list, maybe we just show generic info or do a second fetch?
+        // Let's rely on a utility or just standard mapping. 
+        // Note: The UI expects 'items' string array.
+        // For now, simpler to leave items empty or generic until we fetch them.
+        return {
+          orderId: order.order_number,
+          tableNo: order.table_id,
+          customerName: order.customer_name || 'Guest',
+          items: [], // We would need to fetch order_items. Leaving empty for performance for now or TODO.
+          isServed: order.status === 'served' || order.status === 'completed',
+          totalAmount: order.total_amount,
+          time: getTimeAgo(order.created_at),
+          status: order.status
+        };
+      });
+
+      // Update state
+      setStats({
+        todayOrders: orderCount,
+        pendingOrders: pendingCount,
+        todayRevenue: revenue,
+        todayExpense: 0, // Placeholder
+      });
+      setRecentOrders(formattedRecentOrders);
+
+      // Fetch items for recent orders to populate the UI correctly
+      // This is a "N+1" problem but okay for 5 items.
+      if (formattedRecentOrders.length > 0) {
+        const ordersWithItems = await Promise.all(formattedRecentOrders.map(async (o: any) => {
+          const { data: items } = await supabase
+            .from('order_items')
+            .select('menu_item_name, quantity')
+            .eq('order_id', (recentData?.find((rd: DatabaseOrder) => rd.order_number === o.orderId)?.id));
+
+          // map to "Qty x Name"
+          const itemStrings = items?.map((i: any) => `${i.quantity}x ${i.menu_item_name}`) || [];
+          return { ...o, items: itemStrings };
+        }));
+        setRecentOrders(ordersWithItems);
+      }
+
+    } catch (e) {
+      console.error("Failed to fetch dashboard data", e);
+    }
   };
 
-  const recentOrders = [
-    {
-      orderId: 'ORD001',
-      tableNo: 5,
-      customerName: 'Rahul Sharma',
-      items: ['Margherita Pizza', 'Garlic Bread', 'Coke'],
-      isServed: false,
-      totalAmount: 650,
-      time: '10 mins ago',
-    },
-    {
-      orderId: 'ORD002',
-      tableNo: 3,
-      items: ['Paneer Tikka Pizza', 'French Fries'],
-      isServed: true,
-      totalAmount: 480,
-      time: '25 mins ago',
-    },
-    {
-      orderId: 'ORD003',
-      tableNo: 8,
-      customerName: 'Priya Patel',
-      items: ['Cheese Burst Pizza', 'Pasta Alfredo', 'Pepsi', 'Ice Cream'],
-      isServed: false,
-      totalAmount: 890,
-      time: '32 mins ago',
-    },
-    {
-      orderId: 'ORD004',
-      tableNo: 2,
-      items: ['Veg Supreme Pizza', 'Garlic Bread'],
-      isServed: true,
-      totalAmount: 520,
-      time: '45 mins ago',
-    },
-    {
-      orderId: 'ORD005',
-      tableNo: 12,
-      customerName: 'Amit Kumar',
-      items: ['BBQ Chicken Pizza', 'Wings', 'Sprite'],
-      isServed: true,
-      totalAmount: 780,
-      time: '1 hour ago',
-    },
-  ];
+  const getTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const past = new Date(dateString);
+    const diffMs = now.getTime() - past.getTime();
+    const diffMins = Math.round(diffMs / 60000);
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    const diffHours = Math.round(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    return `${Math.round(diffHours / 24)} days ago`;
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+    }, [])
+  );
+
+  // Realtime subscription
+  useEffect(() => {
+    const sub = database.subscribe('orders', () => {
+      fetchDashboardData();
+    });
+    return () => {
+      database.unsubscribe(sub);
+    };
+  }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View>
           <Text style={styles.appName}>{t('common.appName')}</Text>
           <Text style={styles.greeting}>{t('manager.home.greeting')}</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push('/manager/settings')}>
-          <Settings size={24} color={Colors.dark.primary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity onPress={() => router.push('/manager/settings')}>
+            <Settings size={24} color={Colors.dark.primary} />
+          </TouchableOpacity>
+
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -288,7 +400,7 @@ export default function HomeScreen() {
         {/* Bottom spacing for tab bar */}
         <View style={{ height: 100 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

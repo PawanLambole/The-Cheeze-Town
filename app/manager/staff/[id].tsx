@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, User, Mail, Phone, Calendar, Clock, CheckCircle, DollarSign, Wallet, CreditCard, Plus, X } from 'lucide-react-native';
+import { ArrowLeft, User, Mail, Phone, Calendar, Clock, CheckCircle, IndianRupee, Wallet, CreditCard, Plus, X } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
 
 interface SalaryRecord {
@@ -108,6 +108,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
     const { id } = useLocalSearchParams<{ id: string }>();
     const isOwnerView = isOwner ?? false;
     const staff = mockStaffData[id || '1'];
+    const insets = useSafeAreaInsets();
 
     // State for salary management
     const [records, setRecords] = useState<SalaryRecord[]>(staff?.salaryHistory || []);
@@ -170,8 +171,8 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
 
     if (!staff) {
         return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
+            <View style={styles.container}>
+                <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                     <TouchableOpacity onPress={handleBack}>
                         <ArrowLeft size={24} color={Colors.dark.text} />
                     </TouchableOpacity>
@@ -181,7 +182,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                 <View style={styles.errorContainer}>
                     <Text style={styles.errorText}>Staff member not found</Text>
                 </View>
-            </SafeAreaView>
+            </View>
         );
     }
 
@@ -199,9 +200,11 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
 
     // ... (existing helper functions)
 
+
+
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
+        <View style={styles.container}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                 <TouchableOpacity onPress={handleBack}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
@@ -495,7 +498,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </View>
     );
 }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Plus, Minus, X } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
@@ -74,9 +74,11 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
     setNewItemUnit('kg');
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         {showBack && (
           <TouchableOpacity onPress={() => router.back()}>
             <ArrowLeft size={24} color={Colors.dark.text} />
@@ -299,7 +301,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
