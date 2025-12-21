@@ -6,10 +6,26 @@
     "orientation": "portrait",
     "icon": "./assets/images/logo.jpeg",
     "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/images/logo.jpeg",
+      "resizeMode": "contain",
+      "backgroundColor": "#121212"
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo.jpeg",
+        "backgroundColor": "#121212"
+      },
+      "permissions": [
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ],
+      "useNextNotificationsApi": true
     },
     "web": {
       "bundler": "metro",

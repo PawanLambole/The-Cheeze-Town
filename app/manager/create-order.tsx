@@ -1,11 +1,12 @@
 // Force re-bundle
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, Plus } from 'lucide-react-native';
 import { printKitchenReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
+import { Colors } from '@/constants/Theme';
 
 function CreateOrderScreen() {
     const router = useRouter();
@@ -105,7 +106,7 @@ function CreateOrderScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={handleBack}>
-                    <ArrowLeft size={24} color="#1F2937" />
+                    <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>New Order</Text>
                 <View style={{ width: 24 }} />
@@ -142,7 +143,8 @@ function CreateOrderScreen() {
                                     >
                                         <Text style={[
                                             styles.tableNumber,
-                                            selectedTable === table.id && styles.tableNumberSelected
+                                            selectedTable === table.id && styles.tableNumberSelected,
+                                            table.status === 'occupied' && { color: Colors.dark.textSecondary }
                                         ]}>
                                             {table.number}
                                         </Text>
@@ -166,10 +168,11 @@ function CreateOrderScreen() {
                         </View>
 
                         <View style={styles.searchContainer}>
-                            <Search size={20} color="#6B7280" />
+                            <Search size={20} color={Colors.dark.textSecondary} />
                             <TextInput
                                 style={styles.searchInput}
                                 placeholder="Search menu..."
+                                placeholderTextColor={Colors.dark.textSecondary}
                                 value={menuSearch}
                                 onChangeText={setMenuSearch}
                             />
@@ -246,7 +249,7 @@ function CreateOrderScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.background,
     },
     header: {
         flexDirection: 'row',
@@ -254,14 +257,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: Colors.dark.border,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     content: {
         flex: 1,
@@ -276,25 +279,25 @@ const styles = StyleSheet.create({
     stepTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     stepSubtitle: {
         fontSize: 13,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
         marginBottom: 16,
     },
     skipButton: {
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.dark.secondary,
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     skipButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     tablesGrid: {
         flex: 1,
@@ -307,33 +310,34 @@ const styles = StyleSheet.create({
     tableCard: {
         width: '30%',
         aspectRatio: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     tableOccupied: {
-        backgroundColor: '#FEE2E2',
-        borderColor: '#FCA5A5',
+        backgroundColor: Colors.dark.secondary,
+        borderColor: Colors.dark.border,
+        opacity: 0.6,
     },
     tableSelected: {
-        backgroundColor: '#FFFBEB',
-        borderColor: '#FDB813',
+        backgroundColor: 'rgba(253, 184, 19, 0.15)',
+        borderColor: Colors.dark.primary,
         borderWidth: 2,
     },
     tableNumber: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     tableNumberSelected: {
-        color: '#FDB813',
+        color: Colors.dark.primary,
     },
     tableStatus: {
         fontSize: 10,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
         marginTop: 4,
         textTransform: 'capitalize',
     },
@@ -343,37 +347,37 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 16,
         padding: 16,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     summaryTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     totalAmount: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#16A34A',
+        color: '#10B981',
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.secondary,
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
         marginBottom: 16,
         gap: 12,
     },
     searchInput: {
         flex: 1,
         fontSize: 16,
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     menuList: {
         flex: 1,
@@ -382,49 +386,52 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         padding: 12,
         borderRadius: 12,
         marginBottom: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     menuItemName: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     menuItemPrice: {
         fontSize: 14,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
+        marginTop: 4,
     },
     addButton: {
-        backgroundColor: '#FDB813',
+        backgroundColor: Colors.dark.primary,
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 8,
     },
     addButtonText: {
-        color: '#FFFFFF',
+        color: '#000000',
         fontWeight: '600',
     },
     cartPreview: {
         marginTop: 16,
         padding: 16,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.dark.secondary,
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
     },
     cartTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
         marginBottom: 8,
     },
     cartItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 4,
+        marginBottom: 8,
     },
     cartItemLeft: {
         flexDirection: 'row',
@@ -435,34 +442,35 @@ const styles = StyleSheet.create({
     cartQuantityButton: {
         width: 24,
         height: 24,
-        borderRadius: 5,
-        backgroundColor: '#EF4444',
+        borderRadius: 12,
+        backgroundColor: Colors.dark.card,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#DC2626',
+        borderColor: Colors.dark.border,
     },
     cartQuantityButtonText: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#FFFFFF',
+        color: Colors.dark.text,
+        lineHeight: 18,
     },
     cartItemQuantityText: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     cartItemName: {
         fontSize: 14,
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     cartItemPrice: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     createButton: {
-        backgroundColor: '#FDB813',
+        backgroundColor: Colors.dark.primary,
         paddingVertical: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -471,7 +479,7 @@ const styles = StyleSheet.create({
     createButtonText: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#FFFFFF',
+        color: '#000000',
     },
 });
 

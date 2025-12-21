@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, CreditCard, Banknote, Smartphone, X, CheckCircle } from 'lucide-react-native';
+import { Colors } from '@/constants/Theme';
 
 interface BillItem {
   name: string;
@@ -36,7 +37,7 @@ export default function BillingScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#1F2937" />
+          <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Billing</Text>
         <View style={{ width: 24 }} />
@@ -104,7 +105,7 @@ export default function BillingScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Payment Method</Text>
               <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
-                <X size={24} color="#6B7280" />
+                <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -125,7 +126,7 @@ export default function BillingScreen() {
                     ]}
                     onPress={() => setSelectedPaymentMethod(method.id)}
                   >
-                    <Icon size={24} color={selectedPaymentMethod === method.id ? '#FDB813' : '#6B7280'} />
+                    <Icon size={24} color={selectedPaymentMethod === method.id ? '#000000' : Colors.dark.textSecondary} />
                     <Text style={[
                       styles.paymentMethodText,
                       selectedPaymentMethod === method.id && styles.paymentMethodTextSelected
@@ -133,7 +134,7 @@ export default function BillingScreen() {
                       {method.name}
                     </Text>
                     {selectedPaymentMethod === method.id && (
-                      <CheckCircle size={20} color="#FDB813" />
+                      <CheckCircle size={20} color="#000000" />
                     )}
                   </TouchableOpacity>
                 );
@@ -156,7 +157,7 @@ export default function BillingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.background,
   },
   header: {
     flexDirection: 'row',
@@ -164,14 +165,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: Colors.dark.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   content: {
     flex: 1,
@@ -179,11 +180,11 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   billCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     marginBottom: 16,
   },
   billHeader: {
@@ -193,17 +194,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: Colors.dark.border,
   },
   billTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   billTable: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FDB813',
+    color: Colors.dark.primary,
   },
   billItems: {
     marginBottom: 20,
@@ -220,21 +221,21 @@ const styles = StyleSheet.create({
   billItemName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 2,
   },
   billItemQuantity: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   billItemPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   billSummary: {
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: Colors.dark.border,
     paddingTop: 16,
   },
   summaryRow: {
@@ -244,28 +245,28 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   summaryValue: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   summaryTotal: {
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: Colors.dark.border,
   },
   totalLabel: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FDB813',
+    color: Colors.dark.primary,
   },
   actionsCard: {
     flexDirection: 'row',
@@ -274,9 +275,9 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
@@ -284,10 +285,10 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   payButton: {
-    backgroundColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -296,18 +297,20 @@ const styles = StyleSheet.create({
   payButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -318,24 +321,26 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   amountDisplay: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.secondary,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   amountLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     marginBottom: 4,
   },
   amountValue: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   paymentMethods: {
     marginBottom: 20,
@@ -344,39 +349,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.card,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: Colors.dark.border,
   },
   paymentMethodSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
   },
   paymentMethodText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginLeft: 12,
     flex: 1,
   },
   paymentMethodTextSelected: {
-    color: '#1F2937',
+    color: '#000000',
     fontWeight: '600',
   },
   confirmButton: {
-    backgroundColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   confirmButtonDisabled: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.dark.secondary,
+    opacity: 0.5,
   },
   confirmButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000',
   },
 });

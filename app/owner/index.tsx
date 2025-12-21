@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -11,6 +11,7 @@ import {
   Table,
   Settings,
 } from 'lucide-react-native';
+import { Colors } from '@/constants/Theme';
 
 interface OwnerCardProps {
   icon: React.ReactNode;
@@ -61,7 +62,7 @@ export default function OwnerDashboardScreen() {
           style={styles.headerButton}
           onPress={() => router.push('/owner/settings')}
         >
-          <Settings size={24} color="#1F2937" />
+          <Settings size={24} color={Colors.dark.text} />
         </TouchableOpacity>
       </View>
 
@@ -103,7 +104,7 @@ export default function OwnerDashboardScreen() {
               <View style={styles.reportDivider} />
               <View style={styles.reportItem}>
                 <Text style={styles.reportLabel}>Net Profit</Text>
-                <Text style={[styles.reportValue, { color: '#FDB813' }]}>
+                <Text style={[styles.reportValue, { color: Colors.dark.primary }]}>
                   ₹{(32450 - 12000).toLocaleString()}
                 </Text>
               </View>
@@ -114,42 +115,42 @@ export default function OwnerDashboardScreen() {
 
           <View style={styles.grid}>
             <OwnerCard
-              icon={<UtensilsCrossed size={24} color="#FDB813" />}
+              icon={<UtensilsCrossed size={24} color={Colors.dark.primary} />}
               title="Menu"
               subtitle="Configure & price items"
               variant="management"
               onPress={() => router.push('/owner/menu')}
             />
             <OwnerCard
-              icon={<ClipboardList size={24} color="#FDB813" />}
+              icon={<ClipboardList size={24} color={Colors.dark.primary} />}
               title="Orders"
               subtitle="Monitor live orders"
               variant="management"
               onPress={() => router.push('/owner/orders')}
             />
             <OwnerCard
-              icon={<Table size={24} color="#FDB813" />}
+              icon={<Table size={24} color={Colors.dark.primary} />}
               title="Tables"
               subtitle="Seating & occupancy"
               variant="management"
               onPress={() => router.push('/owner/tables')}
             />
             <OwnerCard
-              icon={<Package size={24} color="#FDB813" />}
+              icon={<Package size={24} color={Colors.dark.primary} />}
               title="Inventory"
               subtitle="Stock & purchasing"
               variant="management"
               onPress={() => router.push('/inventory')}
             />
             <OwnerCard
-              icon={<BarChart3 size={24} color="#FDB813" />}
+              icon={<BarChart3 size={24} color={Colors.dark.primary} />}
               title="Reports"
               subtitle="Sales & trends"
               variant="management"
               onPress={() => router.push('/owner/reports')}
             />
             <OwnerCard
-              icon={<Users size={24} color="#FDB813" />}
+              icon={<Users size={24} color={Colors.dark.primary} />}
               title="Staff"
               subtitle="Roles & shifts"
               variant="management"
@@ -166,7 +167,7 @@ export default function OwnerDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.background,
   },
   header: {
     flexDirection: 'row',
@@ -174,23 +175,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: Colors.dark.border,
   },
   headerButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.dark.secondary,
   },
   appName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FDB813',
+    color: Colors.dark.primary,
   },
   greeting: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     marginTop: 4,
   },
   content: {
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginTop: 16,
     marginBottom: 12,
   },
@@ -214,17 +215,17 @@ const styles = StyleSheet.create({
   },
   ownerCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   ownerCardManagement: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   ownerCardInner: {
     padding: 14,
@@ -240,17 +241,17 @@ const styles = StyleSheet.create({
   ownerCardTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4B5563',
+    color: Colors.dark.textSecondary,
   },
   ownerCardValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: Colors.dark.text,
     marginBottom: 2,
   },
   ownerCardSubtitle: {
     fontSize: 11,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   grid: {
     flexDirection: 'row',
@@ -258,45 +259,18 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingBottom: 40,
   },
-  bottomNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    height: 60,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    paddingBottom: 8,
-    paddingTop: 8,
-  },
-  bottomNavItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bottomNavLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#FDB813',
-    marginTop: 4,
-  },
-  bottomNavLabelInactive: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginTop: 4,
-  },
   reportCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     padding: 16,
     marginBottom: 24,
   },
   reportTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 16,
   },
   reportRow: {
@@ -310,7 +284,7 @@ const styles = StyleSheet.create({
   },
   reportLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     marginBottom: 4,
   },
   reportValue: {
@@ -320,8 +294,6 @@ const styles = StyleSheet.create({
   reportDivider: {
     width: 1,
     height: 32,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.dark.border,
   },
 });
-
-

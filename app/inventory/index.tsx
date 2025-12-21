@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Plus, Minus, X } from 'lucide-react-native';
+import { Colors } from '@/constants/Theme';
 
 interface InventoryItem {
   id: string;
@@ -78,12 +79,12 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
       <View style={styles.header}>
         {showBack && (
           <TouchableOpacity onPress={() => router.back()}>
-            <ArrowLeft size={24} color="#1F2937" />
+            <ArrowLeft size={24} color={Colors.dark.text} />
           </TouchableOpacity>
         )}
         <Text style={styles.headerTitle}>Inventory</Text>
         <TouchableOpacity onPress={() => setShowAddModal(true)}>
-          <Plus size={24} color="#FDB813" />
+          <Plus size={24} color={Colors.dark.primary} />
         </TouchableOpacity>
       </View>
 
@@ -176,7 +177,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Adjust Stock</Text>
               <TouchableOpacity onPress={() => setShowAdjustModal(false)}>
-                <X size={24} color="#6B7280" />
+                <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -191,25 +192,25 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
 
                 <View style={styles.adjustmentControls}>
                   <TouchableOpacity style={styles.adjustmentButton}>
-                    <Minus size={24} color="#FFFFFF" />
+                    <Minus size={24} color="#000000" />
                   </TouchableOpacity>
                   <TextInput
                     style={styles.adjustmentInput}
                     placeholder="Enter amount"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={Colors.dark.textSecondary}
                     value={adjustmentAmount}
                     onChangeText={setAdjustmentAmount}
                     keyboardType="numeric"
                   />
                   <TouchableOpacity style={styles.adjustmentButton}>
-                    <Plus size={24} color="#FFFFFF" />
+                    <Plus size={24} color="#000000" />
                   </TouchableOpacity>
                 </View>
 
                 <TextInput
                   style={styles.reasonInput}
                   placeholder="Reason for adjustment (optional)"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={Colors.dark.textSecondary}
                   multiline
                 />
 
@@ -229,7 +230,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add New Item</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <X size={24} color="#6B7280" />
+                <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -237,7 +238,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
               <TextInput
                 style={styles.input}
                 placeholder="Item Name"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.dark.textSecondary}
                 value={newItemName}
                 onChangeText={setNewItemName}
               />
@@ -245,7 +246,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
               <TextInput
                 style={styles.input}
                 placeholder="Category"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.dark.textSecondary}
                 value={newItemCategory}
                 onChangeText={setNewItemCategory}
               />
@@ -254,7 +255,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                 <TextInput
                   style={[styles.input, styles.halfInput]}
                   placeholder="Current Stock"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={Colors.dark.textSecondary}
                   keyboardType="numeric"
                   value={newItemStock}
                   onChangeText={setNewItemStock}
@@ -263,7 +264,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                 <TextInput
                   style={[styles.input, styles.halfInput]}
                   placeholder="Min Stock"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={Colors.dark.textSecondary}
                   keyboardType="numeric"
                   value={newItemMinStock}
                   onChangeText={setNewItemMinStock}
@@ -305,7 +306,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.background,
   },
   header: {
     flexDirection: 'row',
@@ -313,14 +314,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: Colors.dark.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   content: {
     flex: 1,
@@ -329,11 +330,13 @@ const styles = StyleSheet.create({
   alertCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     padding: 12,
     borderRadius: 12,
     marginTop: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   alertContent: {
     marginLeft: 12,
@@ -347,7 +350,7 @@ const styles = StyleSheet.create({
   },
   alertText: {
     fontSize: 12,
-    color: '#DC2626',
+    color: '#EF4444',
   },
   statsRow: {
     flexDirection: 'row',
@@ -356,27 +359,27 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 12,
   },
   lowStockList: {
@@ -384,41 +387,41 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   lowStockCard: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     padding: 12,
     borderRadius: 12,
     marginRight: 12,
     minWidth: 120,
     borderWidth: 1,
-    borderColor: '#FDB813',
+    borderColor: Colors.dark.primary,
   },
   lowStockName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 4,
   },
   lowStockAmount: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#F59E0B',
+    color: Colors.dark.primary,
     marginBottom: 2,
   },
   lowStockMin: {
     fontSize: 11,
-    color: '#92400E',
+    color: Colors.dark.textSecondary,
   },
   inventoryList: {
     flex: 1,
   },
   inventoryCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   inventoryInfo: {
     flex: 1,
@@ -432,11 +435,11 @@ const styles = StyleSheet.create({
   inventoryName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   inventoryCategory: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     marginBottom: 8,
   },
   stockInfo: {
@@ -454,11 +457,11 @@ const styles = StyleSheet.create({
   },
   stockMin: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   stockBar: {
     height: 6,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.dark.border,
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 8,
@@ -469,10 +472,10 @@ const styles = StyleSheet.create({
   },
   lastRestocked: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: Colors.dark.textSecondary,
   },
   adjustButton: {
-    backgroundColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -482,18 +485,20 @@ const styles = StyleSheet.create({
   adjustButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -504,23 +509,25 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   modalItem: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.secondary,
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   modalItemName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 4,
   },
   modalItemStock: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   adjustmentControls: {
     flexDirection: 'row',
@@ -529,7 +536,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   adjustmentButton: {
-    backgroundColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -538,31 +545,31 @@ const styles = StyleSheet.create({
   },
   adjustmentInput: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.inputBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.dark.text,
     textAlign: 'center',
   },
   reasonInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.inputBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 16,
     minHeight: 80,
     textAlignVertical: 'top',
   },
   saveButton: {
-    backgroundColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -570,23 +577,23 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000',
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.inputBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 12,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 8,
   },
   row: {
@@ -607,19 +614,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.inputBackground,
   },
   unitOptionActive: {
-    backgroundColor: '#FDB813',
-    borderColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
   },
   unitOptionText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   unitOptionTextActive: {
-    color: '#FFFFFF',
+    color: '#000000',
+    fontWeight: 'bold',
   },
 });

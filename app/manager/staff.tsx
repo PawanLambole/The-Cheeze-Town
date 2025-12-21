@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Plus, Search, User, Mail, Phone, MoreVertical, X, Edit2 } from 'lucide-react-native';
+import { ArrowLeft, Plus, Search, User, Mail, Phone, X, Edit2 } from 'lucide-react-native';
+import { Colors } from '@/constants/Theme';
 
 interface StaffMember {
   id: string;
   name: string;
   email: string;
   phone: string;
-  role: string; // designation (manager, chef, waiter, etc.)
+  role: string;
   status: 'approved' | 'pending';
   joinDate: string;
 }
@@ -53,7 +54,7 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'manager': return '#3B82F6';
-      case 'chef': return '#F59E0B';
+      case 'chef': return Colors.dark.primary;
       case 'waiter': return '#10B981';
       case 'cashier': return '#8B5CF6';
       default: return '#6B7280';
@@ -129,23 +130,23 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#1F2937" />
+          <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {isOwnerView ? 'Staff Management' : 'Team (Manager)'}
         </Text>
-        <TouchableOpacity onPress={() => setShowAddModal(true)}>
-          <Plus size={24} color="#FDB813" />
+        <TouchableOpacity onPress={() => setShowAddModal(true)} style={styles.addButtonHeader}>
+          <Plus size={24} color="#000" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
         <View style={styles.searchContainer}>
-          <Search size={20} color="#6B7280" style={styles.searchIcon} />
+          <Search size={20} color={Colors.dark.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search staff..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={Colors.dark.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -185,7 +186,7 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
               activeOpacity={0.7}
             >
               <View style={styles.staffAvatar}>
-                <User size={24} color="#FFFFFF" />
+                <User size={24} color={Colors.dark.text} />
               </View>
               <View style={styles.staffInfo}>
                 <View style={styles.staffHeader}>
@@ -195,11 +196,11 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
                   </View>
                 </View>
                 <View style={styles.staffContact}>
-                  <Mail size={14} color="#6B7280" />
+                  <Mail size={14} color={Colors.dark.textSecondary} />
                   <Text style={styles.staffContactText}>{member.email}</Text>
                 </View>
                 <View style={styles.staffContact}>
-                  <Phone size={14} color="#6B7280" />
+                  <Phone size={14} color={Colors.dark.textSecondary} />
                   <Text style={styles.staffContactText}>{member.phone}</Text>
                 </View>
                 <View style={styles.staffFooter}>
@@ -208,7 +209,7 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
                     styles.statusBadge,
                     member.status === 'approved' ? styles.statusApproved : styles.statusPending
                   ]}>
-                    <Text style={styles.statusText}>
+                    <Text style={[styles.statusText, member.status !== 'approved' && { color: '#92400E' }]}>
                       {member.status === 'approved' ? 'Approved' : 'Pending'}
                     </Text>
                   </View>
@@ -222,7 +223,7 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
                     handleEditStaff(member);
                   }}
                 >
-                  <Edit2 size={18} color="#6B7280" />
+                  <Edit2 size={18} color={Colors.dark.textSecondary} />
                 </TouchableOpacity>
                 {isOwnerView && member.status === 'pending' && (
                   <TouchableOpacity
@@ -252,21 +253,21 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Staff Member</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <X size={24} color="#6B7280" />
+                <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView>
               <TextInput
                 style={styles.input}
                 placeholder="Full Name"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.dark.textSecondary}
                 value={formName}
                 onChangeText={setFormName}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Email"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="email-address"
                 value={formEmail}
                 onChangeText={setFormEmail}
@@ -274,7 +275,7 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
               <TextInput
                 style={styles.input}
                 placeholder="Phone"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="phone-pad"
                 value={formPhone}
                 onChangeText={setFormPhone}
@@ -312,7 +313,7 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
                   <TextInput
                     style={[styles.input, { flex: 1, marginBottom: 0 }]}
                     placeholder="New designation (optional)"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={Colors.dark.textSecondary}
                     value={newDesignation}
                     onChangeText={setNewDesignation}
                   />
@@ -322,8 +323,8 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
                 </View>
               )}
 
-              <TouchableOpacity style={styles.addButton} onPress={handleAddStaff}>
-                <Text style={styles.addButtonText}>
+              <TouchableOpacity style={styles.modalAddButton} onPress={handleAddStaff}>
+                <Text style={styles.modalAddButtonText}>
                   {isOwnerView ? 'Add Staff (Approved)' : 'Send for Approval'}
                 </Text>
               </TouchableOpacity>
@@ -342,21 +343,21 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
                 setEditingStaff(null);
                 resetForm();
               }}>
-                <X size={24} color="#6B7280" />
+                <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView>
               <TextInput
                 style={styles.input}
                 placeholder="Full Name"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.dark.textSecondary}
                 value={formName}
                 onChangeText={setFormName}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Email"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="email-address"
                 value={formEmail}
                 onChangeText={setFormEmail}
@@ -364,7 +365,7 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
               <TextInput
                 style={styles.input}
                 placeholder="Phone"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="phone-pad"
                 value={formPhone}
                 onChangeText={setFormPhone}
@@ -402,7 +403,7 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
                   <TextInput
                     style={[styles.input, { flex: 1, marginBottom: 0 }]}
                     placeholder="New designation (optional)"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={Colors.dark.textSecondary}
                     value={newDesignation}
                     onChangeText={setNewDesignation}
                   />
@@ -412,8 +413,8 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
                 </View>
               )}
 
-              <TouchableOpacity style={styles.addButton} onPress={handleUpdateStaff}>
-                <Text style={styles.addButtonText}>Update Staff Member</Text>
+              <TouchableOpacity style={styles.modalAddButton} onPress={handleUpdateStaff}>
+                <Text style={styles.modalAddButtonText}>Update Staff Member</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -426,7 +427,7 @@ export default function StaffScreen({ isOwner }: StaffScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.background,
   },
   header: {
     flexDirection: 'row',
@@ -434,14 +435,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: Colors.dark.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
+  },
+  addButtonHeader: {
+    backgroundColor: Colors.dark.primary,
+    padding: 4,
+    borderRadius: 8,
   },
   content: {
     flex: 1,
@@ -450,12 +456,12 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 12,
     paddingHorizontal: 16,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   searchIcon: {
     marginRight: 12,
@@ -464,7 +470,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   rolesContainer: {
     marginTop: 16,
@@ -474,23 +480,24 @@ const styles = StyleSheet.create({
   roleChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   roleChipActive: {
-    backgroundColor: '#FDB813',
-    borderColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
   },
   roleText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   roleTextActive: {
-    color: '#FFFFFF',
+    color: '#000000',
+    fontWeight: 'bold',
   },
   statsRow: {
     flexDirection: 'row',
@@ -499,43 +506,45 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.primary,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   staffList: {
     flex: 1,
   },
   staffCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   staffAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FDB813',
+    backgroundColor: Colors.dark.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   staffInfo: {
     flex: 1,
@@ -549,7 +558,7 @@ const styles = StyleSheet.create({
   staffName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   roleBadge: {
     paddingHorizontal: 8,
@@ -569,7 +578,7 @@ const styles = StyleSheet.create({
   },
   staffContactText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   staffFooter: {
     flexDirection: 'row',
@@ -579,7 +588,7 @@ const styles = StyleSheet.create({
   },
   staffJoinDate: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: Colors.dark.textSecondary,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -587,7 +596,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   statusApproved: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
   },
   statusPending: {
     backgroundColor: '#FEF3C7',
@@ -595,7 +604,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#10B981',
   },
   staffActions: {
     flexDirection: 'column',
@@ -605,7 +614,7 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 8,
   },
   approveButton: {
@@ -635,15 +644,17 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: '80%',
+    maxHeight: '90%',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -654,35 +665,35 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.inputBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 12,
   },
-  addButton: {
-    backgroundColor: '#FDB813',
+  modalAddButton: {
+    backgroundColor: Colors.dark.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
   },
-  addButtonText: {
+  modalAddButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000',
   },
   modalLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#4B5563',
+    color: Colors.dark.textSecondary,
     marginBottom: 8,
   },
   designationChips: {
@@ -693,21 +704,22 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.secondary,
     marginRight: 8,
   },
   designationChipActive: {
-    backgroundColor: '#FDB813',
-    borderColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
   },
   designationText: {
     fontSize: 13,
-    color: '#4B5563',
+    color: Colors.dark.textSecondary,
     fontWeight: '500',
   },
   designationTextActive: {
-    color: '#FFFFFF',
+    color: '#000000',
+    fontWeight: 'bold',
   },
   newDesignationRow: {
     flexDirection: 'row',
@@ -719,11 +731,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.dark.secondary,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   addDesignationText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4B5563',
+    color: Colors.dark.text,
   },
 });

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, X, Camera, User, Package, DollarSign, Calendar, FileText } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Colors } from '@/constants/Theme';
 
 interface Purchase {
     id: string;
@@ -193,11 +194,11 @@ export default function PurchasesScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()}>
-                    <ArrowLeft size={24} color="#1F2937" />
+                    <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Purchases & Expenses</Text>
                 <TouchableOpacity onPress={() => setShowAddModal(true)}>
-                    <Plus size={24} color="#EF4444" />
+                    <Plus size={24} color={Colors.dark.primary} />
                 </TouchableOpacity>
             </View>
 
@@ -210,7 +211,7 @@ export default function PurchasesScreen() {
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <Text style={[styles.statValue, { color: '#EF4444' }]}>₹{totalSpent.toLocaleString()}</Text>
+                        <Text style={[styles.statValue, { color: Colors.dark.primary }]}>₹{totalSpent.toLocaleString()}</Text>
                         <Text style={styles.statLabel}>Total Spent</Text>
                     </View>
                 </View>
@@ -219,7 +220,7 @@ export default function PurchasesScreen() {
                 <TextInput
                     style={styles.searchInput}
                     placeholder="Search purchases..."
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={Colors.dark.textSecondary}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                 />
@@ -230,7 +231,7 @@ export default function PurchasesScreen() {
                     <View key={purchase.id} style={styles.purchaseCard}>
                         <View style={styles.purchaseHeader}>
                             <View style={styles.purchaseIconContainer}>
-                                <Package size={20} color="#EF4444" />
+                                <Package size={20} color={Colors.dark.primary} />
                             </View>
                             <View style={styles.purchaseInfo}>
                                 <Text style={styles.purchaseName}>{purchase.itemName}</Text>
@@ -238,11 +239,11 @@ export default function PurchasesScreen() {
                                     <Text style={styles.purchaseCategory}>{purchase.category}</Text>
                                     <View style={[
                                         styles.typeBadge,
-                                        { backgroundColor: purchase.purchaseType === 'inventory' ? '#DBEAFE' : '#FEE2E2' }
+                                        { backgroundColor: purchase.purchaseType === 'inventory' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)' }
                                     ]}>
                                         <Text style={[
                                             styles.typeBadgeText,
-                                            { color: purchase.purchaseType === 'inventory' ? '#1E40AF' : '#991B1B' }
+                                            { color: purchase.purchaseType === 'inventory' ? '#60A5FA' : '#F87171' }
                                         ]}>
                                             {purchase.purchaseType === 'inventory' ? 'Inventory' : 'Expense'}
                                         </Text>
@@ -254,22 +255,22 @@ export default function PurchasesScreen() {
 
                         <View style={styles.purchaseDetails}>
                             <View style={styles.detailRow}>
-                                <Package size={14} color="#6B7280" />
+                                <Package size={14} color={Colors.dark.textSecondary} />
                                 <Text style={styles.detailText}>
                                     {purchase.quantity} {purchase.unit}
                                 </Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <User size={14} color="#6B7280" />
+                                <User size={14} color={Colors.dark.textSecondary} />
                                 <Text style={styles.detailText}>{purchase.assignedTo}</Text>
                             </View>
                             <View style={styles.detailRow}>
-                                <Calendar size={14} color="#6B7280" />
+                                <Calendar size={14} color={Colors.dark.textSecondary} />
                                 <Text style={styles.detailText}>{purchase.purchaseDate}</Text>
                             </View>
                             {purchase.supplier !== 'N/A' && (
                                 <View style={styles.detailRow}>
-                                    <FileText size={14} color="#6B7280" />
+                                    <FileText size={14} color={Colors.dark.textSecondary} />
                                     <Text style={styles.detailText}>{purchase.supplier}</Text>
                                 </View>
                             )}
@@ -293,7 +294,7 @@ export default function PurchasesScreen() {
 
                 {filteredPurchases.length === 0 && (
                     <View style={styles.emptyContainer}>
-                        <Package size={48} color="#D1D5DB" />
+                        <Package size={48} color={Colors.dark.secondary} />
                         <Text style={styles.emptyText}>No purchases found</Text>
                     </View>
                 )}
@@ -308,7 +309,7 @@ export default function PurchasesScreen() {
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Add Purchase</Text>
                             <TouchableOpacity onPress={() => { setShowAddModal(false); resetForm(); }}>
-                                <X size={24} color="#6B7280" />
+                                <X size={24} color={Colors.dark.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -322,7 +323,7 @@ export default function PurchasesScreen() {
                                     ]}
                                     onPress={() => setFormPurchaseType('inventory')}
                                 >
-                                    <Package size={20} color={formPurchaseType === 'inventory' ? '#FFFFFF' : '#6B7280'} />
+                                    <Package size={20} color={formPurchaseType === 'inventory' ? '#000000' : Colors.dark.textSecondary} />
                                     <Text style={[
                                         styles.purchaseTypeText,
                                         formPurchaseType === 'inventory' && styles.purchaseTypeTextActive
@@ -343,7 +344,7 @@ export default function PurchasesScreen() {
                                     ]}
                                     onPress={() => setFormPurchaseType('other')}
                                 >
-                                    <DollarSign size={20} color={formPurchaseType === 'other' ? '#FFFFFF' : '#6B7280'} />
+                                    <DollarSign size={20} color={formPurchaseType === 'other' ? '#000000' : Colors.dark.textSecondary} />
                                     <Text style={[
                                         styles.purchaseTypeText,
                                         formPurchaseType === 'other' && styles.purchaseTypeTextActive
@@ -364,7 +365,7 @@ export default function PurchasesScreen() {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Item Name *"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={Colors.dark.textSecondary}
                                     value={formItemName}
                                     onChangeText={(text) => {
                                         setFormItemName(text);
@@ -423,7 +424,7 @@ export default function PurchasesScreen() {
                                 <TextInput
                                     style={[styles.input, styles.halfInput]}
                                     placeholder="Quantity *"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={Colors.dark.textSecondary}
                                     keyboardType="numeric"
                                     value={formQuantity}
                                     onChangeText={setFormQuantity}
@@ -446,7 +447,7 @@ export default function PurchasesScreen() {
                             <TextInput
                                 style={styles.input}
                                 placeholder="Total Price (₹) *"
-                                placeholderTextColor="#9CA3AF"
+                                placeholderTextColor={Colors.dark.textSecondary}
                                 keyboardType="numeric"
                                 value={formPrice}
                                 onChangeText={setFormPrice}
@@ -456,7 +457,7 @@ export default function PurchasesScreen() {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Minimum Stock Level *"
-                                    placeholderTextColor="#9CA3AF"
+                                    placeholderTextColor={Colors.dark.textSecondary}
                                     keyboardType="numeric"
                                     value={formMinStock}
                                     onChangeText={setFormMinStock}
@@ -466,7 +467,7 @@ export default function PurchasesScreen() {
                             <TextInput
                                 style={styles.input}
                                 placeholder="Supplier"
-                                placeholderTextColor="#9CA3AF"
+                                placeholderTextColor={Colors.dark.textSecondary}
                                 value={formSupplier}
                                 onChangeText={setFormSupplier}
                             />
@@ -474,7 +475,7 @@ export default function PurchasesScreen() {
                             <TextInput
                                 style={styles.input}
                                 placeholder="Assigned To (Person's Name) *"
-                                placeholderTextColor="#9CA3AF"
+                                placeholderTextColor={Colors.dark.textSecondary}
                                 value={formAssignedTo}
                                 onChangeText={setFormAssignedTo}
                             />
@@ -482,7 +483,7 @@ export default function PurchasesScreen() {
                             <TextInput
                                 style={[styles.input, styles.textArea]}
                                 placeholder="Notes (Optional)"
-                                placeholderTextColor="#9CA3AF"
+                                placeholderTextColor={Colors.dark.textSecondary}
                                 multiline
                                 numberOfLines={3}
                                 value={formNotes}
@@ -492,11 +493,11 @@ export default function PurchasesScreen() {
                             <Text style={styles.inputLabel}>Receipt Photo (Optional)</Text>
                             <View style={styles.photoButtons}>
                                 <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
-                                    <Camera size={20} color="#FFFFFF" />
+                                    <Camera size={20} color="#000000" />
                                     <Text style={styles.photoButtonText}>Take Photo</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
-                                    <FileText size={20} color="#FFFFFF" />
+                                    <FileText size={20} color="#000000" />
                                     <Text style={styles.photoButtonText}>Choose from Gallery</Text>
                                 </TouchableOpacity>
                             </View>
@@ -527,7 +528,7 @@ export default function PurchasesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.background,
     },
     header: {
         flexDirection: 'row',
@@ -535,14 +536,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: Colors.dark.border,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     content: {
         flex: 1,
@@ -550,12 +551,12 @@ const styles = StyleSheet.create({
     },
     statsCard: {
         flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderRadius: 12,
         padding: 20,
         marginTop: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     statItem: {
         flex: 1,
@@ -564,43 +565,43 @@ const styles = StyleSheet.create({
     statValue: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 4,
     },
     statLabel: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     statDivider: {
         width: 1,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: Colors.dark.border,
         marginHorizontal: 16,
     },
     searchInput: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.inputBackground,
         borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 16,
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginTop: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginTop: 20,
         marginBottom: 12,
     },
     purchaseCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     purchaseHeader: {
         flexDirection: 'row',
@@ -611,7 +612,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#FEE2E2',
+        backgroundColor: 'rgba(253, 184, 19, 0.15)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -622,17 +623,17 @@ const styles = StyleSheet.create({
     purchaseName: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 2,
     },
     purchaseCategory: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     purchasePrice: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#EF4444',
+        color: Colors.dark.primary,
     },
     purchaseDetails: {
         gap: 8,
@@ -645,10 +646,10 @@ const styles = StyleSheet.create({
     },
     detailText: {
         fontSize: 14,
-        color: '#4B5563',
+        color: Colors.dark.textSecondary,
     },
     notesContainer: {
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.secondary,
         padding: 12,
         borderRadius: 8,
         marginBottom: 8,
@@ -656,12 +657,12 @@ const styles = StyleSheet.create({
     notesLabel: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
         marginBottom: 4,
     },
     notesText: {
         fontSize: 14,
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     receiptContainer: {
         marginTop: 8,
@@ -676,7 +677,7 @@ const styles = StyleSheet.create({
     receiptLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#EF4444',
+        color: Colors.dark.primary,
     },
     emptyContainer: {
         alignItems: 'center',
@@ -684,20 +685,22 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         fontSize: 16,
-        color: '#9CA3AF',
+        color: Colors.dark.textSecondary,
         marginTop: 12,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         padding: 20,
         maxHeight: '90%',
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
     },
     modalHeader: {
         flexDirection: 'row',
@@ -708,23 +711,23 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     input: {
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.inputBackground,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
         borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 16,
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 12,
     },
     inputLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 8,
     },
     categoryScroll: {
@@ -733,23 +736,23 @@ const styles = StyleSheet.create({
     categoryChip: {
         paddingHorizontal: 16,
         paddingVertical: 8,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.dark.inputBackground,
         borderRadius: 20,
         marginRight: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     categoryChipActive: {
-        backgroundColor: '#EF4444',
-        borderColor: '#EF4444',
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
     },
     categoryText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     categoryTextActive: {
-        color: '#FFFFFF',
+        color: '#000000',
     },
     row: {
         flexDirection: 'row',
@@ -766,23 +769,23 @@ const styles = StyleSheet.create({
     unitButton: {
         paddingHorizontal: 12,
         paddingVertical: 12,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.inputBackground,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
         marginRight: 8,
     },
     unitButtonActive: {
-        backgroundColor: '#EF4444',
-        borderColor: '#EF4444',
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
     },
     unitText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     unitTextActive: {
-        color: '#FFFFFF',
+        color: '#000000',
     },
     textArea: {
         height: 80,
@@ -798,15 +801,15 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
-        backgroundColor: '#EF4444',
+        backgroundColor: Colors.dark.primary,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: 8,
+        gap: 8,
     },
     photoButtonText: {
-        fontSize: 14,
+        color: '#000000',
         fontWeight: '600',
-        color: '#FFFFFF',
+        fontSize: 14,
     },
     previewContainer: {
         position: 'relative',
@@ -815,30 +818,36 @@ const styles = StyleSheet.create({
     previewImage: {
         width: '100%',
         height: 200,
-        borderRadius: 12,
+        borderRadius: 8,
     },
     removePhotoButton: {
         position: 'absolute',
         top: 8,
         right: 8,
-        backgroundColor: '#EF4444',
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        padding: 4,
+        borderRadius: 12,
     },
     submitButton: {
-        backgroundColor: '#EF4444',
+        backgroundColor: Colors.dark.primary,
         paddingVertical: 16,
         borderRadius: 12,
         alignItems: 'center',
-        marginTop: 8,
+        marginBottom: 20,
     },
     submitButtonText: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#FFFFFF',
+        color: '#000000',
+    },
+    typeBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    typeBadgeText: {
+        fontSize: 12,
+        fontWeight: '500',
     },
     purchaseTypeContainer: {
         flexDirection: 'row',
@@ -847,98 +856,86 @@ const styles = StyleSheet.create({
     },
     purchaseTypeButton: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
-        borderWidth: 2,
-        borderColor: '#E5E7EB',
-        borderRadius: 12,
         padding: 16,
+        backgroundColor: Colors.dark.inputBackground,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
         alignItems: 'center',
-        gap: 8,
     },
     purchaseTypeButtonActive: {
-        backgroundColor: '#EF4444',
-        borderColor: '#EF4444',
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
     },
     purchaseTypeText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#1F2937',
-        textAlign: 'center',
+        color: Colors.dark.textSecondary,
+        marginTop: 8,
+        marginBottom: 4,
     },
     purchaseTypeTextActive: {
-        color: '#FFFFFF',
+        color: '#000000',
     },
     purchaseTypeDesc: {
         fontSize: 11,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
         textAlign: 'center',
     },
     purchaseTypeDescActive: {
-        color: '#FEE2E2',
-    },
-    typeBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-    },
-    typeBadgeText: {
-        fontSize: 10,
-        fontWeight: '600',
+        color: 'rgba(0,0,0,0.7)',
     },
     autocompleteContainer: {
-        position: 'relative',
-        zIndex: 1000,
+        zIndex: 10,
+        marginBottom: 12,
     },
     autocompleteDropdown: {
         position: 'absolute',
-        top: 56,
+        top: 50,
         left: 0,
         right: 0,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
+        backgroundColor: Colors.dark.card,
+        borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
         maxHeight: 200,
+        elevation: 5,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        zIndex: 1001,
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
     },
     autocompleteList: {
         maxHeight: 200,
     },
     autocompleteItem: {
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
+        alignItems: 'center',
         padding: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        borderBottomColor: Colors.dark.border,
     },
     autocompleteItemContent: {
         flex: 1,
     },
     autocompleteItemName: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '600',
-        color: '#1F2937',
-        marginBottom: 2,
+        color: Colors.dark.text,
     },
     autocompleteItemCategory: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     autocompleteItemBadge: {
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.dark.secondary,
         paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
     },
     autocompleteItemUnit: {
         fontSize: 11,
-        fontWeight: '600',
-        color: '#4B5563',
+        color: Colors.dark.text,
     },
 });

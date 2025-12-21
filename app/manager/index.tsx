@@ -15,6 +15,7 @@ import {
   XCircle,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import { Colors } from '@/constants/Theme';
 
 interface StatCardProps {
   value: string | number;
@@ -27,7 +28,7 @@ interface StatCardProps {
 function StatCard({ value, label, icon, color, onPress }: StatCardProps) {
   const CardContent = (
     <View style={styles.statCard}>
-      <View style={[styles.statIconContainer, { backgroundColor: color + '15' }]}>
+      <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
         {icon}
       </View>
       <View style={styles.statContent}>
@@ -72,7 +73,7 @@ function OrderItem({ orderId, tableNo, customerName, items, isServed, totalAmoun
         <View style={styles.orderHeaderLeft}>
           <Text style={styles.orderId}>#{orderId}</Text>
           <View style={styles.tableTag}>
-            <Table size={12} color="#FDB813" />
+            <Table size={12} color="#000" />
             <Text style={styles.tableNo}>{t('common.table')} {tableNo}</Text>
           </View>
         </View>
@@ -101,7 +102,7 @@ function OrderItem({ orderId, tableNo, customerName, items, isServed, totalAmoun
 
       <View style={styles.orderFooter}>
         <View style={styles.timeContainer}>
-          <Clock size={12} color="#6B7280" />
+          <Clock size={12} color={Colors.dark.textSecondary} />
           <Text style={styles.timeText}>{time}</Text>
         </View>
         <Text style={styles.totalAmount}>₹{totalAmount.toFixed(2)}</Text>
@@ -176,7 +177,7 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>{t('manager.home.greeting')}</Text>
         </View>
         <TouchableOpacity onPress={() => router.push('/manager/settings')}>
-          <Settings size={24} color="#FDB813" />
+          <Settings size={24} color={Colors.dark.primary} />
         </TouchableOpacity>
       </View>
 
@@ -223,7 +224,7 @@ export default function HomeScreen() {
             style={styles.quickAccessCard}
             onPress={() => router.push('/inventory')}
           >
-            <View style={[styles.quickAccessIcon, { backgroundColor: '#DBEAFE' }]}>
+            <View style={[styles.quickAccessIcon, { backgroundColor: '#3B82F620' }]}>
               <Package size={24} color="#3B82F6" />
             </View>
             <Text style={styles.quickAccessLabel}>Inventory</Text>
@@ -233,7 +234,7 @@ export default function HomeScreen() {
             style={styles.quickAccessCard}
             onPress={() => router.push('/manager/staff')}
           >
-            <View style={[styles.quickAccessIcon, { backgroundColor: '#FEF3C7' }]}>
+            <View style={[styles.quickAccessIcon, { backgroundColor: '#F59E0B20' }]}>
               <Users size={24} color="#F59E0B" />
             </View>
             <Text style={styles.quickAccessLabel}>Staff</Text>
@@ -243,7 +244,7 @@ export default function HomeScreen() {
             style={styles.quickAccessCard}
             onPress={() => router.push('/manager/tables')}
           >
-            <View style={[styles.quickAccessIcon, { backgroundColor: '#D1FAE5' }]}>
+            <View style={[styles.quickAccessIcon, { backgroundColor: '#10B98120' }]}>
               <Table size={24} color="#10B981" />
             </View>
             <Text style={styles.quickAccessLabel}>Tables</Text>
@@ -253,7 +254,7 @@ export default function HomeScreen() {
             style={styles.quickAccessCard}
             onPress={() => router.push('/manager/purchases' as any)}
           >
-            <View style={[styles.quickAccessIcon, { backgroundColor: '#FEE2E2' }]}>
+            <View style={[styles.quickAccessIcon, { backgroundColor: '#EF444420' }]}>
               <Package size={24} color="#EF4444" />
             </View>
             <Text style={styles.quickAccessLabel}>Purchases</Text>
@@ -294,7 +295,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.background,
   },
   header: {
     flexDirection: 'row',
@@ -302,18 +303,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: Colors.dark.border,
   },
   appName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FDB813',
+    color: Colors.dark.primary,
   },
   greeting: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     marginTop: 4,
   },
   content: {
@@ -333,11 +334,11 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     flexDirection: 'column',
     gap: 8,
   },
@@ -354,11 +355,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   statLabel: {
     fontSize: 11,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   // Section Header
   sectionHeader: {
@@ -370,11 +371,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   viewAllText: {
     fontSize: 14,
-    color: '#FDB813',
+    color: Colors.dark.primary,
     fontWeight: '600',
   },
   // Quick Access Grid
@@ -387,11 +388,11 @@ const styles = StyleSheet.create({
   quickAccessCard: {
     flex: 1,
     minWidth: '47%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     alignItems: 'center',
     gap: 8,
   },
@@ -405,7 +406,7 @@ const styles = StyleSheet.create({
   quickAccessLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   // Orders Container
   ordersContainer: {
@@ -413,11 +414,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   orderCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     gap: 12,
   },
   orderHeader: {
@@ -433,13 +434,13 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   tableTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: Colors.dark.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -447,7 +448,7 @@ const styles = StyleSheet.create({
   tableNo: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#92400E',
+    color: '#000000',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -458,25 +459,25 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   servedBadge: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
   },
   pendingBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
   },
   statusText: {
     fontSize: 12,
     fontWeight: '600',
   },
   servedText: {
-    color: '#065F46',
+    color: '#10B981',
   },
   pendingText: {
-    color: '#92400E',
+    color: '#F59E0B',
   },
   customerName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: Colors.dark.text,
   },
   itemsContainer: {
     gap: 4,
@@ -484,11 +485,11 @@ const styles = StyleSheet.create({
   itemsLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   itemsList: {
     fontSize: 14,
-    color: '#1F2937',
+    color: Colors.dark.text,
     lineHeight: 20,
   },
   orderFooter: {
@@ -497,7 +498,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: Colors.dark.border,
   },
   timeContainer: {
     flexDirection: 'row',
@@ -506,7 +507,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   totalAmount: {
     fontSize: 16,

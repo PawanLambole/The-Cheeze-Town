@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, TrendingUp, DollarSign, ShoppingBag, Clock, Users } from 'lucide-react-native';
+import { Colors } from '@/constants/Theme';
 
 interface RevenueItem {
     id: string;
@@ -50,7 +51,7 @@ export default function RevenueScreen() {
 
     const categoryStats: CategoryStats[] = Object.entries(categoryTotals).map(([category, data], index) => {
         const percentage = (data.amount / totalRevenue) * 100;
-        const colors = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444'];
+        const colors = [Colors.dark.primary, '#F59E0B', '#10B981', '#3B82F6', '#EF4444'];
 
         return {
             name: category,
@@ -79,7 +80,7 @@ export default function RevenueScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()}>
-                    <ArrowLeft size={24} color="#1F2937" />
+                    <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Revenue Analytics</Text>
                 <View style={{ width: 24 }} />
@@ -89,7 +90,7 @@ export default function RevenueScreen() {
                 {/* Today's Total */}
                 <View style={styles.totalCard}>
                     <View style={styles.totalIconContainer}>
-                        <TrendingUp size={32} color="#10B981" />
+                        <TrendingUp size={32} color={Colors.dark.primary} />
                     </View>
                     <View>
                         <Text style={styles.totalLabel}>Today's Total Revenue</Text>
@@ -101,7 +102,7 @@ export default function RevenueScreen() {
                 {/* Quick Stats */}
                 <View style={styles.quickStats}>
                     <View style={styles.quickStatCard}>
-                        <ShoppingBag size={20} color="#10B981" />
+                        <ShoppingBag size={20} color={Colors.dark.primary} />
                         <Text style={styles.quickStatValue}>{totalOrders}</Text>
                         <Text style={styles.quickStatLabel}>Total Orders</Text>
                     </View>
@@ -111,7 +112,7 @@ export default function RevenueScreen() {
                         <Text style={styles.quickStatLabel}>Avg Order</Text>
                     </View>
                     <View style={styles.quickStatCard}>
-                        <Users size={20} color="#F59E0B" />
+                        <Users size={20} color="#10B981" />
                         <Text style={styles.quickStatValue}>{totalOrders}</Text>
                         <Text style={styles.quickStatLabel}>Customers</Text>
                     </View>
@@ -154,7 +155,7 @@ export default function RevenueScreen() {
                                             styles.bar,
                                             {
                                                 height: hour.amount > 0 ? `${(hour.amount / maxHourly) * 100}%` : '5%',
-                                                backgroundColor: hour.amount > 0 ? '#10B981' : '#E5E7EB'
+                                                backgroundColor: hour.amount > 0 ? Colors.dark.primary : Colors.dark.border
                                             }
                                         ]}
                                     />
@@ -173,7 +174,7 @@ export default function RevenueScreen() {
                 {revenueItems.map(item => (
                     <View key={item.id} style={styles.orderCard}>
                         <View style={styles.orderIcon}>
-                            <ShoppingBag size={20} color="#10B981" />
+                            <ShoppingBag size={20} color={Colors.dark.primary} />
                         </View>
                         <View style={styles.orderInfo}>
                             <Text style={styles.orderName}>#{item.orderId}</Text>
@@ -198,7 +199,7 @@ export default function RevenueScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.background,
     },
     header: {
         flexDirection: 'row',
@@ -206,14 +207,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: Colors.dark.border,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     content: {
         flex: 1,
@@ -222,33 +223,37 @@ const styles = StyleSheet.create({
     totalCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#D1FAE5',
+        backgroundColor: 'rgba(253, 184, 19, 0.1)',
         padding: 20,
         borderRadius: 16,
         marginTop: 20,
         gap: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(253, 184, 19, 0.3)',
     },
     totalIconContainer: {
         width: 64,
         height: 64,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderRadius: 32,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
     },
     totalLabel: {
         fontSize: 14,
-        color: '#047857',
+        color: Colors.dark.primary,
         marginBottom: 4,
     },
     totalAmount: {
         fontSize: 32,
         fontWeight: '700',
-        color: '#047857',
+        color: Colors.dark.primary,
     },
     totalOrders: {
         fontSize: 12,
-        color: '#059669',
+        color: Colors.dark.textSecondary,
         marginTop: 4,
     },
     quickStats: {
@@ -258,36 +263,36 @@ const styles = StyleSheet.create({
     },
     quickStatCard: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
         gap: 4,
     },
     quickStatValue: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginTop: 8,
     },
     quickStatLabel: {
         fontSize: 11,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     chartCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderRadius: 16,
         padding: 20,
         marginTop: 20,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     chartTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 16,
     },
     categoriesContainer: {
@@ -312,12 +317,12 @@ const styles = StyleSheet.create({
     categoryName: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 2,
     },
     categoryOrders: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     categoryRight: {
         alignItems: 'flex-end',
@@ -325,17 +330,17 @@ const styles = StyleSheet.create({
     categoryAmount: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     categoryPercentage: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
         marginTop: 2,
     },
     progressBarBg: {
         height: 8,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.dark.secondary,
         borderRadius: 4,
         overflow: 'hidden',
     },
@@ -369,7 +374,7 @@ const styles = StyleSheet.create({
     barLabel: {
         fontSize: 10,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     sectionHeader: {
         marginTop: 24,
@@ -378,23 +383,23 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     orderCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         padding: 16,
         borderRadius: 12,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
         gap: 12,
     },
     orderIcon: {
         width: 40,
         height: 40,
-        backgroundColor: '#D1FAE5',
+        backgroundColor: 'rgba(253, 184, 19, 0.15)',
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
@@ -405,7 +410,7 @@ const styles = StyleSheet.create({
     orderName: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 4,
     },
     orderMeta: {
@@ -415,23 +420,23 @@ const styles = StyleSheet.create({
     },
     orderCategory: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     orderDot: {
         fontSize: 12,
-        color: '#D1D5DB',
+        color: Colors.dark.textSecondary,
     },
     orderTime: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     orderItems: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     orderAmount: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#10B981',
+        color: Colors.dark.primary,
     },
 });

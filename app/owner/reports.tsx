@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, TrendingUp, DollarSign, ShoppingBag, Users, Calendar } from 'lucide-react-native';
+import { Colors } from '@/constants/Theme';
 
 export default function ReportsScreen() {
   const router = useRouter();
@@ -32,6 +33,9 @@ export default function ReportsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <ArrowLeft size={24} color={Colors.dark.text} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Reports & Analytics</Text>
         <View style={{ width: 24 }} />
       </View>
@@ -53,7 +57,7 @@ export default function ReportsScreen() {
 
         <View style={styles.metricsGrid}>
           <View style={styles.metricCard}>
-            <View style={[styles.metricIcon, { backgroundColor: '#DBEAFE' }]}>
+            <View style={[styles.metricIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
               <DollarSign size={24} color="#3B82F6" />
             </View>
             <Text style={styles.metricValue}>₹42,850</Text>
@@ -65,8 +69,8 @@ export default function ReportsScreen() {
           </View>
 
           <View style={styles.metricCard}>
-            <View style={[styles.metricIcon, { backgroundColor: '#FEF3C7' }]}>
-              <ShoppingBag size={24} color="#F59E0B" />
+            <View style={[styles.metricIcon, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+              <ShoppingBag size={24} color={Colors.dark.primary} />
             </View>
             <Text style={styles.metricValue}>156</Text>
             <Text style={styles.metricLabel}>Total Orders</Text>
@@ -77,7 +81,7 @@ export default function ReportsScreen() {
           </View>
 
           <View style={styles.metricCard}>
-            <View style={[styles.metricIcon, { backgroundColor: '#D1FAE5' }]}>
+            <View style={[styles.metricIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
               <Users size={24} color="#10B981" />
             </View>
             <Text style={styles.metricValue}>89</Text>
@@ -89,7 +93,7 @@ export default function ReportsScreen() {
           </View>
 
           <View style={styles.metricCard}>
-            <View style={[styles.metricIcon, { backgroundColor: '#FEE2E2' }]}>
+            <View style={[styles.metricIcon, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
               <Calendar size={24} color="#EF4444" />
             </View>
             <Text style={styles.metricValue}>₹275</Text>
@@ -157,7 +161,7 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.background,
   },
   header: {
     flexDirection: 'row',
@@ -165,14 +169,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: Colors.dark.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   content: {
     flex: 1,
@@ -186,23 +190,24 @@ const styles = StyleSheet.create({
   periodChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   periodChipActive: {
-    backgroundColor: '#FDB813',
-    borderColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
   },
   periodText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   periodTextActive: {
-    color: '#FFFFFF',
+    color: '#000000',
+    fontWeight: 'bold',
   },
   metricsGrid: {
     flexDirection: 'row',
@@ -212,11 +217,11 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   metricIcon: {
     width: 48,
@@ -229,12 +234,12 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 4,
   },
   metricLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     marginBottom: 8,
   },
   metricChange: {
@@ -248,17 +253,17 @@ const styles = StyleSheet.create({
     color: '#10B981',
   },
   chartCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   chartTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 16,
   },
   chart: {
@@ -279,27 +284,27 @@ const styles = StyleSheet.create({
   },
   chartBarFill: {
     width: '100%',
-    backgroundColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
   },
   chartLabel: {
     fontSize: 10,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     marginTop: 4,
   },
   topItemsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   topItemsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 16,
   },
   topItem: {
@@ -307,13 +312,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: Colors.dark.border,
   },
   topItemRank: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(253, 184, 19, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -321,7 +326,7 @@ const styles = StyleSheet.create({
   topItemRankText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F59E0B',
+    color: Colors.dark.primary,
   },
   topItemInfo: {
     flex: 1,
@@ -329,30 +334,30 @@ const styles = StyleSheet.create({
   topItemName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 2,
   },
   topItemOrders: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   topItemRevenue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FDB813',
+    color: Colors.dark.primary,
   },
   summaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   summaryTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 16,
   },
   summaryRow: {
@@ -362,11 +367,11 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   summaryValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
 });

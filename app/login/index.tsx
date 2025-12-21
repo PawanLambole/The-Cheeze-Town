@@ -1,97 +1,135 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Lock, Mail } from 'lucide-react-native';
+import { Lock, Mail, ChevronRight } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Layout, Spacing } from '@/constants/Theme';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'owner' | 'manager'>('manager');
+  const [role, setRole] = useState<'owner' | 'manager' | 'chef'>('manager');
 
   const handleLogin = () => {
     if (role === 'owner') {
       router.push('/owner');
+    } else if (role === 'chef') {
+      // @ts-ignore
+      router.push('/chef');
     } else {
       router.push('/manager');
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.appName}>{t('common.appName')}</Text>
-          <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
-        </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={[Colors.dark.background, '#1A1A1A']}
+        style={StyleSheet.absoluteFill}
+      />
 
-        <View style={styles.form}>
-          <View style={styles.roleSelector}>
-            <TouchableOpacity
-              style={[styles.roleButton, role === 'owner' && styles.roleButtonActive]}
-              onPress={() => setRole('owner')}
-            >
-              <Text style={[styles.roleButtonText, role === 'owner' && styles.roleButtonTextActive]}>
-                {t('login.owner')}
-              </Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <Text style={styles.appName}>CHEEZE</Text>
+              <Text style={styles.appNameHighlight}>TOWN</Text>
+            </View>
+            <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
+          </View>
+
+          <View style={styles.form}>
+            {/* Role Switcher */}
+            <View style={styles.roleSelector}>
+              <TouchableOpacity
+                style={[styles.roleButton, role === 'manager' && styles.roleButtonActive]}
+                onPress={() => setRole('manager')}
+              >
+                <Text style={[styles.roleButtonText, role === 'manager' && styles.roleButtonTextActive]}>
+                  {t('login.manager')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.roleButton, role === 'owner' && styles.roleButtonActive]}
+                onPress={() => setRole('owner')}
+              >
+                <Text style={[styles.roleButtonText, role === 'owner' && styles.roleButtonTextActive]}>
+                  {t('login.owner')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.roleButton, role === 'chef' && styles.roleButtonActive]}
+                onPress={() => setRole('chef')}
+              >
+                <Text style={[styles.roleButtonText, role === 'chef' && styles.roleButtonTextActive]}>
+                  Chef
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Inputs */}
+            <View style={styles.inputContainer}>
+              <Mail size={20} color={Colors.dark.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder={t('login.email')}
+                placeholderTextColor={Colors.dark.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Lock size={20} color={Colors.dark.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder={t('login.password')}
+                placeholderTextColor={Colors.dark.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+
+            {/* Login Button */}
+            <TouchableOpacity onPress={handleLogin} activeOpacity={0.8}>
+              <LinearGradient
+                colors={[Colors.dark.primary, '#FFA000']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.loginButton}
+              >
+                <Text style={styles.loginButtonText}>{t('login.login')}</Text>
+                <ChevronRight color="#000" size={20} />
+              </LinearGradient>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.roleButton, role === 'manager' && styles.roleButtonActive]}
-              onPress={() => setRole('manager')}
-            >
-              <Text style={[styles.roleButtonText, role === 'manager' && styles.roleButtonTextActive]}>
-                {t('login.manager')}
-              </Text>
+
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={styles.forgotPasswordText}>{t('login.forgotPassword')}</Text>
             </TouchableOpacity>
           </View>
-
-          <View style={styles.inputContainer}>
-            <Mail size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder={t('login.email')}
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Lock size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder={t('login.password')}
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          </View>
-
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>{t('login.login')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>{t('login.forgotPassword')}</Text>
-          </TouchableOpacity>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.background,
+  },
+  keyboardView: {
+    flex: 1,
   },
   content: {
     flex: 1,
@@ -102,15 +140,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  appName: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#FDB813',
+  logoContainer: {
+    flexDirection: 'row',
     marginBottom: 8,
+  },
+  appName: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFF',
+    letterSpacing: 2,
+  },
+  appNameHighlight: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: Colors.dark.primary,
+    letterSpacing: 2,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     fontWeight: '500',
   },
   form: {
@@ -118,66 +166,70 @@ const styles = StyleSheet.create({
   },
   roleSelector: {
     flexDirection: 'row',
-    marginBottom: 24,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 12,
+    marginBottom: 32,
+    backgroundColor: Colors.dark.secondary,
+    borderRadius: Layout.radius.l,
     padding: 4,
   },
   roleButton: {
     flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: Layout.radius.m,
   },
   roleButtonActive: {
-    backgroundColor: '#FDB813',
+    backgroundColor: '#333', // Slightly lighter than secondary
   },
   roleButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   roleButtonTextActive: {
-    color: '#FFFFFF',
+    color: Colors.dark.primary,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    backgroundColor: Colors.dark.secondary,
+    borderRadius: Layout.radius.xl,
+    paddingHorizontal: 20,
     marginBottom: 16,
+    height: 60,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'transparent',
   },
   inputIcon: {
     marginRight: 12,
   },
   input: {
     flex: 1,
-    paddingVertical: 16,
+    height: '100%',
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   loginButton: {
-    backgroundColor: '#FDB813',
-    paddingVertical: 16,
-    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    paddingVertical: 18,
+    borderRadius: Layout.radius.xl,
+    marginTop: 16,
+    gap: 8,
+    ...Layout.shadow.medium,
   },
   loginButtonText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: '700',
+    color: '#000',
   },
   forgotPassword: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 24,
   },
   forgotPasswordText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     fontWeight: '500',
   },
 });

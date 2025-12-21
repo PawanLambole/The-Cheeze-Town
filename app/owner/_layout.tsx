@@ -2,6 +2,7 @@ import { View, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Home, BarChart3, Package, Users, Settings, User } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import { Colors } from '@/constants/Theme';
 
 export default function OwnerTabLayout() {
     const { t } = useTranslation();
@@ -10,12 +11,12 @@ export default function OwnerTabLayout() {
         <Tabs
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: '#FDB813',
-                tabBarInactiveTintColor: '#9CA3AF',
+                tabBarActiveTintColor: Colors.dark.tint,
+                tabBarInactiveTintColor: Colors.dark.textSecondary,
                 tabBarStyle: {
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: Colors.dark.card,
                     borderTopWidth: 1,
-                    borderTopColor: '#E5E7EB',
+                    borderTopColor: Colors.dark.border,
                     height: 60,
                     paddingBottom: 8,
                     paddingTop: 8,

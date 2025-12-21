@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import PaymentModal from '../../components/PaymentModal';
 import { printAddedItemsReceipt, printPaymentReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
+import { Colors } from '@/constants/Theme';
 
 interface OrderItem {
     name: string;
@@ -218,7 +219,7 @@ export default function OrdersScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()}>
-                    <ArrowLeft size={24} color="#1F2937" />
+                    <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{t('manager.orders.title')}</Text>
                 <View style={{ width: 24 }} />
@@ -247,17 +248,17 @@ export default function OrdersScreen() {
 
                 {/* Search Bar */}
                 <View style={styles.searchContainer}>
-                    <Search size={20} color="#9CA3AF" />
+                    <Search size={20} color={Colors.dark.textSecondary} />
                     <TextInput
                         style={styles.searchInput}
                         placeholder={t('manager.orders.searchOrders')}
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor={Colors.dark.textSecondary}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => setSearchQuery('')}>
-                            <X size={20} color="#9CA3AF" />
+                            <X size={20} color={Colors.dark.textSecondary} />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -289,7 +290,7 @@ export default function OrdersScreen() {
                                 <View style={styles.orderHeaderLeft}>
                                     <Text style={styles.orderId}>#{order.orderId}</Text>
                                     <View style={styles.tableTag}>
-                                        <Table size={12} color="#FDB813" />
+                                        <Table size={12} color="#000000" />
                                         <Text style={styles.tableNo}>{t('common.table')} {order.tableNo}</Text>
                                     </View>
                                 </View>
@@ -315,7 +316,7 @@ export default function OrdersScreen() {
 
                             {order.customerName && (
                                 <View style={styles.customerInfo}>
-                                    <User size={14} color="#6B7280" />
+                                    <User size={14} color={Colors.dark.textSecondary} />
                                     <Text style={styles.customerName}>{order.customerName}</Text>
                                 </View>
                             )}
@@ -329,7 +330,7 @@ export default function OrdersScreen() {
 
                             <View style={styles.orderFooter}>
                                 <View style={styles.timeContainer}>
-                                    <Clock size={12} color="#6B7280" />
+                                    <Clock size={12} color={Colors.dark.textSecondary} />
                                     <Text style={styles.timeText}>{order.time}</Text>
                                 </View>
                                 <TouchableOpacity
@@ -349,7 +350,7 @@ export default function OrdersScreen() {
 
                     {filteredOrders.length === 0 && (
                         <View style={styles.emptyContainer}>
-                            <ShoppingBag size={48} color="#D1D5DB" />
+                            <ShoppingBag size={48} color={Colors.dark.textSecondary} />
                             <Text style={styles.emptyText}>No orders found</Text>
                             {searchQuery && (
                                 <Text style={styles.emptySubtext}>Try a different search term</Text>
@@ -368,7 +369,7 @@ export default function OrdersScreen() {
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>{t('manager.orders.orderDetails')}</Text>
                             <TouchableOpacity onPress={() => setShowOrderModal(false)}>
-                                <X size={24} color="#6B7280" />
+                                <X size={24} color={Colors.dark.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -498,7 +499,7 @@ export default function OrdersScreen() {
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Add Item to Order</Text>
                             <TouchableOpacity onPress={() => setShowAddItemModal(false)}>
-                                <X size={24} color="#6B7280" />
+                                <X size={24} color={Colors.dark.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -513,11 +514,11 @@ export default function OrdersScreen() {
 
                                 {/* Search */}
                                 <View style={styles.searchContainer}>
-                                    <Search size={18} color="#9CA3AF" />
+                                    <Search size={18} color={Colors.dark.textSecondary} />
                                     <TextInput
                                         style={styles.searchInput}
                                         placeholder="Search menu items..."
-                                        placeholderTextColor="#9CA3AF"
+                                        placeholderTextColor={Colors.dark.textSecondary}
                                     />
                                 </View>
 
@@ -778,7 +779,7 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.background,
     },
     header: {
         flexDirection: 'row',
@@ -786,14 +787,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: Colors.dark.border,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     content: {
         flex: 1,
@@ -801,45 +802,45 @@ const styles = StyleSheet.create({
     },
     statsRow: {
         flexDirection: 'row',
-        gap: 10,
-        marginTop: 16,
+        gap: 12,
         marginBottom: 16,
+        marginTop: 16,
     },
     statCard: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         padding: 12,
         borderRadius: 12,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     statValue: {
-        fontSize: 24,
+        fontSize: 18,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 4,
     },
     statLabel: {
         fontSize: 11,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.secondary,
         borderRadius: 12,
         paddingHorizontal: 16,
-        paddingVertical: 12,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        gap: 10,
+        borderColor: Colors.dark.border,
     },
     searchInput: {
         flex: 1,
+        paddingVertical: 12,
+        marginLeft: 8,
         fontSize: 16,
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     statusContainer: {
         marginBottom: 16,
@@ -848,541 +849,420 @@ const styles = StyleSheet.create({
     statusChip: {
         paddingHorizontal: 16,
         paddingVertical: 8,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.secondary,
         borderRadius: 20,
         marginRight: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     statusChipActive: {
-        backgroundColor: '#FDB813',
-        borderColor: '#FDB813',
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
     },
     statusText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     statusTextActive: {
-        color: '#FFFFFF',
+        color: '#000000',
+        fontWeight: 'bold',
     },
     ordersList: {
         flex: 1,
     },
     orderCard: {
-        backgroundColor: '#FFFFFF',
-        padding: 10,
-        borderRadius: 10,
-        marginBottom: 10,
+        backgroundColor: Colors.dark.card,
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     orderHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 6,
-        paddingBottom: 6,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        marginBottom: 8,
     },
     orderHeaderLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        flex: 1,
+        gap: 12,
     },
     orderId: {
-        fontSize: 15,
+        fontSize: 16,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.dark.text,
     },
     tableTag: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 3,
-        backgroundColor: '#FEF3C7',
-        paddingHorizontal: 6,
-        paddingVertical: 3,
-        borderRadius: 5,
-    },
-    tableNo: {
-        fontSize: 10,
-        fontWeight: '600',
-        color: '#92400E',
-    },
-    statusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
         gap: 4,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
+        backgroundColor: Colors.dark.primary,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
         borderRadius: 6,
     },
-    servedBadge: {
-        backgroundColor: '#D1FAE5',
-    },
-    pendingBadge: {
-        backgroundColor: '#FEF3C7',
-    },
-    statusBadgeText: {
+    tableNo: {
         fontSize: 12,
         fontWeight: '600',
+        color: '#000000',
     },
-    servedText: {
-        color: '#065F46',
+    statusToggleCompact: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: Colors.dark.secondary,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
     },
-    pendingText: {
-        color: '#92400E',
+    statusToggleCompactServed: {
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderColor: 'rgba(16, 185, 129, 0.2)',
+    },
+    toggleThumb: {
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    toggleThumbServed: {
+        backgroundColor: '#FFFFFF',
+    },
+    statusToggleCompactText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: Colors.dark.textSecondary,
+    },
+    statusToggleCompactTextServed: {
+        color: '#10B981',
     },
     customerInfo: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 5,
-        backgroundColor: '#F9FAFB',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 5,
-        marginBottom: 6,
+        gap: 6,
+        marginBottom: 8,
     },
     customerName: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#374151',
+        fontSize: 14,
+        fontWeight: '500',
+        color: Colors.dark.textSecondary,
     },
     itemsContainer: {
-        backgroundColor: '#FAFBFC',
+        marginBottom: 8,
         padding: 8,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: '#F3F4F6',
-        marginBottom: 6,
+        backgroundColor: Colors.dark.secondary,
+        borderRadius: 8,
     },
     itemsLabel: {
-        fontSize: 10,
-        fontWeight: '600',
-        color: '#6B7280',
-        textTransform: 'uppercase',
-        marginBottom: 3,
+        fontSize: 12,
+        color: Colors.dark.textSecondary,
+        marginBottom: 2,
     },
     itemsList: {
-        fontSize: 12,
-        color: '#1F2937',
-        lineHeight: 16,
+        fontSize: 14,
+        color: Colors.dark.text,
+        lineHeight: 20,
     },
     orderFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingTop: 6,
+        paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
+        borderTopColor: Colors.dark.border,
     },
     timeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 3,
-        backgroundColor: '#F9FAFB',
-        paddingHorizontal: 6,
-        paddingVertical: 3,
-        borderRadius: 5,
+        gap: 6,
     },
     timeText: {
-        fontSize: 10,
-        color: '#6B7280',
-        fontWeight: '500',
+        fontSize: 12,
+        color: Colors.dark.textSecondary,
+    },
+    addItemButtonCard: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        backgroundColor: Colors.dark.primary,
+        borderRadius: 6,
+    },
+    addItemButtonCardText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#000000',
     },
     totalAmount: {
-        fontSize: 15,
+        fontSize: 16,
         fontWeight: '700',
         color: '#10B981',
     },
     emptyContainer: {
         alignItems: 'center',
+        justifyContent: 'center',
         paddingVertical: 60,
     },
     emptyText: {
-        fontSize: 16,
-        color: '#9CA3AF',
-        marginTop: 12,
+        fontSize: 18,
         fontWeight: '600',
+        color: Colors.dark.text,
+        marginTop: 16,
     },
     emptySubtext: {
         fontSize: 14,
-        color: '#D1D5DB',
+        color: Colors.dark.textSecondary,
         marginTop: 4,
     },
-    // Modal Styles
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        padding: 14,
-        maxHeight: '85%',
+        backgroundColor: Colors.dark.card,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        padding: 20,
+        maxHeight: '90%',
+        minHeight: '60%',
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
-        paddingBottom: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        marginBottom: 20,
     },
     modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: Colors.dark.text,
+    },
+    orderSummaryHeader: {
+        backgroundColor: Colors.dark.secondary,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+    },
+    summaryRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    summaryLabel: {
+        fontSize: 12,
+        color: Colors.dark.textSecondary,
+        marginBottom: 4,
+    },
+    summaryValue: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#111827',
+        color: Colors.dark.text,
+    },
+    summaryDivider: {
+        width: 1,
+        height: 24,
+        backgroundColor: Colors.dark.border,
     },
     orderInfoCard: {
-        backgroundColor: '#F9FAFB',
-        padding: 10,
-        borderRadius: 10,
-        marginBottom: 10,
+        backgroundColor: Colors.dark.card,
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
+        marginBottom: 20,
     },
     orderInfoRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 6,
+        padding: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: Colors.dark.border,
     },
     orderInfoLabel: {
-        fontSize: 11,
-        color: '#6B7280',
-        fontWeight: '500',
+        color: Colors.dark.textSecondary,
+        fontSize: 14,
     },
     orderInfoValue: {
-        fontSize: 13,
-        color: '#111827',
-        fontWeight: '600',
+        color: Colors.dark.text,
+        fontSize: 14,
+        fontWeight: '500',
     },
     orderItemsSection: {
-        marginBottom: 10,
-        backgroundColor: '#FAFBFC',
-        padding: 10,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
+        marginBottom: 24,
     },
     sectionLabel: {
-        fontSize: 11,
+        fontSize: 16,
         fontWeight: '600',
-        color: '#6B7280',
-        marginBottom: 8,
-        textTransform: 'uppercase',
+        color: Colors.dark.text,
+        marginBottom: 12,
     },
     orderItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 8,
+        paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
-        backgroundColor: '#FFFFFF',
-        paddingHorizontal: 8,
-        marginBottom: 4,
-        borderRadius: 6,
+        borderBottomColor: Colors.dark.border,
     },
     orderItemLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
-        gap: 8,
     },
-    orderItemQuantity: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        minWidth: 24,
+    orderQuantityButton: {
+        width: 24,
         height: 24,
-        backgroundColor: '#FDB813',
-        borderRadius: 5,
-        textAlign: 'center',
-        lineHeight: 24,
+        borderRadius: 12,
+        backgroundColor: Colors.dark.secondary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+    },
+    orderQuantityButtonText: {
+        fontSize: 16,
+        color: Colors.dark.text,
+        lineHeight: 18,
+    },
+    orderItemQuantityText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.dark.text,
+        marginRight: 8,
+        width: 30,
     },
     orderItemName: {
-        fontSize: 13,
-        color: '#1F2937',
+        fontSize: 14,
+        color: Colors.dark.text,
         flex: 1,
     },
     orderItemPrice: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#10B981',
-    },
-    orderTotal: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 10,
-        backgroundColor: '#FEF3C7',
-        borderRadius: 10,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#FDE68A',
-    },
-    orderTotalLabel: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#92400E',
-    },
-    orderTotalAmount: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#92400E',
-    },
-    currentStatus: {
-        marginBottom: 16,
-    },
-    currentStatusLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6B7280',
-        marginBottom: 8,
-    },
-    statusBadgeLarge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 8,
-        alignSelf: 'flex-start',
-    },
-    statusBadgeTextLarge: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    statusToggleButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        backgroundColor: '#10B981',
-        paddingVertical: 12,
-        borderRadius: 10,
-    },
-    statusToggleButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    paymentButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        backgroundColor: '#3B82F6',
-        paddingVertical: 12,
-        borderRadius: 10,
-    },
-    paymentButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    // New structural styles
-    orderSummaryHeader: {
-        backgroundColor: '#F9FAFB',
-        borderRadius: 10,
-        padding: 12,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    summaryRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-around',
-    },
-    summaryLabel: {
-        fontSize: 10,
-        color: '#6B7280',
-        fontWeight: '500',
-        marginBottom: 4,
-        textAlign: 'center',
-    },
-    summaryValue: {
-        fontSize: 15,
-        color: '#111827',
-        fontWeight: '700',
-        textAlign: 'center',
-    },
-    summaryDivider: {
-        width: 1,
-        height: 30,
-        backgroundColor: '#D1D5DB',
+        color: Colors.dark.text,
     },
     itemsFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingTop: 10,
-        marginTop: 6,
-        borderTopWidth: 2,
-        borderTopColor: '#E5E7EB',
+        marginTop: 12,
     },
     subtotalLabel: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#6B7280',
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
     },
     subtotalValue: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#111827',
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.dark.text,
     },
-    sectionHeader: {
+    orderTotal: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
+        backgroundColor: Colors.dark.secondary,
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
     },
-    addItemButton: {
-        backgroundColor: '#FDB813',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 6,
-    },
-    addItemButtonText: {
-        fontSize: 11,
+    orderTotalLabel: {
+        fontSize: 16,
         fontWeight: '600',
-        color: '#FFFFFF',
+        color: Colors.dark.text,
+    },
+    orderTotalAmount: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#10B981',
+    },
+    paymentButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Colors.dark.primary,
+        paddingVertical: 16,
+        borderRadius: 12,
+        gap: 8,
     },
     paymentButtonDisabled: {
-        backgroundColor: '#9CA3AF',
-        opacity: 0.6,
+        backgroundColor: Colors.dark.secondary,
+        opacity: 0.5,
     },
-    // Add Item Button in Card
-    addItemButtonCard: {
-        backgroundColor: '#FDB813',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 8,
+    paymentButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#000000',
     },
-    addItemButtonCardText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
-    // Add Item Modal Styles
     addItemOrderInfo: {
-        backgroundColor: '#F9FAFB',
-        padding: 10,
+        backgroundColor: Colors.dark.secondary,
+        padding: 12,
         borderRadius: 8,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
+        marginBottom: 16,
     },
     addItemOrderText: {
-        fontSize: 13,
+        color: Colors.dark.text,
         fontWeight: '600',
-        color: '#111827',
         textAlign: 'center',
     },
     categoriesSection: {
-        marginBottom: 16,
+        marginBottom: 20,
     },
     categoriesScroll: {
         flexGrow: 0,
     },
     categoryChip: {
-        paddingHorizontal: 14,
+        paddingHorizontal: 16,
         paddingVertical: 8,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.dark.secondary,
         borderRadius: 20,
         marginRight: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     categoryChipText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#374151',
-    },
-    menuItemsList: {
-        marginBottom: 16,
-    },
-    menuItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 12,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 10,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-    },
-    menuItemInfo: {
-        flex: 1,
-    },
-    menuItemName: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#111827',
-        marginBottom: 4,
-    },
-    menuItemPrice: {
-        fontSize: 13,
+        color: Colors.dark.text,
         fontWeight: '500',
-        color: '#10B981',
     },
-    addIcon: {
-        width: 28,
-        height: 28,
-        borderRadius: 6,
-        backgroundColor: '#FDB813',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    addIconText: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
-    // Selected Items Section
     selectedItemsSection: {
-        marginBottom: 16,
-        backgroundColor: '#F9FAFB',
-        padding: 12,
+        backgroundColor: Colors.dark.secondary,
         borderRadius: 12,
+        padding: 12,
+        marginBottom: 20,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     selectedItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 10,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 8,
         marginBottom: 8,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.dark.border,
     },
     selectedItemInfo: {
         flex: 1,
     },
     selectedItemName: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#111827',
-        marginBottom: 4,
+        color: Colors.dark.text,
+        fontSize: 14,
+        fontWeight: '500',
     },
     selectedItemPrice: {
+        color: Colors.dark.textSecondary,
         fontSize: 12,
-        fontWeight: '600',
-        color: '#10B981',
     },
     quantityControls: {
         flexDirection: 'row',
@@ -1392,109 +1272,86 @@ const styles = StyleSheet.create({
     quantityButton: {
         width: 24,
         height: 24,
-        borderRadius: 6,
-        backgroundColor: '#F3F4F6',
+        borderRadius: 12,
+        backgroundColor: Colors.dark.card,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#D1D5DB',
+        borderColor: Colors.dark.border,
     },
     quantityButtonText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#374151',
+        color: Colors.dark.text,
+        fontSize: 16,
+        lineHeight: 18,
     },
     quantityText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#111827',
-        minWidth: 20,
+        color: Colors.dark.text,
+        fontWeight: '600',
+        width: 20,
         textAlign: 'center',
     },
     removeButton: {
-        width: 24,
-        height: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
         marginLeft: 4,
     },
-    menuItemSelected: {
-        borderColor: '#FDB813',
-        backgroundColor: '#FFFBEB',
+    menuItemsList: {
+        marginBottom: 20,
     },
-    addedIcon: {
-        backgroundColor: '#10B981',
-    },
-    confirmButton: {
-        backgroundColor: '#3B82F6',
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    confirmButtonText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
-    statusToggleCompact: {
+    menuItem: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 16,
-        backgroundColor: '#FEF3C7',
-        borderWidth: 1.5,
-        borderColor: '#F59E0B',
+        padding: 16,
+        backgroundColor: Colors.dark.card,
+        borderRadius: 12,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
     },
-    statusToggleCompactServed: {
-        backgroundColor: '#D1FAE5',
-        borderColor: '#10B981',
+    menuItemSelected: {
+        borderColor: Colors.dark.primary,
+        backgroundColor: Colors.dark.secondary,
     },
-    toggleThumb: {
-        width: 18,
-        height: 18,
-        borderRadius: 9,
-        backgroundColor: '#FEF3C7',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1.5,
-        borderColor: '#F59E0B',
+    menuItemInfo: {
+        flex: 1,
     },
-    toggleThumbServed: {
-        backgroundColor: '#D1FAE5',
-        borderColor: '#10B981',
+    menuItemName: {
+        color: Colors.dark.text,
+        fontSize: 16,
+        fontWeight: '500',
     },
-    statusToggleCompactText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#92400E',
+    menuItemPrice: {
+        color: Colors.dark.primary,
+        fontSize: 14,
+        fontWeight: '600',
     },
-    statusToggleCompactTextServed: {
-        color: '#047857',
-    },
-    // Order Item Quantity Controls
-    orderQuantityButton: {
-        width: 26,
-        height: 26,
-        borderRadius: 6,
-        backgroundColor: '#EF4444',
+    addIcon: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: Colors.dark.secondary,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#DC2626',
-        marginRight: 8,
+        borderColor: Colors.dark.border,
     },
-    orderQuantityButtonText: {
+    addedIcon: {
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
+    },
+    addIconText: {
+        color: Colors.dark.text,
         fontSize: 18,
-        fontWeight: '700',
-        color: '#FFFFFF',
+        lineHeight: 20,
     },
-    orderItemQuantityText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#1F2937',
-        marginRight: 6,
+    confirmButton: {
+        backgroundColor: Colors.dark.primary,
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    confirmButtonText: {
+        color: '#000000',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
 });

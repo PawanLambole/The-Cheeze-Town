@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Plus, Search, Edit2, Trash2, X, Camera, Image as ImageIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Colors } from '@/constants/Theme';
 
 interface MenuItem {
   id: string;
@@ -154,25 +155,26 @@ export default function MenuScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#1F2937" />
+          <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {isOwnerView ? 'Menu Management' : 'Menu (Manager)'}
         </Text>
-        <TouchableOpacity onPress={handleOpenAdd}>
-          <Plus size={24} color="#FDB813" />
+        <TouchableOpacity onPress={handleOpenAdd} style={styles.addButtonHeader}>
+          <Plus size={24} color="#000" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
         <View style={styles.searchContainer}>
-          <Search size={20} color="#6B7280" style={styles.searchIcon} />
+          <Search size={20} color={Colors.dark.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search menu items..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={Colors.dark.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -200,7 +202,7 @@ export default function MenuScreen() {
                   <Image source={{ uri: item.image }} style={styles.cardImage} />
                 ) : (
                   <View style={styles.cardImagePlaceholder}>
-                    <ImageIcon size={40} color="#D1D5DB" />
+                    <ImageIcon size={40} color={Colors.dark.textSecondary} />
                   </View>
                 )}
                 <View style={styles.cardContent}>
@@ -232,7 +234,7 @@ export default function MenuScreen() {
                     >
                       <Edit2
                         size={16}
-                        color={!isOwnerView && item.status === 'approved' ? '#D1D5DB' : '#6B7280'}
+                        color={!isOwnerView && item.status === 'approved' ? Colors.dark.textSecondary : Colors.dark.text}
                       />
                     </TouchableOpacity>
                     {isOwnerView && item.status === 'pending' && (
@@ -262,22 +264,22 @@ export default function MenuScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Menu Item</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <X size={24} color="#6B7280" />
+                <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView>
-              <TextInput style={styles.input} placeholder="Item Name" placeholderTextColor="#9CA3AF" value={formName} onChangeText={setFormName} />
-              <TextInput style={styles.input} placeholder="Category" placeholderTextColor="#9CA3AF" value={formCategory} onChangeText={setFormCategory} />
-              <TextInput style={styles.input} placeholder="Price" placeholderTextColor="#9CA3AF" keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
+              <TextInput style={styles.input} placeholder="Item Name" placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
+              <TextInput style={styles.input} placeholder="Category" placeholderTextColor={Colors.dark.textSecondary} value={formCategory} onChangeText={setFormCategory} />
+              <TextInput style={styles.input} placeholder="Price" placeholderTextColor={Colors.dark.textSecondary} keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
 
               <Text style={styles.photoLabel}>Item Photo (Optional)</Text>
               <View style={styles.photoButtons}>
                 <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
-                  <Camera size={20} color="#FFFFFF" />
+                  <Camera size={20} color="#000" />
                   <Text style={styles.photoButtonText}>Camera</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
-                  <ImageIcon size={20} color="#FFFFFF" />
+                  <ImageIcon size={20} color="#000" />
                   <Text style={styles.photoButtonText}>Gallery</Text>
                 </TouchableOpacity>
               </View>
@@ -304,22 +306,22 @@ export default function MenuScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Menu Item</Text>
               <TouchableOpacity onPress={() => { setShowEditModal(false); setEditItem(null); }}>
-                <X size={24} color="#6B7280" />
+                <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView>
-              <TextInput style={styles.input} placeholder="Item Name" placeholderTextColor="#9CA3AF" value={formName} onChangeText={setFormName} />
-              <TextInput style={styles.input} placeholder="Category" placeholderTextColor="#9CA3AF" value={formCategory} onChangeText={setFormCategory} />
-              <TextInput style={styles.input} placeholder="Price" placeholderTextColor="#9CA3AF" keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
+              <TextInput style={styles.input} placeholder="Item Name" placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
+              <TextInput style={styles.input} placeholder="Category" placeholderTextColor={Colors.dark.textSecondary} value={formCategory} onChangeText={setFormCategory} />
+              <TextInput style={styles.input} placeholder="Price" placeholderTextColor={Colors.dark.textSecondary} keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
 
               <Text style={styles.photoLabel}>Item Photo (Optional)</Text>
               <View style={styles.photoButtons}>
                 <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
-                  <Camera size={20} color="#FFFFFF" />
+                  <Camera size={20} color="#000" />
                   <Text style={styles.photoButtonText}>Camera</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
-                  <ImageIcon size={20} color="#FFFFFF" />
+                  <ImageIcon size={20} color="#000" />
                   <Text style={styles.photoButtonText}>Gallery</Text>
                 </TouchableOpacity>
               </View>
@@ -367,7 +369,7 @@ export default function MenuScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.background,
   },
   header: {
     flexDirection: 'row',
@@ -375,14 +377,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: Colors.dark.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
+  },
+  addButtonHeader: {
+    backgroundColor: Colors.dark.primary,
+    padding: 6,
+    borderRadius: 8,
   },
   content: {
     flex: 1,
@@ -391,12 +398,12 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 12,
     paddingHorizontal: 16,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   searchIcon: {
     marginRight: 12,
@@ -405,7 +412,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   categoriesContainer: {
     marginTop: 16,
@@ -415,199 +422,27 @@ const styles = StyleSheet.create({
   categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   categoryChipActive: {
-    backgroundColor: '#FDB813',
-    borderColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
   },
   categoryText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   categoryTextActive: {
-    color: '#FFFFFF',
+    color: '#000',
+    fontWeight: 'bold',
   },
   itemsList: {
     flex: 1,
-  },
-  itemCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  itemCategory: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  itemDetails: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  itemPrice: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FDB813',
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  statusPillApproved: {
-    backgroundColor: '#D1FAE5',
-  },
-  statusPillPending: {
-    backgroundColor: '#FEF3C7',
-  },
-  statusPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  statusPillTextApproved: {
-    color: '#047857',
-  },
-  statusPillTextPending: {
-    color: '#92400E',
-  },
-  itemStock: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  itemActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-  },
-  approveText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#16A34A',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  input: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  addButton: {
-    backgroundColor: '#FDB813',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  deleteModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  deleteModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  deleteModalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  deleteModalMessage: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 24,
-    lineHeight: 24,
-  },
-  deleteModalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  deleteButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#EF4444',
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
   cardsGrid: {
     flexDirection: 'row',
@@ -617,11 +452,11 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     overflow: 'hidden',
   },
   cardImage: {
@@ -632,7 +467,7 @@ const styles = StyleSheet.create({
   cardImagePlaceholder: {
     width: '100%',
     height: 120,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.dark.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -642,12 +477,12 @@ const styles = StyleSheet.create({
   cardName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 4,
   },
   cardCategory: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     marginBottom: 8,
   },
   cardFooter: {
@@ -659,7 +494,7 @@ const styles = StyleSheet.create({
   cardPrice: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FDB813',
+    color: Colors.dark.primary,
   },
   cardStatus: {
     paddingHorizontal: 8,
@@ -667,20 +502,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   cardStatusApproved: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
   },
   cardStatusPending: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
   },
   cardStatusText: {
     fontSize: 10,
     fontWeight: '600',
   },
   cardStatusTextApproved: {
-    color: '#047857',
+    color: '#10B981',
   },
   cardStatusTextPending: {
-    color: '#92400E',
+    color: '#F59E0B',
   },
   cardActions: {
     flexDirection: 'row',
@@ -689,7 +524,7 @@ const styles = StyleSheet.create({
   cardActionButton: {
     flex: 1,
     padding: 6,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 6,
     alignItems: 'center',
   },
@@ -698,10 +533,58 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#16A34A',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.dark.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.dark.text,
+  },
+  input: {
+    backgroundColor: Colors.dark.inputBackground,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: Colors.dark.text,
+    marginBottom: 12,
+  },
+  addButton: {
+    backgroundColor: Colors.dark.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
   photoLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 8,
     marginTop: 4,
   },
@@ -716,14 +599,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
     paddingVertical: 12,
     borderRadius: 12,
   },
   photoButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000',
   },
   photoPreview: {
     position: 'relative',
@@ -744,5 +627,61 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: Colors.dark.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.dark.text,
+    marginBottom: 12,
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    color: Colors.dark.textSecondary,
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.dark.secondary,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.dark.text,
+  },
+  deleteButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, TrendingDown, Package, Zap, Wrench, Users as UsersIcon, ShoppingBag } from 'lucide-react-native';
+import { Colors } from '@/constants/Theme';
 
 interface ExpenseItem {
     id: string;
@@ -86,7 +87,7 @@ export default function ExpensesScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()}>
-                    <ArrowLeft size={24} color="#1F2937" />
+                    <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Expense Analytics</Text>
                 <View style={{ width: 24 }} />
@@ -140,7 +141,7 @@ export default function ExpensesScreen() {
                                             styles.bar,
                                             {
                                                 height: `${(day.amount / maxWeekly) * 100}%`,
-                                                backgroundColor: index === 6 ? '#EF4444' : '#FCA5A5'
+                                                backgroundColor: index === 6 ? '#EF4444' : Colors.dark.secondary // Highlight active
                                             }
                                         ]}
                                     />
@@ -183,7 +184,7 @@ export default function ExpensesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.background,
     },
     header: {
         flexDirection: 'row',
@@ -191,14 +192,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: Colors.dark.border,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     content: {
         flex: 1,
@@ -207,42 +208,46 @@ const styles = StyleSheet.create({
     totalCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FEE2E2',
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
         padding: 20,
         borderRadius: 16,
         marginTop: 20,
         gap: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.3)',
     },
     totalIconContainer: {
         width: 64,
         height: 64,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderRadius: 32,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.3)',
     },
     totalLabel: {
         fontSize: 14,
-        color: '#991B1B',
+        color: '#EF4444',
         marginBottom: 4,
     },
     totalAmount: {
         fontSize: 32,
         fontWeight: '700',
-        color: '#991B1B',
+        color: '#EF4444',
     },
     chartCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderRadius: 16,
         padding: 20,
         marginTop: 20,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     chartTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 16,
     },
     categoriesContainer: {
@@ -269,22 +274,22 @@ const styles = StyleSheet.create({
     categoryName: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 2,
     },
     categoryAmount: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     categoryPercentage: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     progressBarBg: {
         height: 8,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.dark.secondary,
         borderRadius: 4,
         overflow: 'hidden',
     },
@@ -318,11 +323,11 @@ const styles = StyleSheet.create({
     barLabel: {
         fontSize: 11,
         fontWeight: '600',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     barValue: {
         fontSize: 10,
-        color: '#9CA3AF',
+        color: Colors.dark.textSecondary,
     },
     sectionHeader: {
         marginTop: 24,
@@ -331,23 +336,23 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     expenseCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         padding: 16,
         borderRadius: 12,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
         gap: 12,
     },
     expenseIcon: {
         width: 40,
         height: 40,
-        backgroundColor: '#FEE2E2',
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
@@ -358,7 +363,7 @@ const styles = StyleSheet.create({
     expenseName: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 4,
     },
     expenseMeta: {
@@ -368,15 +373,15 @@ const styles = StyleSheet.create({
     },
     expenseCategory: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     expenseDot: {
         fontSize: 12,
-        color: '#D1D5DB',
+        color: Colors.dark.textSecondary,
     },
     expenseDate: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     expenseAmount: {
         fontSize: 16,

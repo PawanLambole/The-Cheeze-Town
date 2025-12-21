@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Users, Clock, Plus, X, ShoppingBag, User } from 'lucide-react-native';
 import PaymentModal from '../../components/PaymentModal';
 import { printPaymentReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
+import { Colors } from '@/constants/Theme';
 
 interface Table {
   id: string;
@@ -125,14 +126,6 @@ export default function TablesScreen() {
     selectedStatus === 'all' || table.status === selectedStatus
   );
 
-  const getStatusColor = (status: string) => {
-    return status === 'available' ? '#10B981' : '#EF4444';
-  };
-
-  const getStatusBackground = (status: string) => {
-    return status === 'available' ? '#D1FAE5' : '#FEE2E2';
-  };
-
   const handleAddTable = () => {
     if (!newTableNumber || !newTableCapacity) {
       alert('Please fill in all fields');
@@ -153,6 +146,7 @@ export default function TablesScreen() {
       number: tableNumber,
       capacity: capacity,
       status: 'available',
+      // No order info for new table
     };
 
     setTables(prev => [...prev, newTable].sort((a, b) => a.number - b.number));
@@ -172,11 +166,11 @@ export default function TablesScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#1F2937" />
+          <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Table Management</Text>
         <TouchableOpacity onPress={() => setShowAddModal(true)}>
-          <Plus size={24} color="#10B981" />
+          <Plus size={24} color={Colors.dark.primary} />
         </TouchableOpacity>
       </View>
 
@@ -223,27 +217,32 @@ export default function TablesScreen() {
                   styles.tableSurface,
                   table.status === 'occupied' && styles.tableSurfaceOccupied
                 ]}>
-                  {/* Table Wood Grain Effect (simplified as border/color) */}
 
                   <View style={styles.tableHeader}>
-                    <Text style={styles.tableNumberText}>Table {table.number}</Text>
+                    <Text style={[
+                      styles.tableNumberText,
+                      table.status === 'occupied' && { color: Colors.dark.text }
+                    ]}>Table {table.number}</Text>
                     <View style={[
                       styles.statusBadge,
-                      { backgroundColor: table.status === 'available' ? '#10B981' : '#EF4444' }
+                      { backgroundColor: table.status === 'available' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }
                     ]}>
-                      <Text style={styles.statusBadgeText}>{table.status}</Text>
+                      <Text style={[
+                        styles.statusBadgeText,
+                        { color: table.status === 'available' ? '#10B981' : '#EF4444' }
+                      ]}>{table.status}</Text>
                     </View>
                   </View>
 
                   <View style={styles.tableInfoRow}>
-                    <Users size={14} color="#5D4037" />
+                    <Users size={14} color={Colors.dark.textSecondary} />
                     <Text style={styles.tableInfoText}>{table.capacity} Seats</Text>
                   </View>
 
                   {table.status === 'occupied' && (
                     <View style={styles.activeOrderInfo}>
                       <View style={styles.tableInfoRow}>
-                        <Clock size={14} color="#5D4037" />
+                        <Clock size={14} color={Colors.dark.textSecondary} />
                         <Text style={styles.tableInfoText}>{table.duration}</Text>
                       </View>
                       <Text style={styles.tableAmount}>₹{table.orderAmount}</Text>
@@ -283,14 +282,14 @@ export default function TablesScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add New Table</Text>
               <TouchableOpacity onPress={() => { setShowAddModal(false); setNewTableNumber(''); setNewTableCapacity(''); }}>
-                <X size={24} color="#6B7280" />
+                <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <TextInput
               style={styles.input}
               placeholder="Table Number *"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={Colors.dark.textSecondary}
               keyboardType="numeric"
               value={newTableNumber}
               onChangeText={setNewTableNumber}
@@ -299,7 +298,7 @@ export default function TablesScreen() {
             <TextInput
               style={styles.input}
               placeholder="Seating Capacity *"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={Colors.dark.textSecondary}
               keyboardType="numeric"
               value={newTableCapacity}
               onChangeText={setNewTableCapacity}
@@ -381,6 +380,79 @@ export default function TablesScreen() {
         receipt={currentReceipt}
         title="Payment Receipt"
       />
+
+      {/* Order Details Modal used when clicking occupied table */}
+      <Modal visible={showOrderModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Order Details</Text>
+              <TouchableOpacity onPress={() => setShowOrderModal(false)}>
+                <X size={24} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedTable && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.orderHeaderCard}>
+                  <View style={styles.orderHeaderLeft}>
+                    <Text style={styles.orderTableText}>Table {selectedTable.number}</Text>
+                    <Text style={styles.orderIdText}>#{selectedTable.orderId}</Text>
+                  </View>
+                  <View style={styles.orderDurationBadge}>
+                    <Clock size={14} color="#F59E0B" />
+                    <Text style={styles.orderDurationText}>{selectedTable.duration}</Text>
+                  </View>
+                </View>
+
+                {selectedTable.customerName && (
+                  <View style={styles.customerInfo}>
+                    <User size={16} color={Colors.dark.textSecondary} />
+                    <Text style={styles.customerName}>{selectedTable.customerName}</Text>
+                  </View>
+                )}
+
+                <View style={styles.orderItemsSection}>
+                  <Text style={styles.sectionLabel}>Items</Text>
+                  {selectedTable.items?.map((item, index) => (
+                    <View key={index} style={styles.orderItem}>
+                      <View style={styles.orderItemLeft}>
+                        <Text style={styles.orderItemQuantity}>{item.quantity}x</Text>
+                        <Text style={styles.orderItemName}>{item.name}</Text>
+                      </View>
+                      <Text style={styles.orderItemPrice}>₹{(item.price * item.quantity).toFixed(2)}</Text>
+                    </View>
+                  ))}
+                  <View style={{ height: 1, backgroundColor: Colors.dark.border, marginVertical: 8 }} />
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                    <Text style={{ color: Colors.dark.textSecondary }}>Subtotal</Text>
+                    <Text style={{ color: Colors.dark.text, fontWeight: '600' }}>₹{selectedTable.orderAmount}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.orderTotal}>
+                  <Text style={styles.orderTotalLabel}>Total Amount</Text>
+                  <Text style={styles.orderTotalAmount}>₹{selectedTable.orderAmount}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.paymentButton, !selectedTable.isServed && styles.paymentButtonDisabled]}
+                  onPress={() => {
+                    if (selectedTable.isServed) {
+                      setShowPaymentModal(true);
+                    }
+                  }}
+                  disabled={!selectedTable.isServed}
+                >
+                  <Text style={styles.paymentButtonText}>
+                    {selectedTable.isServed ? 'Process Payment' : 'Mark as Served First'}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -388,7 +460,7 @@ export default function TablesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.background,
   },
   header: {
     flexDirection: 'row',
@@ -396,14 +468,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: Colors.dark.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   content: {
     flex: 1,
@@ -417,22 +489,22 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   statusContainer: {
     marginBottom: 16,
@@ -441,23 +513,24 @@ const styles = StyleSheet.create({
   statusChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
   },
   statusChipActive: {
-    backgroundColor: '#FDB813',
-    borderColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
   },
   statusText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   statusTextActive: {
-    color: '#FFFFFF',
+    color: '#000000',
+    fontWeight: 'bold',
   },
   tablesList: {
     flex: 1,
@@ -476,16 +549,16 @@ const styles = StyleSheet.create({
   chairTop: {
     width: '60%',
     height: 8,
-    backgroundColor: '#3E2723', // Dark wood for chair
+    backgroundColor: '#2D2D2D',
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
-    marginBottom: -2, // Slight overlap
+    marginBottom: -2,
     zIndex: 1,
   },
   chairBottom: {
     width: '60%',
     height: 8,
-    backgroundColor: '#3E2723',
+    backgroundColor: '#2D2D2D',
     borderBottomLeftRadius: 4,
     borderBottomRightRadius: 4,
     marginTop: -2,
@@ -493,24 +566,17 @@ const styles = StyleSheet.create({
   },
   tableSurface: {
     width: '100%',
-    backgroundColor: '#E3C099', // Light wood table top
+    backgroundColor: Colors.dark.card,
     padding: 12,
     borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#8B5E3C', // Darker wood border
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
     minHeight: 100,
   },
   tableSurfaceOccupied: {
-    borderColor: '#EF4444', // Red border if occupied, or keep wood and just show badge
+    borderColor: Colors.dark.primary,
     borderWidth: 2,
+    backgroundColor: '#2A2518', // Slight tint for occupied
   },
   tableHeader: {
     flexDirection: 'row',
@@ -521,7 +587,7 @@ const styles = StyleSheet.create({
   tableNumberText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#3E2723',
+    color: Colors.dark.text,
   },
   statusBadge: {
     paddingHorizontal: 6,
@@ -531,7 +597,6 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#FFFFFF',
     textTransform: 'capitalize',
   },
   tableInfoRow: {
@@ -542,31 +607,34 @@ const styles = StyleSheet.create({
   },
   tableInfoText: {
     fontSize: 12,
-    color: '#5D4037',
+    color: Colors.dark.textSecondary,
     fontWeight: '600',
   },
   activeOrderInfo: {
     marginTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 94, 60, 0.2)',
+    borderTopColor: Colors.dark.border,
     paddingTop: 8,
   },
   tableAmount: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#3E2723',
+    color: Colors.dark.primary,
     marginVertical: 4,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.dark.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
+    maxHeight: '90%',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -577,21 +645,21 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.inputBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.dark.border,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 12,
   },
   addButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: Colors.dark.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -600,17 +668,18 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#000000',
   },
-  // Order Details Modal Styles
-  orderHeader: {
+  orderHeaderCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 12,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   orderHeaderLeft: {
     flex: 1,
@@ -618,18 +687,18 @@ const styles = StyleSheet.create({
   orderTableText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.dark.text,
     marginBottom: 4,
   },
   orderIdText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
   },
   orderDurationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -637,21 +706,21 @@ const styles = StyleSheet.create({
   orderDurationText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#92400E',
+    color: '#F59E0B',
   },
   customerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     padding: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 8,
     marginBottom: 16,
   },
   customerName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   orderItemsSection: {
     marginBottom: 16,
@@ -659,7 +728,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     marginBottom: 12,
   },
   orderItem: {
@@ -668,7 +737,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: Colors.dark.border,
   },
   orderItemLeft: {
     flexDirection: 'row',
@@ -679,57 +748,42 @@ const styles = StyleSheet.create({
   orderItemQuantity: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#6B7280',
+    color: Colors.dark.textSecondary,
     minWidth: 30,
   },
   orderItemName: {
     fontSize: 14,
-    color: '#1F2937',
+    color: Colors.dark.text,
     flex: 1,
   },
   orderItemPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.dark.text,
   },
   orderTotal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: Colors.dark.secondary,
     borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   orderTotalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#047857',
+    color: Colors.dark.text,
   },
   orderTotalAmount: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#047857',
-  },
-  orderActions: {
-    marginBottom: 12,
-  },
-  actionButtonPrimary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#10B981',
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  actionButtonPrimaryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    color: Colors.dark.primary,
   },
   paymentButton: {
-    backgroundColor: '#FDB813',
+    backgroundColor: Colors.dark.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -737,33 +791,30 @@ const styles = StyleSheet.create({
   paymentButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#000000',
   },
   paymentButtonDisabled: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: Colors.dark.secondary,
     opacity: 0.6,
   },
-  paymentButtonTextDisabled: {
-    color: '#9CA3AF',
-  },
   servedToggle: {
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#8B5E3C',
+    borderColor: Colors.dark.border,
     alignSelf: 'flex-start',
   },
   servedToggleActive: {
-    backgroundColor: '#10B981', // Keep green for served as it's a clear status
+    backgroundColor: '#10B981',
     borderColor: '#059669',
   },
   servedToggleText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#3E2723',
+    color: Colors.dark.textSecondary,
   },
   servedToggleTextActive: {
     color: '#FFFFFF',
