@@ -270,7 +270,7 @@ export default function PurchasesScreen() {
                             </View>
                             {purchase.supplier !== 'N/A' && (
                                 <View style={styles.detailRow}>
-                                    <FileText size={14} color={Colors.dark.textSecondary} />
+                                    <User size={14} color={Colors.dark.textSecondary} />
                                     <Text style={styles.detailText}>{purchase.supplier}</Text>
                                 </View>
                             )}
