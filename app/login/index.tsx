@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Lock, Mail, ChevronRight } from 'lucide-react-native';
+import { Lock, Mail, ChevronRight, User, Crown, ChefHat } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Layout, Spacing } from '@/constants/Theme';
@@ -37,21 +37,28 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
+          {/* Logo and Branding */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.appName}>CHEEZE</Text>
-              <Text style={styles.appNameHighlight}>TOWN</Text>
+            <View style={styles.logoWrapper}>
+              <Image
+                source={require('@/assets/images/logo.jpeg')}
+                style={styles.logo}
+                resizeMode="cover"
+              />
             </View>
-            <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
+            <Text style={styles.appTitle}>The Cheeze Town</Text>
+            <Text style={styles.tagline}>Restaurant Management System</Text>
           </View>
 
-          <View style={styles.form}>
+          {/* Login Form Card */}
+          <View style={styles.formCard}>
             {/* Role Switcher */}
             <View style={styles.roleSelector}>
               <TouchableOpacity
                 style={[styles.roleButton, role === 'manager' && styles.roleButtonActive]}
                 onPress={() => setRole('manager')}
               >
+                <User size={18} color={role === 'manager' ? Colors.dark.primary : Colors.dark.textSecondary} />
                 <Text style={[styles.roleButtonText, role === 'manager' && styles.roleButtonTextActive]}>
                   {t('login.manager')}
                 </Text>
@@ -60,6 +67,7 @@ export default function LoginScreen() {
                 style={[styles.roleButton, role === 'owner' && styles.roleButtonActive]}
                 onPress={() => setRole('owner')}
               >
+                <Crown size={18} color={role === 'owner' ? Colors.dark.primary : Colors.dark.textSecondary} />
                 <Text style={[styles.roleButtonText, role === 'owner' && styles.roleButtonTextActive]}>
                   {t('login.owner')}
                 </Text>
@@ -68,6 +76,7 @@ export default function LoginScreen() {
                 style={[styles.roleButton, role === 'chef' && styles.roleButtonActive]}
                 onPress={() => setRole('chef')}
               >
+                <ChefHat size={18} color={role === 'chef' ? Colors.dark.primary : Colors.dark.textSecondary} />
                 <Text style={[styles.roleButtonText, role === 'chef' && styles.roleButtonTextActive]}>
                   Chef
                 </Text>
@@ -138,47 +147,68 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
   },
-  logoContainer: {
-    flexDirection: 'row',
-    marginBottom: 8,
+  logoWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+    marginBottom: 20,
+    borderWidth: 3,
+    borderColor: Colors.dark.primary,
+    shadowColor: Colors.dark.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  appName: {
-    fontSize: 32,
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
+  appTitle: {
+    fontSize: 28,
     fontWeight: '800',
-    color: '#FFF',
-    letterSpacing: 2,
+    color: Colors.dark.text,
+    letterSpacing: 1,
+    marginBottom: 4,
   },
-  appNameHighlight: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: Colors.dark.primary,
-    letterSpacing: 2,
-  },
-  subtitle: {
-    fontSize: 16,
+  tagline: {
+    fontSize: 14,
     color: Colors.dark.textSecondary,
     fontWeight: '500',
   },
-  form: {
+  formCard: {
     width: '100%',
+    backgroundColor: Colors.dark.card,
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(253, 184, 19, 0.1)',
+    ...Layout.shadow.large,
   },
   roleSelector: {
     flexDirection: 'row',
-    marginBottom: 32,
+    marginBottom: 24,
     backgroundColor: Colors.dark.secondary,
     borderRadius: Layout.radius.l,
     padding: 4,
+    gap: 4,
   },
   roleButton: {
     flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: Layout.radius.m,
+    flexDirection: 'row',
+    gap: 6,
   },
   roleButtonActive: {
-    backgroundColor: '#333', // Slightly lighter than secondary
+    backgroundColor: Colors.dark.background,
+    borderWidth: 1,
+    borderColor: 'rgba(253, 184, 19, 0.2)',
   },
   roleButtonText: {
     fontSize: 14,
