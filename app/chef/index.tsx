@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LogOut, Clock, CheckCircle, Settings } from 'lucide-react-native';
 import { useAudioPlayer } from 'expo-audio';
 import * as Notifications from 'expo-notifications';
+import { loadChefSettings, ChefSettings } from '@/utils/chefSettings';
 import { Colors } from '@/constants/Theme';
 
 interface OrderItem {
@@ -75,6 +76,20 @@ export default function ChefDashboard() {
         }
     ]);
 
+    // Settings state
+    const [settings, setSettings] = useState<ChefSettings>({
+        notificationsEnabled: true,
+        soundEnabled: true,
+        vibrationEnabled: true,
+    });
+
+    // Load settings on mount and when screen comes into focus
+    useFocusEffect(
+        React.useCallback(() => {
+            loadChefSettings().then(setSettings);
+        }, [])
+    );
+
     // Use local bell sound file
     const bellPlayer = useAudioPlayer(require('../../assets/sounds/belli.m4a'));
 
@@ -101,6 +116,9 @@ export default function ChefDashboard() {
 
     // Function to send order notification with full details
     async function sendOrderNotification(order: Order) {
+        // Check if notifications are enabled
+        if (!settings.notificationsEnabled) return;
+
         // Create items list text
         const itemsText = order.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
 
@@ -109,9 +127,9 @@ export default function ChefDashboard() {
                 title: '🔔 New Order Received!',
                 body: `Table ${order.tableNo} - ${itemsText}`,
                 data: { orderId: order.orderId, tableNo: order.tableNo },
-                sound: true,
+                sound: settings.soundEnabled,
                 priority: Notifications.AndroidNotificationPriority.HIGH,
-                vibrate: [0, 250, 250, 250],
+                vibrate: settings.vibrationEnabled ? [0, 250, 250, 250] : [],
             },
             trigger: null, // Send immediately
         });
@@ -119,6 +137,9 @@ export default function ChefDashboard() {
 
     // Function to play notification bell sound
     const playOrderNotification = () => {
+        // Check if sound is enabled
+        if (!settings.soundEnabled) return;
+
         try {
             // Reset to beginning and play
             bellPlayer.seekTo(0);
@@ -128,7 +149,9 @@ export default function ChefDashboard() {
         }
     };
 
-    // Simulate incoming orders
+    // Simulate incoming orders - DISABLED for production
+    // Uncomment for testing/demo purposes
+    /*
     useEffect(() => {
         const interval = setInterval(() => {
             const newOrder: Order = {
@@ -153,6 +176,7 @@ export default function ChefDashboard() {
 
         return () => clearInterval(interval);
     }, []);
+    */
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);

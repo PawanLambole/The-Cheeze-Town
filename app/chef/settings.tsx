@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ChevronRight, Bell, Lock, Volume2, Settings as SettingsIcon, Info, LogOut, Languages, Clock } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/i18n';
+import { loadChefSettings, saveChefSettings, ChefSettings } from '@/utils/chefSettings';
 import { Colors } from '@/constants/Theme';
 
 interface SettingItemProps {
@@ -55,6 +56,31 @@ export default function ChefSettingsScreen() {
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [vibrationEnabled, setVibrationEnabled] = useState(true);
+
+    // Load settings on mount
+    useEffect(() => {
+        loadChefSettings().then(settings => {
+            setNotificationsEnabled(settings.notificationsEnabled);
+            setSoundEnabled(settings.soundEnabled);
+            setVibrationEnabled(settings.vibrationEnabled);
+        });
+    }, []);
+
+    // Save setting handler
+    const handleSettingChange = async (key: keyof ChefSettings, value: boolean) => {
+        const newSettings = {
+            notificationsEnabled,
+            soundEnabled,
+            vibrationEnabled,
+            [key]: value,
+        };
+        await saveChefSettings(newSettings);
+
+        // Update local state
+        if (key === 'notificationsEnabled') setNotificationsEnabled(value);
+        if (key === 'soundEnabled') setSoundEnabled(value);
+        if (key === 'vibrationEnabled') setVibrationEnabled(value);
+    };
 
     const handleLanguageChange = async (language: string) => {
         await changeLanguage(language);
@@ -116,7 +142,7 @@ export default function ChefSettingsScreen() {
                             subtitle="Receive alerts for new orders"
                             hasSwitch
                             switchValue={notificationsEnabled}
-                            onSwitchChange={setNotificationsEnabled}
+                            onSwitchChange={(value) => handleSettingChange('notificationsEnabled', value)}
                             showArrow={false}
                         />
                         <SettingItem
@@ -125,7 +151,7 @@ export default function ChefSettingsScreen() {
                             subtitle="Play sound for new orders"
                             hasSwitch
                             switchValue={soundEnabled}
-                            onSwitchChange={setSoundEnabled}
+                            onSwitchChange={(value) => handleSettingChange('soundEnabled', value)}
                             showArrow={false}
                         />
                         <SettingItem
@@ -134,7 +160,7 @@ export default function ChefSettingsScreen() {
                             subtitle="Vibrate on new orders"
                             hasSwitch
                             switchValue={vibrationEnabled}
-                            onSwitchChange={setVibrationEnabled}
+                            onSwitchChange={(value) => handleSettingChange('vibrationEnabled', value)}
                             showArrow={false}
                         />
                     </View>
