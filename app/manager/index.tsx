@@ -232,12 +232,12 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.quickAccessCard}
-            onPress={() => router.push('/manager/staff')}
+            onPress={() => router.push('/manager/purchases' as any)}
           >
-            <View style={[styles.quickAccessIcon, { backgroundColor: '#F59E0B20' }]}>
-              <Users size={24} color="#F59E0B" />
+            <View style={[styles.quickAccessIcon, { backgroundColor: '#EF444420' }]}>
+              <Package size={24} color="#EF4444" />
             </View>
-            <Text style={styles.quickAccessLabel}>Staff</Text>
+            <Text style={styles.quickAccessLabel}>Purchases</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -252,12 +252,12 @@ export default function HomeScreen() {
 
           <TouchableOpacity
             style={styles.quickAccessCard}
-            onPress={() => router.push('/manager/purchases' as any)}
+            onPress={() => router.push('/manager/staff')}
           >
-            <View style={[styles.quickAccessIcon, { backgroundColor: '#EF444420' }]}>
-              <Package size={24} color="#EF4444" />
+            <View style={[styles.quickAccessIcon, { backgroundColor: '#F59E0B20' }]}>
+              <Users size={24} color="#F59E0B" />
             </View>
-            <Text style={styles.quickAccessLabel}>Purchases</Text>
+            <Text style={styles.quickAccessLabel}>Staff</Text>
           </TouchableOpacity>
         </View>
 

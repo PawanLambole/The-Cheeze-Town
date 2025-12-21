@@ -53,34 +53,40 @@ export default function LoginScreen() {
           {/* Login Form Card */}
           <View style={styles.formCard}>
             {/* Role Switcher */}
-            <View style={styles.roleSelector}>
+            <View style={styles.roleSelectorContainer}>
+              {/* Owner - Top Row */}
               <TouchableOpacity
-                style={[styles.roleButton, role === 'manager' && styles.roleButtonActive]}
-                onPress={() => setRole('manager')}
-              >
-                <User size={18} color={role === 'manager' ? Colors.dark.primary : Colors.dark.textSecondary} />
-                <Text style={[styles.roleButtonText, role === 'manager' && styles.roleButtonTextActive]}>
-                  {t('login.manager')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.roleButton, role === 'owner' && styles.roleButtonActive]}
+                style={[styles.roleButtonWide, role === 'owner' && styles.roleButtonActive]}
                 onPress={() => setRole('owner')}
+                activeOpacity={0.8}
               >
-                <Crown size={18} color={role === 'owner' ? Colors.dark.primary : Colors.dark.textSecondary} />
-                <Text style={[styles.roleButtonText, role === 'owner' && styles.roleButtonTextActive]}>
+                <Crown size={20} color={role === 'owner' ? Colors.dark.primary : '#666'} />
+                <Text style={[styles.roleButtonText, styles.ownerButtonText, role === 'owner' && styles.ownerButtonTextActive]}>
                   {t('login.owner')}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.roleButton, role === 'chef' && styles.roleButtonActive]}
-                onPress={() => setRole('chef')}
-              >
-                <ChefHat size={18} color={role === 'chef' ? Colors.dark.primary : Colors.dark.textSecondary} />
-                <Text style={[styles.roleButtonText, role === 'chef' && styles.roleButtonTextActive]}>
-                  Chef
-                </Text>
-              </TouchableOpacity>
+
+              {/* Manager & Chef - Bottom Row */}
+              <View style={styles.roleSelector}>
+                <TouchableOpacity
+                  style={[styles.roleButton, role === 'manager' && styles.roleButtonActive]}
+                  onPress={() => setRole('manager')}
+                >
+                  <User size={18} color={role === 'manager' ? Colors.dark.primary : Colors.dark.textSecondary} />
+                  <Text style={[styles.roleButtonText, role === 'manager' && styles.roleButtonTextActive]}>
+                    {t('login.manager')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.roleButton, role === 'chef' && styles.roleButtonActive]}
+                  onPress={() => setRole('chef')}
+                >
+                  <ChefHat size={18} color={role === 'chef' ? Colors.dark.primary : Colors.dark.textSecondary} />
+                  <Text style={[styles.roleButtonText, role === 'chef' && styles.roleButtonTextActive]}>
+                    Chef
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Inputs */}
@@ -144,17 +150,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 20,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   logoWrapper: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 3,
     borderColor: Colors.dark.primary,
     shadowColor: Colors.dark.primary,
@@ -168,14 +175,14 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   appTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: Colors.dark.text,
     letterSpacing: 1,
     marginBottom: 4,
   },
   tagline: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.dark.textSecondary,
     fontWeight: '500',
   },
@@ -183,35 +190,57 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: Colors.dark.card,
     borderRadius: 20,
-    padding: 24,
+    padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(253, 184, 19, 0.1)',
     ...Layout.shadow.large,
   },
+  roleSelectorContainer: {
+    marginBottom: 20,
+    gap: 10,
+  },
+  roleButtonWide: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 10,
+    backgroundColor: Colors.dark.secondary,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  ownerButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.dark.textSecondary,
+  },
+  ownerButtonTextActive: {
+    color: Colors.dark.primary,
+  },
   roleSelector: {
     flexDirection: 'row',
-    marginBottom: 24,
-    backgroundColor: Colors.dark.secondary,
-    borderRadius: Layout.radius.l,
-    padding: 4,
-    gap: 4,
+    gap: 10,
   },
   roleButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Layout.radius.m,
+    borderRadius: 12,
     flexDirection: 'row',
     gap: 6,
+    backgroundColor: Colors.dark.secondary,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   roleButtonActive: {
     backgroundColor: Colors.dark.background,
-    borderWidth: 1,
-    borderColor: 'rgba(253, 184, 19, 0.2)',
+    borderWidth: 2,
+    borderColor: Colors.dark.primary,
   },
   roleButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: Colors.dark.textSecondary,
   },
@@ -223,9 +252,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.dark.secondary,
     borderRadius: Layout.radius.xl,
-    paddingHorizontal: 20,
-    marginBottom: 16,
-    height: 60,
+    paddingHorizontal: 18,
+    marginBottom: 14,
+    height: 56,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -242,20 +271,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 18,
+    paddingVertical: 16,
     borderRadius: Layout.radius.xl,
-    marginTop: 16,
+    marginTop: 12,
     gap: 8,
     ...Layout.shadow.medium,
   },
   loginButtonText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: '#000',
   },
   forgotPassword: {
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 16,
   },
   forgotPasswordText: {
     fontSize: 14,

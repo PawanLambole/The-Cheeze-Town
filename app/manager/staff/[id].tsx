@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, User, Mail, Phone, Calendar, Clock, CheckCircle, DollarSign, Wallet, CreditCard, Plus, X } from 'lucide-react-native';
+import { Colors } from '@/constants/Theme';
 
 interface SalaryRecord {
     id: string;
@@ -172,7 +173,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
             <SafeAreaView style={styles.container}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack}>
-                        <ArrowLeft size={24} color="#1F2937" />
+                        <ArrowLeft size={24} color={Colors.dark.text} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Staff Details</Text>
                     <View style={{ width: 24 }} />
@@ -202,7 +203,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={handleBack}>
-                    <ArrowLeft size={24} color="#1F2937" />
+                    <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Staff Details</Text>
                 <View style={{ width: 24 }} />
@@ -254,7 +255,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                             <Text style={styles.sectionTitle}>Contact Information</Text>
                             <View style={styles.infoCard}>
                                 <View style={styles.infoRow}>
-                                    <Mail size={20} color="#6B7280" />
+                                    <Mail size={20} color={Colors.dark.textSecondary} />
                                     <View style={styles.infoContent}>
                                         <Text style={styles.infoLabel}>Email</Text>
                                         <Text style={styles.infoValue}>{staff.email}</Text>
@@ -262,7 +263,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                                 </View>
                                 <View style={styles.divider} />
                                 <View style={styles.infoRow}>
-                                    <Phone size={20} color="#6B7280" />
+                                    <Phone size={20} color={Colors.dark.textSecondary} />
                                     <View style={styles.infoContent}>
                                         <Text style={styles.infoLabel}>Phone</Text>
                                         <Text style={styles.infoValue}>{staff.phone}</Text>
@@ -272,7 +273,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                                     <>
                                         <View style={styles.divider} />
                                         <View style={styles.infoRow}>
-                                            <User size={20} color="#6B7280" />
+                                            <User size={20} color={Colors.dark.textSecondary} />
                                             <View style={styles.infoContent}>
                                                 <Text style={styles.infoLabel}>Address</Text>
                                                 <Text style={styles.infoValue}>{staff.address}</Text>
@@ -284,7 +285,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                                     <>
                                         <View style={styles.divider} />
                                         <View style={styles.infoRow}>
-                                            <Phone size={20} color="#6B7280" />
+                                            <Phone size={20} color={Colors.dark.textSecondary} />
                                             <View style={styles.infoContent}>
                                                 <Text style={styles.infoLabel}>Emergency Contact</Text>
                                                 <Text style={styles.infoValue}>{staff.emergencyContact}</Text>
@@ -300,7 +301,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                             <Text style={styles.sectionTitle}>Employment Details</Text>
                             <View style={styles.infoCard}>
                                 <View style={styles.infoRow}>
-                                    <Calendar size={20} color="#6B7280" />
+                                    <Calendar size={20} color={Colors.dark.textSecondary} />
                                     <View style={styles.infoContent}>
                                         <Text style={styles.infoLabel}>Join Date</Text>
                                         <Text style={styles.infoValue}>Joined {staff.joinDate}</Text>
@@ -310,7 +311,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                                     <>
                                         <View style={styles.divider} />
                                         <View style={styles.infoRow}>
-                                            <Calendar size={20} color="#6B7280" />
+                                            <Calendar size={20} color={Colors.dark.textSecondary} />
                                             <View style={styles.infoContent}>
                                                 <Text style={styles.infoLabel}>Salary</Text>
                                                 <Text style={styles.infoValue}>{staff.salary}</Text>
@@ -322,7 +323,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                                     <>
                                         <View style={styles.divider} />
                                         <View style={styles.infoRow}>
-                                            <Clock size={20} color="#6B7280" />
+                                            <Clock size={20} color={Colors.dark.textSecondary} />
                                             <View style={styles.infoContent}>
                                                 <Text style={styles.infoLabel}>Work Schedule</Text>
                                                 {staff.shifts.map((shift, index) => (
@@ -433,7 +434,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Record Payment</Text>
                             <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
-                                <X size={24} color="#1F2937" />
+                                <X size={24} color={Colors.dark.text} />
                             </TouchableOpacity>
                         </View>
 
@@ -501,7 +502,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.background,
     },
     header: {
         flexDirection: 'row',
@@ -509,14 +510,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: Colors.dark.border,
     },
     headerTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     content: {
         flex: 1,
@@ -529,7 +530,7 @@ const styles = StyleSheet.create({
     },
     errorText: {
         fontSize: 16,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     profileSection: {
         backgroundColor: '#FFFFFF',
@@ -590,15 +591,15 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 12,
     },
     infoCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderRadius: 12,
         padding: 16,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
     },
     infoRow: {
         flexDirection: 'row',
@@ -610,21 +611,21 @@ const styles = StyleSheet.create({
     },
     infoLabel: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
         marginBottom: 4,
     },
     infoValue: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     divider: {
         height: 1,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: Colors.dark.border,
         marginVertical: 12,
     },
     profileCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         marginHorizontal: 20,
         marginTop: 20,
         marginBottom: 20,
@@ -647,7 +648,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: '#FDB813',
+        backgroundColor: Colors.dark.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
@@ -658,7 +659,7 @@ const styles = StyleSheet.create({
     profileName: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
         marginBottom: 4,
     },
     roleContainer: {
@@ -684,11 +685,11 @@ const styles = StyleSheet.create({
     },
     statusText: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     tabContainer: {
         flexDirection: 'row',
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.dark.secondary,
         padding: 4,
         borderRadius: 12,
         marginBottom: 24,
@@ -701,7 +702,7 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     tabButtonActive: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
@@ -711,10 +712,10 @@ const styles = StyleSheet.create({
     tabText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     tabTextActive: {
-        color: '#1F2937',
+        color: Colors.dark.primary,
         fontWeight: '600',
     },
     sectionHeaderRow: {
@@ -726,7 +727,7 @@ const styles = StyleSheet.create({
     addButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FDB813',
+        backgroundColor: Colors.dark.primary,
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 20,
@@ -739,7 +740,7 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         textAlign: 'center',
-        color: '#9CA3AF',
+        color: Colors.dark.textSecondary,
         fontStyle: 'italic',
         marginTop: 8,
     },
@@ -752,7 +753,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: Colors.dark.secondary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -763,11 +764,11 @@ const styles = StyleSheet.create({
     paymentAmount: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     paymentMeta: {
         fontSize: 12,
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     paymentNote: {
         fontSize: 11,
@@ -801,7 +802,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Colors.dark.card,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         padding: 24,
@@ -816,23 +817,23 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     inputLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#374151',
+        color: Colors.dark.text,
         marginBottom: 8,
     },
     input: {
-        backgroundColor: '#F9FAFB',
+        backgroundColor: Colors.dark.secondary,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
         borderRadius: 8,
         padding: 12,
         fontSize: 16,
         marginBottom: 20,
-        color: '#1F2937',
+        color: Colors.dark.text,
     },
     textArea: {
         height: 80,
@@ -848,24 +849,25 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: Colors.dark.border,
         alignItems: 'center',
+        backgroundColor: Colors.dark.secondary,
     },
     typeButtonActive: {
-        backgroundColor: '#FEF3C7',
-        borderColor: '#FDB813',
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
     },
     typeText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#6B7280',
+        color: Colors.dark.textSecondary,
     },
     typeTextActive: {
-        color: '#B45309',
+        color: '#000',
         fontWeight: '700',
     },
     saveButton: {
-        backgroundColor: '#FDB813',
+        backgroundColor: Colors.dark.primary,
         paddingVertical: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -874,13 +876,15 @@ const styles = StyleSheet.create({
     saveButtonText: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#FFFFFF',
+        color: '#000',
     },
     summaryCard: {
-        backgroundColor: '#1F2937',
+        backgroundColor: Colors.dark.card,
         borderRadius: 16,
         padding: 20,
         marginBottom: 24,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
     },
     summaryRow: {
         flexDirection: 'row',

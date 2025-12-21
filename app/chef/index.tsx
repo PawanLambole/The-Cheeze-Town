@@ -216,9 +216,6 @@ export default function ChefDashboard() {
                     >
                         <Settings size={20} color={Colors.dark.primary} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                        <LogOut size={20} color="#EF4444" />
-                    </TouchableOpacity>
                 </View>
             </View>
 
