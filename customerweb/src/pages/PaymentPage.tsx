@@ -1,21 +1,57 @@
 import { useState } from 'react';
-import { QrCode, Smartphone, CreditCard, Shield, Lock, ChevronRight } from 'lucide-react';
+import { QrCode, Smartphone, CreditCard, Shield, Lock, ChevronRight, User } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import customerDB from '../services/database';
 
 interface PaymentPageProps {
+  tableId: number;
   onPaymentComplete: () => void;
+  onBack: () => void;
 }
 
-export default function PaymentPage({ onPaymentComplete }: PaymentPageProps) {
-  const { getTotalPrice } = useCart();
+export default function PaymentPage({ tableId, onPaymentComplete, onBack }: PaymentPageProps) {
+  const { cart, getTotalPrice, clearCart } = useCart();
   const [paymentMethod, setPaymentMethod] = useState<'qr' | 'upi' | 'card'>('qr');
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvv, setCvv] = useState('');
   const [upiId, setUpiId] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handlePayment = () => {
-    onPaymentComplete();
+  const handlePayment = async () => {
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      // Prepare order items
+      const orderItems = cart.map(item => ({
+        menu_item_name: item.name,
+        quantity: item.quantity,
+        unit_price: item.price,
+      }));
+
+      // Create order in database
+      const { error: orderError } = await customerDB.createOrder({
+        table_id: tableId,
+        customer_name: customerName || undefined,
+        items: orderItems,
+      });
+
+      if (orderError) {
+        throw new Error('Failed to create order. Please try again.');
+      }
+
+      // Clear cart after successful order
+      clearCart();
+
+      // Navigate to success page
+      onPaymentComplete();
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.');
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -32,6 +68,28 @@ export default function PaymentPage({ onPaymentComplete }: PaymentPageProps) {
         <div className="bg-brand-dark rounded-3xl p-5 md:p-8 border border-white/5 shadow-2xl relative overflow-hidden">
           {/* Decorative background blob */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-brand-yellow/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+          {/* Customer Name Input */}
+          <div className="mb-6 pb-6 border-b border-white/10 relative z-10">
+            <label className="block text-gray-300 font-medium mb-3 ml-1">Your Name (Optional)</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Enter your name"
+                className="w-full bg-brand-gray/50 text-white border border-white/10 rounded-xl px-4 py-4 pl-12 focus:outline-none focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow/50 transition-all placeholder-gray-600"
+              />
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
 
           <div className="text-center mb-6 pb-6 border-b border-white/10 relative z-10">
             <p className="text-gray-500 text-xs uppercase tracking-widest mb-2">Total Amount</p>
@@ -50,8 +108,8 @@ export default function PaymentPage({ onPaymentComplete }: PaymentPageProps) {
                 key={method.id}
                 onClick={() => setPaymentMethod(method.id as 'qr' | 'upi' | 'card')}
                 className={`p-3 md:p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 ${paymentMethod === method.id
-                    ? 'bg-brand-yellow text-brand-darker border-brand-yellow shadow-lg shadow-brand-yellow/20'
-                    : 'bg-brand-gray/50 text-gray-400 border-transparent hover:border-brand-yellow/30 hover:bg-brand-gray'
+                  ? 'bg-brand-yellow text-brand-darker border-brand-yellow shadow-lg shadow-brand-yellow/20'
+                  : 'bg-brand-gray/50 text-gray-400 border-transparent hover:border-brand-yellow/30 hover:bg-brand-gray'
                   }`}
               >
                 <method.icon className="w-5 h-5 md:w-6 md:h-6" />
@@ -154,13 +212,32 @@ export default function PaymentPage({ onPaymentComplete }: PaymentPageProps) {
             )}
           </div>
 
-          <button
-            onClick={handlePayment}
-            className="w-full bg-brand-yellow hover:bg-yellow-400 text-brand-darker font-bold text-lg py-4 px-8 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-2 group"
-          >
-            Complete Payment
-            <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={onBack}
+              disabled={isProcessing}
+              className="flex-1 bg-brand-gray hover:bg-brand-gray/80 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Back
+            </button>
+            <button
+              onClick={handlePayment}
+              disabled={isProcessing}
+              className="flex-2 bg-brand-yellow hover:bg-yellow-400 text-brand-darker font-bold text-lg py-4 px-8 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {isProcessing ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-brand-darker"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  Complete Payment
+                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

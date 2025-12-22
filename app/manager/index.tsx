@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -147,8 +147,10 @@ export default function HomeScreen() {
     todayExpense: 0, // Note: We might need an expenses table or similar logic
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboardData = async () => {
+    if (!refreshing) setRefreshing(true);
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -256,6 +258,8 @@ export default function HomeScreen() {
 
     } catch (e) {
       console.error("Failed to fetch dashboard data", e);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -301,7 +305,18 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={fetchDashboardData}
+            tintColor={Colors.dark.primary}
+            colors={[Colors.dark.primary]}
+          />
+        }
+      >
         {/* Quick Stats Cards */}
         <View style={styles.statsContainer}>
           <StatCard

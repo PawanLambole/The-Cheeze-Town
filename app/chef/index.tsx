@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LogOut, Clock, CheckCircle, Settings } from 'lucide-react-native';
@@ -45,6 +45,7 @@ export default function ChefDashboard() {
     const router = useRouter();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     // Settings state
     const [settings, setSettings] = useState<ChefSettings>({
@@ -88,7 +89,7 @@ export default function ChefDashboard() {
     }, []);
 
     const fetchOrders = async () => {
-        setLoading(true);
+        if (!loading && !refreshing) setRefreshing(true);
         try {
             // Fetch orders with status 'pending' or 'preparing' with their items
             const { data, error } = await supabase
@@ -114,6 +115,7 @@ export default function ChefDashboard() {
             console.error('Error:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -272,7 +274,18 @@ export default function ChefDashboard() {
                 </View>
             </View>
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={styles.content}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={fetchOrders}
+                        tintColor={Colors.dark.primary}
+                        colors={[Colors.dark.primary]}
+                    />
+                }
+            >
                 {loading ? (
                     <View style={styles.emptyContainer}>
                         <ActivityIndicator size="large" color={Colors.dark.primary} />

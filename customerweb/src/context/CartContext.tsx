@@ -4,7 +4,7 @@ import { CartItem, MenuItem } from '../types';
 interface CartContextType {
   cart: CartItem[];
   addToCart: (item: MenuItem) => void;
-  removeFromCart: (itemId: string) => void;
+  removeFromCart: (itemId: string | number) => void;
   clearCart: () => void;
   getTotalPrice: () => number;
 }
@@ -16,10 +16,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (item: MenuItem) => {
     setCart((prevCart) => {
-      const existingItem = prevCart.find((cartItem) => cartItem.id === item.id);
+      const existingItem = prevCart.find((cartItem) => String(cartItem.id) === String(item.id));
       if (existingItem) {
         return prevCart.map((cartItem) =>
-          cartItem.id === item.id
+          String(cartItem.id) === String(item.id)
             ? { ...cartItem, quantity: cartItem.quantity + 1 }
             : cartItem
         );
@@ -28,17 +28,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const removeFromCart = (itemId: string) => {
+  const removeFromCart = (itemId: string | number) => {
     setCart((prevCart) => {
-      const existingItem = prevCart.find((cartItem) => cartItem.id === itemId);
+      const existingItem = prevCart.find((cartItem) => String(cartItem.id) === String(itemId));
       if (existingItem && existingItem.quantity > 1) {
         return prevCart.map((cartItem) =>
-          cartItem.id === itemId
+          String(cartItem.id) === String(itemId)
             ? { ...cartItem, quantity: cartItem.quantity - 1 }
             : cartItem
         );
       }
-      return prevCart.filter((cartItem) => cartItem.id !== itemId);
+      return prevCart.filter((cartItem) => String(cartItem.id) !== String(itemId));
     });
   };
 

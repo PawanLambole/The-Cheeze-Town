@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard, Plus } from 'lucide-react-native';
@@ -51,6 +51,7 @@ export default function OrdersScreen() {
 
     const [orders, setOrders] = useState<Order[]>([]);
     const [menuItems, setMenuItems] = useState<any[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
 
 
     const getTimeAgo = (dateString: string) => {
@@ -65,6 +66,7 @@ export default function OrdersScreen() {
     };
 
     const fetchOrders = async () => {
+        if (!refreshing) setRefreshing(true);
         try {
             const { data: dbOrders, error } = await supabase
                 .from('orders')
@@ -108,6 +110,8 @@ export default function OrdersScreen() {
             setOrders(ordersWithItems);
         } catch (error) {
             console.error('Error fetching orders:', error);
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -264,7 +268,18 @@ export default function OrdersScreen() {
                 </ScrollView>
 
                 {/* Orders List */}
-                <ScrollView style={styles.ordersList} showsVerticalScrollIndicator={false}>
+                <ScrollView
+                    style={styles.ordersList}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={fetchOrders}
+                            tintColor={Colors.dark.primary}
+                            colors={[Colors.dark.primary]}
+                        />
+                    }
+                >
                     {filteredOrders.map(order => (
                         <TouchableOpacity
                             key={order.id}
