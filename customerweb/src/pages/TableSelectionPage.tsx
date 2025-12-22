@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Users, ChevronRight, RefreshCw } from 'lucide-react';
-import { useAvailableTables } from '../hooks/useDatabase';
+import { useAvailableTables } from '../hooks/useSupabase';
 import { RestaurantTable } from '../types';
 
 interface TableSelectionPageProps {

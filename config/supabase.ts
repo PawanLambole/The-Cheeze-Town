@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Supabase configuration
 const SUPABASE_URL = 'https://hncahlshvismwagbcryi.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_vGkQyuWcVL1LvYM9HgG9pg_aeKgha2A';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY2FobHNodmlzbXdhZ2JjcnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMjgzOTIsImV4cCI6MjA4MTkwNDM5Mn0.iTroRZEtMfNzVN2rvfQ5nIt325h3NbdvbXMOxd9tmTA';
 
 // Create and export the Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

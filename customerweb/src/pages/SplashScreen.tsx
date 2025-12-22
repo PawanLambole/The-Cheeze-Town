@@ -26,7 +26,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           <div className="bg-brand-dark p-6 rounded-full shadow-2xl border-2 border-brand-yellow/20 animate-float">
             <img
               src="/logo.jpeg"
-              alt="The Cheese Town Logo"
+              alt="The Cheeze Town Logo"
               className="w-32 h-32 md:w-48 md:h-48 object-cover rounded-full"
             />
           </div>
@@ -36,7 +36,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       {/* Text Content */}
       <div className="mt-8 text-center animate-fade-in-up animation-delay-200">
         <h1 className="text-3xl md:text-5xl font-bold font-serif text-brand-yellow mb-2 tracking-wider">
-          The Cheese Town
+          The Cheeze Town
         </h1>
         <p className="text-gray-400 text-sm md:text-base tracking-widest uppercase">
           Where Every Bite is Cheesy Delight

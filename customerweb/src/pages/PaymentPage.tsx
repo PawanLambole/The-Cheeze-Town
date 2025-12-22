@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { QrCode, Smartphone, CreditCard, Shield, Lock, ChevronRight, User } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import customerDB from '../services/database';
+import { customerDB } from '../services/database';
 
 interface PaymentPageProps {
   tableId: number;

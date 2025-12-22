@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase configuration - connecting to the same database as the mobile app
+// Supabase configuration - same database as the mobile app
 const SUPABASE_URL = 'https://hncahlshvismwagbcryi.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY2FobHNodmlzbXdhZ2JjcnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ0MzI3MjksImV4cCI6MjA1MDAwODcyOX0.vGkQyuWcVL1LvYM9HgG9pg_aeKgha2A';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY2FobHNodmlzbXdhZ2JjcnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMjgzOTIsImV4cCI6MjA4MTkwNDM5Mn0.iTroRZEtMfNzVN2rvfQ5nIt325h3NbdvbXMOxd9tmTA';
 
 // Create and export the Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -13,10 +13,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     },
 });
 
-// Export database instance for direct table access
+// Export database instance for direct access
 export const db = supabase;
 
-// Test connection function
+// Test the connection
 export async function testConnection() {
     try {
         const { error } = await supabase
@@ -24,15 +24,15 @@ export async function testConnection() {
             .select('count')
             .limit(1);
 
-        if (error && error.code !== 'PGRST116') {
-            console.error('Database connection error:', error);
+        if (error) {
+            console.error('❌ Database connection error:', error);
             return false;
         }
 
-        console.log('✅ Customer Web - Database connected successfully');
+        console.log('✅ Customer Website - Database connected successfully');
         return true;
     } catch (error) {
-        console.error('❌ Customer Web - Database connection error:', error);
+        console.error('❌ Database connection error:', error);
         return false;
     }
 }

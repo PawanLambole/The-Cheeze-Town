@@ -21,7 +21,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               <div className="absolute inset-0 bg-brand-yellow/20 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500"></div>
               <img
                 src="/logo.jpeg"
-                alt="The Cheese Town"
+                alt="The Cheeze Town"
                 className="relative w-32 h-32 md:w-48 md:h-48 rounded-full shadow-2xl border-4 border-brand-dark ring-4 ring-brand-yellow/20 object-cover"
               />
             </div>

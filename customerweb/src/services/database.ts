@@ -1,13 +1,12 @@
 import { supabase } from '../config/supabase';
 
 /**
- * Customer Web Database Service
- * Provides functions to fetch menu items, place orders, etc.
+ * Customer Website Database Service
+ * Handles all database operations for the customer-facing website
  */
-
 export const customerDB = {
     /**
-     * Fetch all approved menu items
+     * Get all approved menu items
      */
     async getMenuItems() {
         try {
@@ -15,54 +14,12 @@ export const customerDB = {
                 .from('menu_items')
                 .select('*')
                 .eq('status', 'approved')
-                .order('category', { ascending: true })
-                .order('name', { ascending: true });
+                .order('category', { ascending: true });
 
             if (error) throw error;
             return { data, error: null };
         } catch (error) {
             console.error('Error fetching menu items:', error);
-            return { data: null, error };
-        }
-    },
-
-    /**
-     * Get menu items by category
-     */
-    async getMenuItemsByCategory(category: string) {
-        try {
-            const { data, error } = await supabase
-                .from('menu_items')
-                .select('*')
-                .eq('status', 'approved')
-                .eq('category', category)
-                .order('name', { ascending: true });
-
-            if (error) throw error;
-            return { data, error: null };
-        } catch (error) {
-            console.error('Error fetching menu items by category:', error);
-            return { data: null, error };
-        }
-    },
-
-    /**
-     * Get all unique categories
-     */
-    async getCategories() {
-        try {
-            const { data, error } = await supabase
-                .from('menu_items')
-                .select('category')
-                .eq('status', 'approved');
-
-            if (error) throw error;
-
-            // Extract unique categories
-            const categories = [...new Set(data?.map(item => item.category))].filter(Boolean);
-            return { data: categories, error: null };
-        } catch (error) {
-            console.error('Error fetching categories:', error);
             return { data: null, error };
         }
     },
@@ -76,18 +33,18 @@ export const customerDB = {
                 .from('restaurant_tables')
                 .select('*')
                 .eq('status', 'available')
-                .order('table_number');
+                .order('table_number', { ascending: true });
 
             if (error) throw error;
             return { data, error: null };
         } catch (error) {
-            console.error('Error fetching available tables:', error);
+            console.error('Error fetching tables:', error);
             return { data: null, error };
         }
     },
 
     /**
-     * Create a customer order
+     * Create a new order with items
      */
     async createOrder(orderData: {
         table_id: number;
@@ -152,19 +109,31 @@ export const customerDB = {
     },
 
     /**
-     * Subscribe to menu items changes
+     * Subscribe to menu changes
      */
     subscribeToMenu(callback: (payload: any) => void) {
-        const subscription = supabase
-            .channel('menu_items_changes')
+        return supabase
+            .channel('menu_changes')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'menu_items' },
                 callback
             )
             .subscribe();
+    },
 
-        return subscription;
+    /**
+     * Subscribe to table changes
+     */
+    subscribeToTables(callback: (payload: any) => void) {
+        return supabase
+            .channel('table_changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'restaurant_tables' },
+                callback
+            )
+            .subscribe();
     },
 
     /**
@@ -175,4 +144,8 @@ export const customerDB = {
     },
 };
 
+// Default export for convenience
 export default customerDB;
+
+// Export supabase client for advanced usage
+export { supabase };
