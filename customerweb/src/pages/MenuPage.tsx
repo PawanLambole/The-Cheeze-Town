@@ -1,6 +1,6 @@
 import { Plus, Minus, ShoppingCart, Trash2, ChevronRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { useMenuItems } from '../hooks/useDatabase';
+import { useMenuItems } from '../hooks/useSupabase';
 
 interface MenuPageProps {
   onPlaceOrder: () => void;

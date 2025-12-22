@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import customerDB from '../services/database';
+import { useEffect, useState } from 'react';
+import { customerDB } from '../services/database';
 
 /**
- * Hook to fetch menu items
+ * Custom hook to fetch menu items
  */
 export function useMenuItems() {
     const [menuItems, setMenuItems] = useState<any[]>([]);
@@ -41,38 +41,9 @@ export function useMenuItems() {
     return { menuItems, loading, error, refetch: fetchMenuItems };
 }
 
-/**
- * Hook to fetch menu categories
- */
-export function useCategories() {
-    const [categories, setCategories] = useState<string[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<any>(null);
-
-    useEffect(() => {
-        const fetchCategories = async () => {
-            setLoading(true);
-            const { data, error: fetchError } = await customerDB.getCategories();
-
-            if (fetchError) {
-                setError(fetchError);
-                setCategories([]);
-            } else {
-                setCategories(data || []);
-                setError(null);
-            }
-
-            setLoading(false);
-        };
-
-        fetchCategories();
-    }, []);
-
-    return { categories, loading, error };
-}
 
 /**
- * Hook to fetch available tables
+ * Custom hook to fetch available tables
  */
 export function useAvailableTables() {
     const [tables, setTables] = useState<any[]>([]);
@@ -96,7 +67,29 @@ export function useAvailableTables() {
 
     useEffect(() => {
         fetchTables();
+
+        // Subscribe to real-time updates
+        const subscription = customerDB.subscribeToTables((payload) => {
+            console.log('Tables updated:', payload);
+            fetchTables();
+        });
+
+        return () => {
+            customerDB.unsubscribe(subscription);
+        };
     }, []);
 
     return { tables, loading, error, refetch: fetchTables };
+}
+
+/**
+ * Custom hook to get unique categories from menu items
+ */
+export function useCategories() {
+    const { menuItems, loading, error } = useMenuItems();
+
+    const categories = Array.from(new Set(menuItems.map(item => item.category)))
+        .filter(Boolean);
+
+    return { categories, loading, error };
 }

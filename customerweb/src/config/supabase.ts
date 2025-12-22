@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase configuration - connecting to the same database as the mobile app
+// Supabase configuration - same database as the mobile app
 const SUPABASE_URL = 'https://hncahlshvismwagbcryi.supabase.co';
 const SUPABASE_ANON_KEY = 'REDACTED_JWT';
 
@@ -13,10 +13,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     },
 });
 
-// Export database instance for direct table access
+// Export database instance for direct access
 export const db = supabase;
 
-// Test connection function
+// Test the connection
 export async function testConnection() {
     try {
         const { error } = await supabase
@@ -24,15 +24,15 @@ export async function testConnection() {
             .select('count')
             .limit(1);
 
-        if (error && error.code !== 'PGRST116') {
-            console.error('Database connection error:', error);
+        if (error) {
+            console.error('❌ Database connection error:', error);
             return false;
         }
 
-        console.log('✅ Customer Web - Database connected successfully');
+        console.log('✅ Customer Website - Database connected successfully');
         return true;
     } catch (error) {
-        console.error('❌ Customer Web - Database connection error:', error);
+        console.error('❌ Database connection error:', error);
         return false;
     }
 }
