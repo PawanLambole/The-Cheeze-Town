@@ -5,6 +5,9 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, X, Camera, User, Package, IndianRupee, Calendar, Image as ImageIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/Theme';
+import { database, supabase } from '@/services/database';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect } from 'react';
 
 interface Purchase {
     id: string;
@@ -61,33 +64,43 @@ export default function PurchasesScreen() {
     const categories = ['Vegetables', 'Dairy', 'Meat', 'Spices', 'Beverages', 'Packaging', 'Equipment', 'Other'];
     const units = ['kg', 'g', 'L', 'ml', 'pieces', 'boxes'];
 
-    const [purchases, setPurchases] = useState<Purchase[]>([
-        {
-            id: '1',
-            purchaseType: 'inventory',
-            itemName: 'Mozzarella Cheese',
-            category: 'Dairy',
-            quantity: 20,
-            unit: 'kg',
-            totalPrice: 9000,
-            supplier: 'Dairy Fresh Co.',
-            assignedTo: 'John Doe',
-            purchaseDate: '2024-04-15',
-            notes: 'Bulk order for month',
-        },
-        {
-            id: '2',
-            purchaseType: 'other',
-            itemName: 'Fresh Tomatoes',
-            category: 'Vegetables',
-            quantity: 50,
-            unit: 'kg',
-            totalPrice: 2000,
-            supplier: 'Local Farm',
-            assignedTo: 'Sarah Wilson',
-            purchaseDate: '2024-04-14',
-        },
-    ]);
+    const [purchases, setPurchases] = useState<Purchase[]>([]);
+
+    const fetchPurchases = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('purchases')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            const formattedPurchases: Purchase[] = (data || []).map((p: any) => ({
+                id: p.id,
+                purchaseType: p.purchase_type,
+                itemName: p.item_name,
+                category: p.category,
+                quantity: Number(p.quantity),
+                unit: p.unit,
+                totalPrice: Number(p.total_price),
+                supplier: p.supplier || 'N/A',
+                assignedTo: p.assigned_to,
+                purchaseDate: p.purchase_date,
+                receiptPhoto: p.receipt_photo,
+                notes: p.notes,
+            }));
+
+            setPurchases(formattedPurchases);
+        } catch (error) {
+            console.error('Error fetching purchases:', error);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchPurchases();
+        }, [])
+    );
 
     const filteredPurchases = purchases.filter(purchase =>
         purchase.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -145,7 +158,7 @@ export default function PurchasesScreen() {
         }
     };
 
-    const handleAddPurchase = () => {
+    const handleAddPurchase = async () => {
         if (!formItemName.trim() || !formQuantity || !formPrice || !formAssignedTo.trim()) {
             return;
         }
@@ -156,38 +169,58 @@ export default function PurchasesScreen() {
             return;
         }
 
-        const newPurchase: Purchase = {
-            id: String(Date.now()),
-            purchaseType: formPurchaseType,
-            itemName: formItemName.trim(),
-            category: formCategory || 'Other',
-            quantity: parseFloat(formQuantity),
-            unit: formUnit,
-            totalPrice: parseFloat(formPrice),
-            supplier: formSupplier.trim() || 'N/A',
-            assignedTo: formAssignedTo.trim(),
-            purchaseDate: new Date().toISOString().split('T')[0],
-            receiptPhoto: formReceiptPhoto,
-            notes: formNotes.trim() || undefined,
-        };
-
-        setPurchases(prev => [newPurchase, ...prev]);
-
-        // If inventory purchase, update inventory
-        if (formPurchaseType === 'inventory') {
-            // Note: In a real app, this would call an API to update inventory
-            // For now, we'll just show a message that it would be added to inventory
-            console.log('Would add to inventory:', {
-                name: formItemName.trim(),
+        try {
+            const newPurchase = {
+                purchase_type: formPurchaseType,
+                item_name: formItemName.trim(),
                 category: formCategory || 'Other',
-                currentStock: parseFloat(formQuantity),
-                minStock: parseFloat(formMinStock),
+                quantity: parseFloat(formQuantity),
                 unit: formUnit,
-            });
-        }
+                total_price: parseFloat(formPrice),
+                supplier: formSupplier.trim() || 'N/A',
+                assigned_to: formAssignedTo.trim(),
+                purchase_date: new Date().toISOString().split('T')[0],
+                receipt_photo: formReceiptPhoto,
+                notes: formNotes.trim() || null,
+            };
 
-        setShowAddModal(false);
-        resetForm();
+            const { error } = await supabase
+                .from('purchases')
+                .insert([newPurchase]);
+
+            if (error) throw error;
+
+            fetchPurchases();
+
+            if (formPurchaseType === 'inventory') {
+                // Check if item exists in inventory_items to update stock
+                const { data: existingItems } = await supabase
+                    .from('inventory_items')
+                    .select('*')
+                    .ilike('name', formItemName.trim());
+
+                if (existingItems && existingItems.length > 0) {
+                    const item = existingItems[0];
+                    await supabase.from('inventory_items').update({
+                        current_stock: (Number(item.current_stock) + parseFloat(formQuantity))
+                    }).eq('id', item.id);
+                } else {
+                    await supabase.from('inventory_items').insert([{
+                        name: formItemName.trim(),
+                        category: formCategory || 'Other',
+                        unit: formUnit,
+                        current_stock: parseFloat(formQuantity),
+                        min_stock: parseFloat(formMinStock) || 0
+                    }]);
+                }
+            }
+
+            setShowAddModal(false);
+            resetForm();
+        } catch (e) {
+            console.error("Error adding purchase:", e);
+            alert("Failed to add purchase");
+        }
     };
 
     const insets = useSafeAreaInsets();

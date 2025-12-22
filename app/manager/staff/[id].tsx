@@ -24,80 +24,25 @@ interface StaffMember {
     joinDate: string;
 }
 
-// Mock data - in production, this would come from a database/API
-const mockStaffData: Record<string, StaffMember & {
-    address?: string;
+import { supabase } from '@/services/database';
+import { useEffect } from 'react';
+
+// ... interface SalaryRecord ...
+
+interface StaffMember {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    role: string;
+    status: 'approved' | 'pending';
+    joinDate: string;
+    address?: string; // Optional field, might be in a separate profile table later
     emergencyContact?: string;
     salary?: string;
     shifts?: { day: string; time: string }[];
     salaryHistory?: SalaryRecord[];
-}> = {
-    '1': {
-        id: '1',
-        name: 'John Doe',
-        email: 'john@cheezetown.com',
-        phone: '+91 98765 43210',
-        role: 'manager',
-        status: 'approved',
-        joinDate: 'Jan 2024',
-        address: '123 Main Street, Mumbai, Maharashtra',
-        emergencyContact: '+91 98765 00000',
-        salary: '₹45,000/month',
-        shifts: [
-            { day: 'Mon-Fri', time: '9:00 AM - 6:00 PM' },
-            { day: 'Sat', time: '10:00 AM - 4:00 PM' },
-        ],
-        salaryHistory: [
-            { id: '1', date: '2025-12-01', amount: 45000, type: 'salary', method: 'online', note: 'November Salary' },
-            { id: '2', date: '2025-12-15', amount: 5000, type: 'advance', method: 'cash', note: 'Emergency advance' },
-        ],
-    },
-    '2': {
-        id: '2',
-        name: 'Sarah Wilson',
-        email: 'sarah@cheezetown.com',
-        phone: '+91 98765 43211',
-        role: 'chef',
-        status: 'approved',
-        joinDate: 'Feb 2024',
-        address: '456 Park Avenue, Mumbai, Maharashtra',
-        emergencyContact: '+91 98765 11111',
-        salary: '₹35,000/month',
-        shifts: [
-            { day: 'Mon-Sat', time: '11:00 AM - 8:00 PM' },
-        ],
-    },
-    '3': {
-        id: '3',
-        name: 'Mike Johnson',
-        email: 'mike@cheezetown.com',
-        phone: '+91 98765 43212',
-        role: 'waiter',
-        status: 'approved',
-        joinDate: 'Mar 2024',
-        address: '789 Lake Road, Mumbai, Maharashtra',
-        emergencyContact: '+91 98765 22222',
-        salary: '₹25,000/month',
-        shifts: [
-            { day: 'Mon-Sun', time: '12:00 PM - 9:00 PM' },
-        ],
-    },
-    '4': {
-        id: '4',
-        name: 'Emily Brown',
-        email: 'emily@cheezetown.com',
-        phone: '+91 98765 43213',
-        role: 'cashier',
-        status: 'approved',
-        joinDate: 'Mar 2024',
-        address: '321 Beach Street, Mumbai, Maharashtra',
-        emergencyContact: '+91 98765 33333',
-        salary: '₹28,000/month',
-        shifts: [
-            { day: 'Tue-Sun', time: '10:00 AM - 7:00 PM' },
-        ],
-    },
-};
+}
 
 interface StaffDetailsScreenProps {
     isOwner?: boolean;
@@ -107,8 +52,50 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
     const isOwnerView = isOwner ?? false;
-    const staff = mockStaffData[id || '1'];
+    const [staff, setStaff] = useState<StaffMember | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'overview' | 'salary'>('overview');
     const insets = useSafeAreaInsets();
+
+    useEffect(() => {
+        if (!id) return;
+
+        const fetchStaffDetails = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    setStaff({
+                        id: data.id,
+                        name: data.full_name || 'Unknown',
+                        email: data.email || '',
+                        phone: data.phone || 'Not provided',
+                        role: data.role || 'staff',
+                        status: data.status || 'pending',
+                        joinDate: new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                        salary: 'Not set', // These would likely come from a separate 'staff_profiles' table
+                        address: 'Not provided',
+                        emergencyContact: 'Not provided',
+                        shifts: [],
+                        salaryHistory: []
+                    });
+                }
+            } catch (e) {
+                console.error("Error fetching staff details:", e);
+                Alert.alert("Error", "Failed to fetch staff details");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStaffDetails();
+    }, [id]);
 
     // State for salary management
     const [records, setRecords] = useState<SalaryRecord[]>(staff?.salaryHistory || []);
@@ -140,11 +127,8 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
     const remainingPayable = Math.max(0, baseSalary - totalAdvance - totalPaid);
 
     const handleBack = () => {
-        if (router.canGoBack()) {
-            router.back();
-        } else {
-            router.push(isOwnerView ? '/owner' : '/manager/staff');
-        }
+        // Always navigate directly to staff list to ensure correct navigation
+        router.push(isOwnerView ? '/owner/staff' : '/manager/staff');
     };
 
     const handleAddPayment = () => {
@@ -168,6 +152,14 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
         setNote('');
         Alert.alert('Success', 'Payment recorded successfully');
     };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: Colors.dark.text }}>Loading...</Text>
+            </View>
+        );
+    }
 
     if (!staff) {
         return (
@@ -195,8 +187,6 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
             default: return '#6B7280';
         }
     };
-
-    const [activeTab, setActiveTab] = useState<'overview' | 'salary'>('overview');
 
     // ... (existing helper functions)
 

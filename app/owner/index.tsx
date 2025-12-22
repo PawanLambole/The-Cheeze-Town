@@ -96,10 +96,14 @@ export default function OwnerDashboardScreen() {
       const { data: preparingData } = await database.query('orders', 'status', 'eq', 'preparing');
       const pendingCount = (pendingData?.length || 0) + (preparingData?.length || 0);
 
-      // 3. Get generic expenses (if any table existed, for now mock or simple logic)
-      // Since we don't have an 'expenses' table defined in widely used context yet, we'll keep it 0 or use a placeholder
-      // If you have an expenses table, query it here.
-      const expenses = 0;
+      // 3. Get expenses from purchases table
+      const todayDateStr = todayISO.split('T')[0];
+      const { data: purchasesData } = await supabase
+        .from('purchases')
+        .select('total_price')
+        .eq('purchase_date', todayDateStr);
+
+      const expenses = (purchasesData || []).reduce((sum: number, p: any) => sum + (Number(p.total_price) || 0), 0);
 
       setStats({
         todayRevenue: revenue,
@@ -164,12 +168,14 @@ export default function OwnerDashboardScreen() {
               title="Today's Revenue"
               value={`₹${stats.todayRevenue.toLocaleString()}`}
               subtitle="vs yesterday"
+              onPress={() => router.push('/owner/revenue')}
             />
             <OwnerCard
               icon={<ClipboardList size={22} color="#2563EB" />}
               title="Today's Total Orders"
               value={stats.todayOrders.toString()}
               subtitle="Across all tables"
+              onPress={() => router.push('/owner/orders')}
             />
           </View>
 
@@ -179,12 +185,14 @@ export default function OwnerDashboardScreen() {
               title="Today's Expense"
               value={`₹${stats.todayExpense.toLocaleString()}`}
               subtitle="Operational costs"
+              onPress={() => router.push('/owner/expenses')}
             />
             <OwnerCard
               icon={<Clock size={22} color="#F59E0B" />}
               title="Pending Orders"
               value={stats.pendingOrders.toString()}
               subtitle="Active right now"
+              onPress={() => router.push('/owner/orders')}
             />
           </View>
 
@@ -239,7 +247,7 @@ export default function OwnerDashboardScreen() {
               title="Inventory"
               subtitle="Stock & purchasing"
               variant="management"
-              onPress={() => router.push('/inventory')}
+              onPress={() => router.push('/owner/inventory')}
             />
             <OwnerCard
               icon={<ShoppingCart size={24} color={Colors.dark.primary} />}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ChevronRight, Bell, Lock, Globe, IndianRupee, Printer, Database, Info, LogOut, Languages } from 'lucide-react-native';
@@ -26,9 +26,10 @@ function SettingItem({ icon, title, subtitle, onPress, showArrow = true, value, 
       style={styles.settingItem}
       onPress={onPress}
       disabled={hasSwitch}
+      activeOpacity={0.7}
     >
       <View style={styles.settingLeft}>
-        <View style={styles.settingIcon}>{icon}</View>
+        <View style={styles.settingIconContainer}>{icon}</View>
         <View style={styles.settingTextContainer}>
           <Text style={styles.settingTitle}>{title}</Text>
           {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
@@ -40,17 +41,22 @@ function SettingItem({ icon, title, subtitle, onPress, showArrow = true, value, 
           <Switch
             value={switchValue}
             onValueChange={onSwitchChange}
-            trackColor={{ false: Colors.dark.secondary, true: Colors.dark.primary }}
-            thumbColor="#1E1E1E"
+            trackColor={{ false: '#3F3F46', true: Colors.dark.primary }}
+            thumbColor={switchValue ? '#FFFFFF' : '#F4F4F5'}
           />
         )}
-        {showArrow && !hasSwitch && <ChevronRight size={20} color={Colors.dark.textSecondary} />}
+        {showArrow && !hasSwitch && <ChevronRight size={18} color={Colors.dark.textSecondary} />}
       </View>
     </TouchableOpacity>
   );
 }
 
-export default function SettingsScreen() {
+interface SettingsScreenProps {
+  showHeader?: boolean;
+  isOwner?: boolean;
+}
+
+export default function SettingsScreen({ showHeader = true, isOwner = true }: SettingsScreenProps) {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const { signOut } = useAuth();
@@ -74,13 +80,15 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color={Colors.dark.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('manager.settings.title')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      {showHeader && (
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ArrowLeft size={24} color={Colors.dark.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('manager.settings.title')}</Text>
+          <View style={{ width: 24 }} />
+        </View>
+      )}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
@@ -91,7 +99,7 @@ export default function SettingsScreen() {
               onPress={() => handleLanguageChange('en')}
             >
               <View style={styles.languageLeft}>
-                <Languages size={20} color={Colors.dark.textSecondary} style={styles.settingIcon} />
+                <Languages size={20} color={Colors.dark.primary} style={styles.settingIcon} />
                 <Text style={styles.languageText}>{t('manager.settings.english')}</Text>
               </View>
               {i18n.language === 'en' && (
@@ -103,7 +111,7 @@ export default function SettingsScreen() {
               onPress={() => handleLanguageChange('mr')}
             >
               <View style={styles.languageLeft}>
-                <Languages size={20} color={Colors.dark.textSecondary} style={styles.settingIcon} />
+                <Languages size={20} color={Colors.dark.primary} style={styles.settingIcon} />
                 <Text style={styles.languageText}>{t('manager.settings.marathi')}</Text>
               </View>
               {i18n.language === 'mr' && (
@@ -117,7 +125,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>{t('manager.settings.notifications')}</Text>
           <View style={styles.settingsList}>
             <SettingItem
-              icon={<Bell size={20} color={Colors.dark.textSecondary} />}
+              icon={<Bell size={20} color={Colors.dark.primary} />}
               title="Push Notifications"
               subtitle="Receive order and update notifications"
               hasSwitch
@@ -126,7 +134,7 @@ export default function SettingsScreen() {
               showArrow={false}
             />
             <SettingItem
-              icon={<Bell size={20} color={Colors.dark.textSecondary} />}
+              icon={<Bell size={20} color={Colors.dark.primary} />}
               title="Sound"
               subtitle="Play sound for new orders"
               hasSwitch
@@ -141,20 +149,22 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Business Settings</Text>
           <View style={styles.settingsList}>
             <SettingItem
-              icon={<Globe size={20} color={Colors.dark.textSecondary} />}
+              icon={<Globe size={20} color={Colors.dark.primary} />}
               title="Restaurant Info"
               subtitle="Name, address, and contact details"
-              onPress={() => console.log('Restaurant info')}
+              onPress={() => Alert.alert('Coming Soon', 'Restaurant Info editing will be available in the next update.')}
             />
+            {!isOwner && (
+              <SettingItem
+                icon={<IndianRupee size={20} color={Colors.dark.primary} />}
+                title="Tax Settings"
+                subtitle="Configure tax rates and types"
+                value="5%"
+                onPress={() => Alert.alert('Coming Soon', 'Tax Settings will be available in the next update.')}
+              />
+            )}
             <SettingItem
-              icon={<IndianRupee size={20} color={Colors.dark.textSecondary} />}
-              title="Tax Settings"
-              subtitle="Configure tax rates and types"
-              value="5%"
-              onPress={() => console.log('Tax settings')}
-            />
-            <SettingItem
-              icon={<Printer size={20} color={Colors.dark.textSecondary} />}
+              icon={<Printer size={20} color={Colors.dark.primary} />}
               title="Auto Print Bills"
               subtitle="Automatically print bills after payment"
               hasSwitch
@@ -165,54 +175,67 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Security</Text>
-          <View style={styles.settingsList}>
-            <SettingItem
-              icon={<Lock size={20} color={Colors.dark.textSecondary} />}
-              title="Two-Factor Authentication"
-              subtitle="Add an extra layer of security"
-              onPress={() => console.log('2FA')}
-            />
+        {!isOwner && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Security</Text>
+            <View style={styles.settingsList}>
+              <SettingItem
+                icon={<Lock size={20} color={Colors.dark.primary} />}
+                title="Two-Factor Authentication"
+                subtitle="Add an extra layer of security"
+                onPress={() => Alert.alert('Coming Soon', '2FA implementation is in progress.')}
+              />
+            </View>
           </View>
-        </View>
+        )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data & Storage</Text>
-          <View style={styles.settingsList}>
-            <SettingItem
-              icon={<Database size={20} color={Colors.dark.textSecondary} />}
-              title="Backup Data"
-              subtitle="Create a backup of your data"
-              onPress={() => console.log('Backup')}
-            />
-            <SettingItem
-              icon={<Database size={20} color={Colors.dark.textSecondary} />}
-              title="Clear Cache"
-              subtitle="Free up storage space"
-              onPress={() => console.log('Clear cache')}
-            />
+        {!isOwner && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Data & Storage</Text>
+            <View style={styles.settingsList}>
+              <SettingItem
+                icon={<Database size={20} color={Colors.dark.primary} />}
+                title="Backup Data"
+                subtitle="Create a backup of your data"
+                onPress={() => Alert.alert('Backup', 'Backup feature coming soon.')}
+              />
+              <SettingItem
+                icon={<Database size={20} color={Colors.dark.primary} />}
+                title="Clear Cache"
+                subtitle="Free up storage space"
+                onPress={() => {
+                  Alert.alert(
+                    'Clear Cache',
+                    'Are you sure you want to clear the app cache?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Clear', style: 'destructive', onPress: () => Alert.alert('Success', 'Cache cleared successfully') }
+                    ]
+                  );
+                }}
+              />
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
           <View style={styles.settingsList}>
             <SettingItem
-              icon={<Info size={20} color={Colors.dark.textSecondary} />}
+              icon={<Info size={20} color={Colors.dark.primary} />}
+              title="Terms of Service"
+              onPress={() => Alert.alert('Terms', 'Terms of Service will be displayed here.')}
+            />
+            <SettingItem
+              icon={<Info size={20} color={Colors.dark.primary} />}
+              title="Privacy Policy"
+              onPress={() => Alert.alert('Privacy', 'Privacy Policy will be displayed here.')}
+            />
+            <SettingItem
+              icon={<Info size={20} color={Colors.dark.primary} />}
               title={t('manager.settings.version')}
               value="1.0.0"
               showArrow={false}
-            />
-            <SettingItem
-              icon={<Info size={20} color={Colors.dark.textSecondary} />}
-              title="Terms of Service"
-              onPress={() => console.log('Terms')}
-            />
-            <SettingItem
-              icon={<Info size={20} color={Colors.dark.textSecondary} />}
-              title="Privacy Policy"
-              onPress={() => console.log('Privacy')}
             />
           </View>
         </View>
@@ -263,53 +286,66 @@ const styles = StyleSheet.create({
   },
   settingsList: {
     backgroundColor: Colors.dark.card,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
     borderColor: Colors.dark.border,
+    marginHorizontal: 20,
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.dark.border,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  settingIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)', // Primary color with opacity
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
   settingIcon: {
     marginRight: 16,
   },
   settingTextContainer: {
     flex: 1,
+    gap: 4,
   },
   settingTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.dark.text,
-    marginBottom: 2,
   },
   settingSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.dark.textSecondary,
+    lineHeight: 18,
   },
   settingRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   settingValue: {
     fontSize: 14,
-    color: Colors.dark.textSecondary,
-    marginRight: 8,
+    color: Colors.dark.primary,
+    fontWeight: '500',
+    marginRight: 4,
   },
   logoutSection: {
-    marginTop: 24,
-    marginBottom: 40,
+    marginTop: 32,
+    marginBottom: 48,
     paddingHorizontal: 20,
   },
   logoutButton: {

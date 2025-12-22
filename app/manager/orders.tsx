@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard } from 'lucide-react-native';
+import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard, Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import PaymentModal from '../../components/PaymentModal';
+import PaymentModal from '@/components/PaymentModal';
 import { printAddedItemsReceipt, printPaymentReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
 import { Colors } from '@/constants/Theme';
+import { database, supabase } from '@/services/database';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect } from 'react';
 
 interface OrderItem {
     name: string;
@@ -46,131 +49,92 @@ export default function OrdersScreen() {
 
     const statusOptions: ('all' | 'pending' | 'served' | 'completed')[] = ['all', 'pending', 'served', 'completed'];
 
-    // Mock orders data - matching the structure from the homepage
-    const [orders, setOrders] = useState<Order[]>([
-        {
-            id: '1',
-            orderId: 'ORD001',
-            tableNo: 5,
-            customerName: 'Rahul Sharma',
-            items: [
-                { name: 'Margherita Pizza', quantity: 2, price: 250 },
-                { name: 'Garlic Bread', quantity: 1, price: 150 },
-                { name: 'Coke', quantity: 2, price: 50 }
-            ],
-            isServed: false,
-            isPaid: false,
-            totalAmount: 650,
-            time: '10 mins ago',
-            duration: '10 min',
-        },
-        {
-            id: '2',
-            orderId: 'ORD002',
-            tableNo: 3,
-            items: [
-                { name: 'Paneer Tikka Pizza', quantity: 1, price: 280 },
-                { name: 'French Fries', quantity: 1, price: 150 }
-            ],
-            isServed: true,
-            isPaid: false,
-            totalAmount: 480,
-            time: '25 mins ago',
-            duration: '25 min',
-        },
-        {
-            id: '3',
-            orderId: 'ORD003',
-            tableNo: 8,
-            customerName: 'Priya Patel',
-            items: [
-                { name: 'Cheese Burst Pizza', quantity: 1, price: 450 },
-                { name: 'Pasta Alfredo', quantity: 1, price: 280 },
-                { name: 'Pepsi', quantity: 1, price: 50 },
-                { name: 'Ice Cream', quantity: 1, price: 110 }
-            ],
-            isServed: false,
-            isPaid: false,
-            totalAmount: 890,
-            time: '32 mins ago',
-            duration: '32 min',
-        },
-        {
-            id: '4',
-            orderId: 'ORD004',
-            tableNo: 2,
-            items: [
-                { name: 'Veg Supreme Pizza', quantity: 1, price: 320 },
-                { name: 'Garlic Bread', quantity: 1, price: 150 }
-            ],
-            isServed: true,
-            isPaid: false,
-            totalAmount: 520,
-            time: '45 mins ago',
-            duration: '45 min',
-        },
-        {
-            id: '5',
-            orderId: 'ORD005',
-            tableNo: 12,
-            customerName: 'Amit Kumar',
-            items: [
-                { name: 'BBQ Chicken Pizza', quantity: 1, price: 380 },
-                { name: 'Wings', quantity: 1, price: 250 },
-                { name: 'Sprite', quantity: 1, price: 50 }
-            ],
-            isServed: true,
-            isPaid: false,
-            totalAmount: 780,
-            time: '1 hour ago',
-            duration: '1h',
-        },
-        {
-            id: '6',
-            orderId: 'ORD006',
-            tableNo: 7,
-            items: [
-                { name: 'Farmhouse Pizza', quantity: 1, price: 300 },
-                { name: 'Coke', quantity: 1, price: 50 }
-            ],
-            isServed: false,
-            isPaid: false,
-            totalAmount: 350,
-            time: '15 mins ago',
-            duration: '15 min',
-        },
-        {
-            id: '7',
-            orderId: 'ORD007',
-            tableNo: 4,
-            customerName: 'Sneha Desai',
-            items: [
-                { name: 'Margherita Pizza', quantity: 1, price: 250 },
-                { name: 'Pasta Carbonara', quantity: 1, price: 260 },
-                { name: 'Garlic Bread', quantity: 1, price: 150 },
-                { name: 'Pepsi', quantity: 2, price: 50 }
-            ],
-            isServed: true,
-            isPaid: false,
-            totalAmount: 760,
-            time: '1h 20min ago',
-            duration: '1h 20min',
-        },
-        {
-            id: '8',
-            orderId: 'ORD008',
-            tableNo: 10,
-            items: [
-                { name: 'Tandoori Paneer Pizza', quantity: 1, price: 340 },
-                { name: 'French Fries', quantity: 1, price: 150 }
-            ],
-            isServed: false,
-            isPaid: false,
-            totalAmount: 490,
-            time: '8 mins ago',
-            duration: '8 min',
-        },
-    ]);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [menuItems, setMenuItems] = useState<any[]>([]);
+
+
+    const getTimeAgo = (dateString: string) => {
+        const now = new Date();
+        const past = new Date(dateString);
+        const diffMs = now.getTime() - past.getTime();
+        const diffMins = Math.round(diffMs / 60000);
+        if (diffMins < 60) return `${diffMins} mins ago`;
+        const diffHours = Math.round(diffMins / 60);
+        if (diffHours < 24) return `${diffHours} hours ago`;
+        return `${Math.round(diffHours / 24)} days ago`;
+    };
+
+    const fetchOrders = async () => {
+        try {
+            const { data: dbOrders, error } = await supabase
+                .from('orders')
+                .select('*')
+                .neq('status', 'cancelled')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            const ordersWithItems = await Promise.all((dbOrders || []).map(async (o: any) => {
+                const { data: items } = await supabase
+                    .from('order_items')
+                    .select('menu_item_name, quantity, price')
+                    .eq('order_id', o.id);
+
+                const mappedItems = (items || []).map((i: any) => ({
+                    name: i.menu_item_name,
+                    quantity: i.quantity,
+                    price: i.price
+                }));
+
+                const isServed = o.status === 'served' || o.status === 'completed';
+                const isPaid = o.status === 'completed';
+
+                return {
+                    id: String(o.id),
+                    orderId: o.order_number,
+                    tableNo: o.table_id,
+                    customerName: o.customer_name,
+                    items: mappedItems,
+                    isServed: isServed,
+                    isPaid: isPaid,
+                    totalAmount: o.total_amount,
+                    time: getTimeAgo(o.created_at),
+                    duration: getTimeAgo(o.created_at).replace(' ago', ''),
+                    transactionId: o.transaction_id,
+                    paymentMethod: o.payment_method
+                };
+            }));
+
+            setOrders(ordersWithItems);
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+        }
+    };
+
+    const fetchMenu = async () => {
+        try {
+            const { data } = await supabase.from('menu_items').select('name, price').eq('status', 'approved');
+            if (data) setMenuItems(data);
+        } catch (e) {
+            console.error("Error fetching menu for orders", e);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchOrders();
+            fetchMenu();
+        }, [])
+    );
+
+    useEffect(() => {
+        const sub = database.subscribe('orders', () => {
+            fetchOrders();
+        });
+        return () => {
+            database.unsubscribe(sub);
+        };
+    }, []);
 
     // Filter orders based on status
     const getFilteredByStatus = () => {
@@ -196,12 +160,29 @@ export default function OrdersScreen() {
         setShowOrderModal(true);
     };
 
-    const toggleOrderStatus = (orderId: string) => {
-        setOrders(prev => prev.map(o =>
-            o.id === orderId ? { ...o, isServed: !o.isServed } : o
-        ));
-        if (selectedOrder?.id === orderId) {
-            setSelectedOrder({ ...selectedOrder, isServed: !selectedOrder.isServed });
+    const toggleOrderStatus = async (orderId: string) => {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        const newStatus = order.isServed ? 'pending' : 'served';
+
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: newStatus })
+                .eq('id', orderId);
+
+            if (error) throw error;
+
+            setOrders(prev => prev.map(o =>
+                o.id === orderId ? { ...o, isServed: !order.isServed } : o
+            ));
+            if (selectedOrder?.id === orderId) {
+                setSelectedOrder({ ...selectedOrder, isServed: !selectedOrder.isServed });
+            }
+        } catch (e) {
+            console.error("Error updating order status:", e);
+            alert("Failed to update status");
         }
     };
 
@@ -224,7 +205,9 @@ export default function OrdersScreen() {
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{t('manager.orders.title')}</Text>
-                <View style={{ width: 24 }} />
+                <TouchableOpacity onPress={() => router.push('/manager/create-order')}>
+                    <Plus size={24} color={Colors.dark.primary} />
+                </TouchableOpacity>
             </View>
 
             <View style={styles.content}>
@@ -232,19 +215,19 @@ export default function OrdersScreen() {
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{orders.length}</Text>
-                        <Text style={styles.statLabel}>Total</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>Total</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statValue, { color: '#F59E0B' }]}>{pendingOrdersCount}</Text>
-                        <Text style={styles.statLabel}>Pending</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>Pending</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statValue, { color: '#3B82F6' }]}>{servedOrdersCount}</Text>
-                        <Text style={styles.statLabel}>Served</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>Served</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statValue, { color: '#10B981' }]}>{completedOrdersCount}</Text>
-                        <Text style={styles.statLabel}>Completed</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>Completed</Text>
                     </View>
                 </View>
 
@@ -590,14 +573,8 @@ export default function OrdersScreen() {
                                 <View style={styles.menuItemsList}>
                                     <Text style={styles.sectionLabel}>Menu Items</Text>
 
-                                    {/* Sample Menu Items */}
-                                    {[
-                                        { name: 'Margherita Pizza', price: 250 },
-                                        { name: 'Paneer Tikka Pizza', price: 280 },
-                                        { name: 'Pasta Alfredo', price: 280 },
-                                        { name: 'Garlic Bread', price: 150 },
-                                        { name: 'Coke', price: 50 },
-                                    ].map((item, index) => {
+                                    {/* Menu Items from DB */}
+                                    {menuItems.map((item, index) => {
                                         const isSelected = selectedItems.some(si => si.name === item.name);
                                         return (
                                             <TouchableOpacity
@@ -811,21 +788,26 @@ const styles = StyleSheet.create({
     statCard: {
         flex: 1,
         backgroundColor: Colors.dark.card,
-        padding: 12,
+        paddingVertical: 16,
+        paddingHorizontal: 6,
         borderRadius: 12,
         alignItems: 'center',
+        justifyContent: 'center',
         borderWidth: 1,
         borderColor: Colors.dark.border,
+        minHeight: 70,
     },
     statValue: {
-        fontSize: 18,
+        fontSize: 24,
         fontWeight: '700',
         color: Colors.dark.text,
         marginBottom: 4,
+        textAlign: 'center',
     },
     statLabel: {
-        fontSize: 11,
+        fontSize: 10,
         color: Colors.dark.textSecondary,
+        textAlign: 'center',
     },
     searchContainer: {
         flexDirection: 'row',
@@ -1355,5 +1337,68 @@ const styles = StyleSheet.create({
         color: '#000000',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    confirmButtonDisabled: {
+        backgroundColor: Colors.dark.secondary,
+        opacity: 0.5,
+    },
+    tableSelectionScroll: {
+        marginBottom: 16,
+        flexGrow: 0,
+    },
+    tableOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        backgroundColor: Colors.dark.secondary,
+        borderRadius: 12,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+    },
+    tableOptionSelected: {
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
+    },
+    tableOptionText: {
+        color: Colors.dark.text,
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    tableOptionTextSelected: {
+        color: '#000000',
+        fontWeight: '700',
+    },
+    input: {
+        backgroundColor: Colors.dark.inputBackground,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        fontSize: 16,
+        color: Colors.dark.text,
+        marginBottom: 16,
+    },
+    totalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: 12,
+        marginTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: Colors.dark.border,
+    },
+    totalLabel: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: Colors.dark.text,
+    },
+    totalValue: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: Colors.dark.primary,
     },
 });
