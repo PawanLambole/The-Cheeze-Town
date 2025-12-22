@@ -63,15 +63,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .from('users')
                 .select('*')
                 .eq('auth_id', authId)
-                .single();
+                .maybeSingle();
 
-            if (error) {
-                console.error('Error fetching user data:', error);
-            } else {
+            if (data) {
                 setUserData(data);
+            } else {
+                console.log('No user profile found, creating default profile...');
+                // Get current user details to populate profile
+                const { data: { user } } = await supabase.auth.getUser();
+
+                if (user) {
+                    const newUser = {
+                        auth_id: authId,
+                        email: user.email,
+                        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+                        role: 'manager', // Default to manager for development convenience
+                        phone: user.phone || '',
+                        status: 'approved'
+                    };
+
+                    const { data: createdUser, error: createError } = await supabase
+                        .from('users')
+                        .insert([newUser])
+                        .select()
+                        .single();
+
+                    if (createError) {
+                        console.error('Error creating user profile:', createError);
+                    } else if (createdUser) {
+                        setUserData(createdUser);
+                    }
+                }
             }
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error in fetchUserData:', error);
         } finally {
             setLoading(false);
         }
@@ -97,13 +122,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signOut = async () => {
         try {
-            await supabase.auth.signOut();
-            await AsyncStorage.removeItem('supabase.auth.token');
+            // Attempt to sign out from Supabase
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error('Supabase signOut error:', error);
+            }
+        } catch (error) {
+            console.error('Error signing out:', error);
+        } finally {
+            // Always clear local state and storage
+            try {
+                // The key depends on your Supabase config, usually it's handled by Supabase client internally
+                // but we can try to clear common keys or just rely on Supabase client.
+                await AsyncStorage.removeItem('supabase.auth.token');
+            } catch (e) {
+                // Ignore storage error
+            }
             setSession(null);
             setUser(null);
             setUserData(null);
-        } catch (error) {
-            console.error('Error signing out:', error);
         }
     };
 

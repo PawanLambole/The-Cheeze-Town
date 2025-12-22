@@ -4,6 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, TrendingDown, Package, Zap, Wrench, Users as UsersIcon, ShoppingBag } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
+import { database, supabase } from '@/services/database';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo } from 'react';
 
 interface ExpenseItem {
     id: string;
@@ -25,63 +28,97 @@ export default function ExpensesScreen() {
     const router = useRouter();
     const screenWidth = Dimensions.get('window').width;
 
-    // Mock expense data
-    const expenses: ExpenseItem[] = [
-        { id: '1', category: 'Inventory', amount: 2000, date: '2024-12-17', description: 'Mozzarella Cheese' },
-        { id: '2', category: 'Utilities', amount: 500, date: '2024-12-17', description: 'Electricity Bill' },
-        { id: '3', category: 'Inventory', amount: 800, date: '2024-12-17', description: 'Fresh Vegetables' },
-        { id: '4', category: 'Maintenance', amount: 350, date: '2024-12-17', description: 'Equipment Repair' },
-        { id: '5', category: 'Inventory', amount: 600, date: '2024-12-16', description: 'Pizza Boxes' },
-    ];
+    const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
 
-    const todayExpenses = expenses.filter(e => e.date === '2024-12-17');
+    const fetchExpenses = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('purchases')
+                .select('*')
+                .order('purchase_date', { ascending: false });
+
+            if (error) throw error;
+
+            const mapped: ExpenseItem[] = (data || []).map((p: any) => ({
+                id: p.id,
+                category: p.category,
+                amount: Number(p.total_price),
+                date: p.purchase_date,
+                description: p.item_name
+            }));
+
+            setExpenses(mapped);
+
+        } catch (e) {
+            console.error("Error fetching expenses", e);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchExpenses();
+        }, [])
+    );
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayExpenses = expenses.filter(e => e.date === todayStr);
     const totalToday = todayExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-    // Calculate category breakdown
-    const categoryTotals: Record<string, number> = {};
-    todayExpenses.forEach(expense => {
-        categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
-    });
+    const categoryStats = useMemo(() => {
+        const totals: Record<string, number> = {};
+        todayExpenses.forEach(e => {
+            totals[e.category] = (totals[e.category] || 0) + e.amount;
+        });
 
-    // Prepare category statistics with icons
-    const categoryStats: CategoryStats[] = Object.entries(categoryTotals).map(([category, amount]) => {
-        const percentage = (amount / totalToday) * 100;
-        let color = '#EF4444';
-        let icon = <Package size={20} color="#FFFFFF" />;
+        return Object.entries(totals).map(([category, amount]) => {
+            const percentage = totalToday > 0 ? (amount / totalToday) * 100 : 0;
+            let color = '#EF4444';
+            let icon = <Package size={20} color="#FFFFFF" />;
 
-        switch (category) {
-            case 'Inventory':
-                color = '#EF4444';
-                icon = <ShoppingBag size={20} color="#FFFFFF" />;
-                break;
-            case 'Utilities':
-                color = '#F59E0B';
-                icon = <Zap size={20} color="#FFFFFF" />;
-                break;
-            case 'Maintenance':
-                color = '#10B981';
-                icon = <Wrench size={20} color="#FFFFFF" />;
-                break;
-            case 'Salaries':
-                color = '#3B82F6';
-                icon = <UsersIcon size={20} color="#FFFFFF" />;
-                break;
+            switch (category) {
+                case 'Inventory':
+                    color = '#EF4444';
+                    icon = <ShoppingBag size={20} color="#FFFFFF" />;
+                    break;
+                case 'Utilities':
+                    color = '#F59E0B';
+                    icon = <Zap size={20} color="#FFFFFF" />;
+                    break;
+                case 'Maintenance':
+                    color = '#10B981';
+                    icon = <Wrench size={20} color="#FFFFFF" />;
+                    break;
+                case 'Salaries':
+                    color = '#3B82F6';
+                    icon = <UsersIcon size={20} color="#FFFFFF" />;
+                    break;
+                default:
+                    color = '#8B5CF6';
+                    icon = <Package size={20} color="#FFFFFF" />;
+            }
+
+            return { name: category, amount, percentage, color, icon };
+        }).sort((a, b) => b.amount - a.amount);
+    }, [todayExpenses, totalToday]);
+
+    const weeklyData = useMemo(() => {
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+
+            const dayTotal = expenses
+                .filter(e => e.date === dateStr)
+                .reduce((sum, e) => sum + e.amount, 0);
+
+            days.push({ day: dayName, amount: dayTotal });
         }
+        return days;
+    }, [expenses]);
 
-        return { name: category, amount, percentage, color, icon };
-    }).sort((a, b) => b.amount - a.amount);
-
-    // Weekly data (mock)
-    const weeklyData = [
-        { day: 'Mon', amount: 2200 },
-        { day: 'Tue', amount: 1800 },
-        { day: 'Wed', amount: 2500 },
-        { day: 'Thu', amount: 1900 },
-        { day: 'Fri', amount: 2100 },
-        { day: 'Sat', amount: 2400 },
-        { day: 'Sun', amount: totalToday },
-    ];
-    const maxWeekly = Math.max(...weeklyData.map(d => d.amount));
+    const maxWeekly = Math.max(...weeklyData.map(d => d.amount), 1);
 
     const insets = useSafeAreaInsets();
 

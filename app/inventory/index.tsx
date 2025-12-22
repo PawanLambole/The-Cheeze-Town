@@ -4,6 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Plus, Minus, X } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
+import { database, supabase } from '@/services/database';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect } from 'react';
 
 interface InventoryItem {
   id: string;
@@ -33,45 +36,93 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
   const [newItemMinStock, setNewItemMinStock] = useState('');
   const [newItemUnit, setNewItemUnit] = useState('kg');
 
-  const [inventory, setInventory] = useState<InventoryItem[]>([
-    { id: '1', name: 'Cheese Burger Patty', category: 'Main Course', currentStock: 45, minStock: 20, unit: 'pcs', lastRestocked: '2 days ago' },
-    { id: '2', name: 'Potatoes', category: 'Vegetables', currentStock: 60, minStock: 30, unit: 'kg', lastRestocked: '1 day ago' },
-    { id: '3', name: 'Coffee Beans', category: 'Beverages', currentStock: 15, minStock: 10, unit: 'kg', lastRestocked: '5 days ago' },
-    { id: '4', name: 'Chocolate', category: 'Desserts', currentStock: 8, minStock: 15, unit: 'kg', lastRestocked: '3 days ago' },
-    { id: '5', name: 'Lettuce', category: 'Vegetables', currentStock: 25, minStock: 10, unit: 'kg', lastRestocked: '1 day ago' },
-    { id: '6', name: 'Burger Buns', category: 'Bakery', currentStock: 12, minStock: 20, unit: 'pcs', lastRestocked: '4 days ago' },
-  ]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+
+  const fetchInventory = async () => {
+    try {
+      const { data } = await supabase.from('inventory_items').select('*').order('name');
+      if (data) {
+        setInventory(data.map((i: any) => ({
+          id: String(i.id),
+          name: i.name,
+          category: i.category,
+          currentStock: Number(i.current_stock),
+          minStock: Number(i.min_stock),
+          unit: i.unit,
+          lastRestocked: 'Recently'
+        })));
+      }
+    } catch (e) {
+      console.error("Error fetching inventory", e);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchInventory();
+    }, [])
+  );
 
   const lowStockItems = inventory.filter(item => item.currentStock <= item.minStock);
 
   const handleAdjustStock = (item: InventoryItem) => {
     setSelectedItem(item);
+    setAdjustmentAmount(String(item.currentStock));
     setShowAdjustModal(true);
   };
 
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
     if (!newItemName.trim() || !newItemCategory.trim() || !newItemStock || !newItemMinStock) {
       return;
     }
 
-    const newItem: InventoryItem = {
-      id: String(Date.now()),
-      name: newItemName.trim(),
-      category: newItemCategory.trim(),
-      currentStock: parseFloat(newItemStock),
-      minStock: parseFloat(newItemMinStock),
-      unit: newItemUnit,
-      lastRestocked: 'Just now',
-    };
+    try {
+      const newItem = {
+        name: newItemName.trim(),
+        category: newItemCategory.trim(),
+        current_stock: parseFloat(newItemStock),
+        min_stock: parseFloat(newItemMinStock),
+        unit: newItemUnit
+      };
 
-    setInventory(prev => [newItem, ...prev]);
-    setShowAddModal(false);
-    // Reset form
-    setNewItemName('');
-    setNewItemCategory('');
-    setNewItemStock('');
-    setNewItemMinStock('');
-    setNewItemUnit('kg');
+      const { error } = await supabase.from('inventory_items').insert([newItem]);
+      if (error) throw error;
+
+      fetchInventory();
+      setShowAddModal(false);
+      // Reset form
+      setNewItemName('');
+      setNewItemCategory('');
+      setNewItemStock('');
+      setNewItemMinStock('');
+      setNewItemUnit('kg');
+    } catch (e) {
+      console.error("Error adding inventory item", e);
+      alert("Failed to add item");
+    }
+  };
+
+  const handleSaveAdjustment = async () => {
+    if (!selectedItem) return;
+    const newStock = parseFloat(adjustmentAmount);
+    if (isNaN(newStock)) return;
+
+    try {
+      const { error } = await supabase
+        .from('inventory_items')
+        .update({ current_stock: newStock })
+        .eq('id', selectedItem.id);
+
+      if (error) throw error;
+
+      fetchInventory();
+      setShowAdjustModal(false);
+      setSelectedItem(null);
+      setAdjustmentAmount('');
+    } catch (e) {
+      console.error("Error adjusting stock", e);
+      alert("Failed to adjust stock");
+    }
   };
 
   const insets = useSafeAreaInsets();
@@ -79,26 +130,32 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        {showBack && (
-          <TouchableOpacity onPress={() => router.back()}>
-            <ArrowLeft size={24} color={Colors.dark.text} />
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerLeft}>
+          {showBack && (
+            <TouchableOpacity onPress={() => router.back()}>
+              <ArrowLeft size={24} color={Colors.dark.text} />
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.headerTitle}>Inventory</Text>
-        <TouchableOpacity onPress={() => setShowAddModal(true)}>
-          <Plus size={24} color={Colors.dark.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => setShowAddModal(true)}>
+            <Plus size={24} color={Colors.dark.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.alertCard}>
-          <AlertCircle size={20} color="#EF4444" />
-          <View style={styles.alertContent}>
-            <Text style={styles.alertTitle}>{lowStockItems.length} Low Stock Items</Text>
-            <Text style={styles.alertText}>Items need restocking</Text>
+        {lowStockItems.length > 0 && (
+          <View style={styles.alertCard}>
+            <AlertCircle size={20} color="#EF4444" />
+            <View style={styles.alertContent}>
+              <Text style={styles.alertTitle}>{lowStockItems.length} Low Stock Items</Text>
+              <Text style={styles.alertText}>Items need restocking</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
@@ -193,7 +250,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                 </View>
 
                 <View style={styles.adjustmentControls}>
-                  <TouchableOpacity style={styles.adjustmentButton}>
+                  <TouchableOpacity style={styles.adjustmentButton} onPress={() => setAdjustmentAmount(String(Math.max(0, Number(adjustmentAmount || 0) - 1)))}>
                     <Minus size={24} color="#000000" />
                   </TouchableOpacity>
                   <TextInput
@@ -204,7 +261,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                     onChangeText={setAdjustmentAmount}
                     keyboardType="numeric"
                   />
-                  <TouchableOpacity style={styles.adjustmentButton}>
+                  <TouchableOpacity style={styles.adjustmentButton} onPress={() => setAdjustmentAmount(String(Number(adjustmentAmount || 0) + 1))}>
                     <Plus size={24} color="#000000" />
                   </TouchableOpacity>
                 </View>
@@ -216,7 +273,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                   multiline
                 />
 
-                <TouchableOpacity style={styles.saveButton}>
+                <TouchableOpacity style={styles.saveButton} onPress={handleSaveAdjustment}>
                   <Text style={styles.saveButtonText}>Save Adjustment</Text>
                 </TouchableOpacity>
               </>
@@ -324,6 +381,16 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: Colors.dark.text,
+    textAlign: 'center',
+    flex: 1,
+  },
+  headerLeft: {
+    width: 40,
+    alignItems: 'flex-start',
+  },
+  headerRight: {
+    width: 40,
+    alignItems: 'flex-end',
   },
   content: {
     flex: 1,
@@ -357,32 +424,36 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 16,
+    marginTop: 16,
+    marginBottom: 20,
   },
   statCard: {
     flex: 1,
     backgroundColor: Colors.dark.card,
-    padding: 16,
+    padding: 20,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.dark.border,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '700',
     color: Colors.dark.text,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.dark.textSecondary,
+    textAlign: 'center',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: Colors.dark.text,
-    marginBottom: 12,
+    marginBottom: 16,
+    marginTop: 8,
   },
   lowStockList: {
     marginBottom: 16,

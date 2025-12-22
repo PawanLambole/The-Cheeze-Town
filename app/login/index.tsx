@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar, Image, ActivityIndicator, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Lock, Mail, ChevronRight, User, Crown, ChefHat, AlertCircle } from 'lucide-react-native';
+import { Lock, Mail, ChevronRight, User, Crown, ChefHat, AlertCircle, Eye, EyeOff } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Layout, Spacing } from '@/constants/Theme';
@@ -19,6 +19,7 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
     const [errorModalVisible, setErrorModalVisible] = useState(false);
     const [errorModalMessage, setErrorModalMessage] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const navigateToDashboard = (userRole: string) => {
         switch (userRole) {
@@ -243,9 +244,16 @@ export default function LoginScreen() {
                                 placeholderTextColor={Colors.dark.textSecondary}
                                 value={password}
                                 onChangeText={setPassword}
-                                secureTextEntry
+                                secureTextEntry={!showPassword}
                                 editable={!loading}
                             />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                                {showPassword ? (
+                                    <EyeOff size={20} color={Colors.dark.textSecondary} />
+                                ) : (
+                                    <Eye size={20} color={Colors.dark.textSecondary} />
+                                )}
+                            </TouchableOpacity>
                         </View>
 
                         {/* Login Button */}

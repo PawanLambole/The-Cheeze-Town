@@ -221,12 +221,20 @@ export default function HomeScreen() {
         };
       });
 
+      // 4. Calculate today's expenses from purchases
+      const { data: expData } = await supabase
+        .from('purchases')
+        .select('total_price')
+        .eq('purchase_date', todayISO.split('T')[0]);
+
+      const totalExpense = (expData || []).reduce((sum: number, p: any) => sum + (Number(p.total_price) || 0), 0);
+
       // Update state
       setStats({
         todayOrders: orderCount,
         pendingOrders: pendingCount,
         todayRevenue: revenue,
-        todayExpense: 0, // Placeholder
+        todayExpense: totalExpense,
       });
       setRecentOrders(formattedRecentOrders);
 

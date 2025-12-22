@@ -5,6 +5,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Plus, Search, Edit2, Trash2, X, Camera, Image as ImageIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/Theme';
+import { database, supabase } from '@/services/database';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect } from 'react';
 
 interface MenuItem {
   id: string;
@@ -33,13 +36,37 @@ export default function MenuScreen() {
 
   const categories = ['All', 'Starters', 'Main Course', 'Beverages', 'Desserts'];
 
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([
-    { id: '1', name: 'Cheese Burger', category: 'Main Course', price: 250, status: 'approved' },
-    { id: '2', name: 'French Fries', category: 'Starters', price: 150, status: 'approved' },
-    { id: '3', name: 'Cappuccino', category: 'Beverages', price: 180, status: 'approved' },
-    { id: '4', name: 'Chocolate Cake', category: 'Desserts', price: 220, status: 'approved' },
-    { id: '5', name: 'Caesar Salad', category: 'Starters', price: 200, status: 'approved' },
-  ]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+
+  const fetchMenuItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+
+      const mapped: MenuItem[] = (data || []).map((i: any) => ({
+        id: i.id,
+        name: i.name,
+        category: i.category,
+        price: Number(i.price),
+        status: i.status as 'approved' | 'pending',
+        image: i.image_url
+      }));
+
+      setMenuItems(mapped);
+    } catch (e) {
+      console.error("Error fetching menu items", e);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchMenuItems();
+    }, [])
+  );
 
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -84,22 +111,31 @@ export default function MenuScreen() {
     setShowAddModal(true);
   };
 
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
     const priceNum = Number(formPrice);
     if (!formName.trim() || !formCategory.trim() || isNaN(priceNum)) {
       return;
     }
-    const newItem: MenuItem = {
-      id: String(Date.now()),
-      name: formName.trim(),
-      category: formCategory.trim(),
-      price: priceNum,
-      status: isOwnerView ? 'approved' : 'pending',
-      image: formImage,
-    };
-    setMenuItems(prev => [newItem, ...prev]);
-    setShowAddModal(false);
-    resetForm();
+
+    try {
+      const newItem = {
+        name: formName.trim(),
+        category: formCategory.trim(),
+        price: priceNum,
+        status: isOwnerView ? 'approved' : 'pending',
+        image_url: formImage
+      };
+
+      const { error } = await supabase.from('menu_items').insert([newItem]);
+      if (error) throw error;
+
+      fetchMenuItems();
+      setShowAddModal(false);
+      resetForm();
+    } catch (e) {
+      console.error("Error adding menu item", e);
+      alert("Failed to add item");
+    }
   };
 
   const handleOpenEdit = (item: MenuItem) => {
@@ -111,22 +147,36 @@ export default function MenuScreen() {
     setShowEditModal(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editItem) return;
     const priceNum = Number(formPrice);
     if (!formName.trim() || !formCategory.trim() || isNaN(priceNum)) {
       return;
     }
-    setMenuItems(prev =>
-      prev.map(mi =>
-        mi.id === editItem.id
-          ? { ...mi, name: formName.trim(), category: formCategory.trim(), price: priceNum, image: formImage }
-          : mi
-      )
-    );
-    setShowEditModal(false);
-    setEditItem(null);
-    resetForm();
+
+    try {
+      const updates = {
+        name: formName.trim(),
+        category: formCategory.trim(),
+        price: priceNum,
+        image_url: formImage
+      };
+
+      const { error } = await supabase
+        .from('menu_items')
+        .update(updates)
+        .eq('id', editItem.id);
+
+      if (error) throw error;
+
+      fetchMenuItems();
+      setShowEditModal(false);
+      setEditItem(null);
+      resetForm();
+    } catch (e) {
+      console.error("Error updating menu item", e);
+      alert("Failed to update item");
+    }
   };
 
   const handleDelete = (item: MenuItem) => {
@@ -134,11 +184,23 @@ export default function MenuScreen() {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteItem) {
-      setMenuItems(prev => prev.filter(mi => mi.id !== deleteItem.id));
-      setShowDeleteModal(false);
-      setDeleteItem(null);
+      try {
+        const { error } = await supabase
+          .from('menu_items')
+          .delete()
+          .eq('id', deleteItem.id);
+
+        if (error) throw error;
+
+        fetchMenuItems();
+        setShowDeleteModal(false);
+        setDeleteItem(null);
+      } catch (e) {
+        console.error("Error deleting item", e);
+        alert("Failed to delete");
+      }
     }
   };
 
@@ -147,10 +209,20 @@ export default function MenuScreen() {
     setDeleteItem(null);
   };
 
-  const handleApproveItem = (id: string) => {
-    setMenuItems(prev =>
-      prev.map(mi => (mi.id === id ? { ...mi, status: 'approved' } : mi))
-    );
+  const handleApproveItem = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .update({ status: 'approved' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      fetchMenuItems();
+    } catch (e) {
+      console.error("Error approving item", e);
+      alert("Failed to approve");
+    }
   };
 
   /* ... existing code ... */

@@ -1,12 +1,13 @@
 // Force re-bundle
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Search, Plus } from 'lucide-react-native';
 import { printKitchenReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
 import { Colors } from '@/constants/Theme';
+import { supabase } from '@/services/database';
 
 function CreateOrderScreen() {
     const router = useRouter();
@@ -16,16 +17,66 @@ function CreateOrderScreen() {
     const [orderItems, setOrderItems] = useState<{ id: string; name: string; price: number; quantity: number }[]>([]);
     const [showReceipt, setShowReceipt] = useState(false);
     const [currentReceipt, setCurrentReceipt] = useState('');
+    const [tables, setTables] = useState<any[]>([]);
+    const [menuOptions, setMenuOptions] = useState<any[]>([]);
 
-    // Dummy data
-    const tables = Array.from({ length: 10 }, (_, i) => ({ id: String(i + 1), number: i + 1, status: i % 3 === 0 ? 'occupied' : 'available' }));
-    const menuOptions = [
-        { id: 'm1', name: 'Cheese Burger', category: 'Main Course', price: 250 },
-        { id: 'm2', name: 'French Fries', category: 'Starters', price: 150 },
-        { id: 'm3', name: 'Cappuccino', category: 'Beverages', price: 180 },
-        { id: 'm4', name: 'Chocolate Cake', category: 'Desserts', price: 220 },
-        { id: 'm5', name: 'Caesar Salad', category: 'Starters', price: 200 },
-    ];
+    // Fetch tables from database
+    const fetchTables = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('restaurant_tables')
+                .select('*')
+                .order('table_number');
+
+            if (error) throw error;
+
+            // Transform data to match expected format
+            const transformedTables = (data || []).map(table => ({
+                id: String(table.id),
+                number: table.table_number,
+                status: table.status
+            }));
+
+            setTables(transformedTables);
+        } catch (error) {
+            console.error('Error fetching tables:', error);
+            Alert.alert('Error', 'Failed to load tables');
+        }
+    };
+
+    // Fetch menu items from database
+    const fetchMenu = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('menu_items')
+                .select('*')
+                .eq('status', 'approved')
+                .order('name');
+
+            if (error) throw error;
+
+            // Transform data to match expected format
+            const transformedMenu = (data || []).map(item => ({
+                id: String(item.id),
+                name: item.name,
+                category: item.category || 'Uncategorized',
+                price: item.price
+            }));
+
+            setMenuOptions(transformedMenu);
+        } catch (error) {
+            console.error('Error fetching menu:', error);
+            Alert.alert('Error', 'Failed to load menu');
+        }
+    };
+
+    // Fetch data on component mount and when screen is focused
+    useFocusEffect(
+        useCallback(() => {
+            fetchTables();
+            fetchMenu();
+        }, [])
+    );
 
     const filteredMenuOptions = menuOptions.filter(opt =>
         opt.name.toLowerCase().includes(menuSearch.toLowerCase())
@@ -57,17 +108,58 @@ function CreateOrderScreen() {
         // Generate order ID
         const orderId = `ORD${Date.now().toString().slice(-6)}`;
 
-        // Prepare order for printing
-        const orderForPrint = {
-            orderId,
-            tableNo: selectedTable ? tables.find(t => t.id === selectedTable)?.number : 'Takeaway',
-            items: orderItems,
-            totalAmount,
-            timestamp: new Date(),
-            orderType: selectedTable ? 'dine-in' as const : 'takeaway' as const
-        };
-
         try {
+            // Create order in database
+            const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .insert([{
+                    order_number: orderId,
+                    table_id: selectedTable ? parseInt(selectedTable) : null,
+                    status: 'pending',
+                    total_amount: totalAmount,
+                    order_type: selectedTable ? 'dine-in' : 'takeaway'
+                }])
+                .select()
+                .single();
+
+            if (orderError) throw orderError;
+
+            // Add order items to database
+            const orderItemsData = orderItems.map(item => ({
+                order_id: orderData.id,
+                menu_item_name: item.name,
+                quantity: item.quantity,
+                unit_price: item.price,
+                total_price: item.price * item.quantity
+            }));
+
+            const { error: itemsError } = await supabase
+                .from('order_items')
+                .insert(orderItemsData);
+
+            if (itemsError) throw itemsError;
+
+            // Update table status if dine-in
+            if (selectedTable) {
+                await supabase
+                    .from('restaurant_tables')
+                    .update({
+                        status: 'occupied',
+                        current_order_id: orderData.id
+                    })
+                    .eq('id', parseInt(selectedTable));
+            }
+
+            // Prepare order for printing
+            const orderForPrint = {
+                orderId,
+                tableNo: selectedTable ? tables.find(t => t.id === selectedTable)?.number : 'Takeaway',
+                items: orderItems,
+                totalAmount,
+                timestamp: new Date(),
+                orderType: selectedTable ? 'dine-in' as const : 'takeaway' as const
+            };
+
             // Generate kitchen receipt
             const printResult = await printKitchenReceipt(orderForPrint);
 
@@ -76,7 +168,8 @@ function CreateOrderScreen() {
                 setCurrentReceipt(printResult.receipt);
                 setShowReceipt(true);
             } else {
-                Alert.alert('Error', printResult.message || 'Failed to generate receipt');
+                Alert.alert('Success', 'Order created successfully!');
+                router.push('/manager/orders');
             }
         } catch (error) {
             console.error('Error creating order:', error);
