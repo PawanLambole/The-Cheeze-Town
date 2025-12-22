@@ -1,6 +1,6 @@
 import { Plus, Minus, ShoppingCart, Trash2, ChevronRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { menuItems } from '../data/menuData';
+import { useMenuItems } from '../hooks/useDatabase';
 
 interface MenuPageProps {
   onPlaceOrder: () => void;
@@ -8,14 +8,39 @@ interface MenuPageProps {
 
 export default function MenuPage({ onPlaceOrder }: MenuPageProps) {
   const { cart, addToCart, removeFromCart, getTotalPrice } = useCart();
+  const { menuItems, loading, error } = useMenuItems();
   const totalPrice = getTotalPrice();
 
-  const getItemQuantity = (itemId: string) => {
-    const cartItem = cart.find((item) => item.id === itemId);
+  const getItemQuantity = (itemId: string | number) => {
+    const cartItem = cart.find((item) => String(item.id) === String(itemId));
     return cartItem ? cartItem.quantity : 0;
   };
 
   const categories = Array.from(new Set(menuItems.map((item) => item.category)));
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-brand-yellow mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading menu...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-brand-darker flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-400 mb-2">Failed to load menu</p>
+          <p className="text-gray-500 text-sm">{error.message || 'Please try again later'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-brand-darker pb-24 md:pb-8">
@@ -132,7 +157,7 @@ export default function MenuPage({ onPlaceOrder }: MenuPageProps) {
                         <div className="flex items-center gap-3">
                           <span className="text-white font-bold">₹{item.price * item.quantity}</span>
                           <button
-                            onClick={() => removeFromCart(item.id)}
+                            onClick={() => removeFromCart(String(item.id))}
                             className="text-gray-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                           >
                             <Trash2 className="w-4 h-4" />

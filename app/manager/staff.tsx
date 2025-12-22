@@ -42,8 +42,10 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
   const [newDesignation, setNewDesignation] = useState('');
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchStaff = async () => {
+    if (!refreshing) setRefreshing(true);
     try {
       const { data } = await supabase.from('users').select('*').neq('role', 'owner');
       if (data) {
@@ -59,6 +61,8 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
       }
     } catch (e) {
       console.error("Error fetching staff", e);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -331,6 +335,8 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
           renderItem={renderStaffItem}
           contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={fetchStaff}
         />
       </View>
 

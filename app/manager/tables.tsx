@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Users, Clock, Plus, X, ShoppingBag, User } from 'lucide-react-native';
+import { ArrowLeft, Users, Clock, Plus, X, ShoppingBag, User, Edit2, Trash2, MoreVertical } from 'lucide-react-native';
 import PaymentModal from '../../components/PaymentModal';
 import { printPaymentReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
@@ -49,14 +49,20 @@ export default function TablesScreen() {
   const router = useRouter();
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [newTableNumber, setNewTableNumber] = useState('');
   const [newTableCapacity, setNewTableCapacity] = useState('');
+  const [editTableNumber, setEditTableNumber] = useState('');
+  const [editTableCapacity, setEditTableCapacity] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [currentReceipt, setCurrentReceipt] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showTableActions, setShowTableActions] = useState<number | null>(null);
 
   const statusOptions = ['all', 'available', 'occupied'];
 
@@ -77,7 +83,7 @@ export default function TablesScreen() {
   }, []);
 
   const fetchTables = async () => {
-    setLoading(true);
+    if (!loading && !refreshing) setRefreshing(true);
     try {
       // Fetch tables with their current orders
       const { data: tablesData, error } = await supabase
@@ -131,6 +137,7 @@ export default function TablesScreen() {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -191,7 +198,87 @@ export default function TablesScreen() {
     }
   };
 
+  const handleEditTable = async () => {
+    if (!selectedTable || !editTableNumber || !editTableCapacity) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    const tableNumber = parseInt(editTableNumber);
+    const capacity = parseInt(editTableCapacity);
+
+    // Check if table number already exists (excluding current table)
+    if (tables.find(t => t.table_number === tableNumber && t.id !== selectedTable.id)) {
+      Alert.alert('Error', 'Table number already exists');
+      return;
+    }
+
+    try {
+      const { error } = await database.update('restaurant_tables', selectedTable.id, {
+        table_number: tableNumber,
+        capacity: capacity,
+      });
+
+      if (error) {
+        console.error('Error updating table:', error);
+        Alert.alert('Error', 'Failed to update table');
+      } else {
+        setShowEditModal(false);
+        setEditTableNumber('');
+        setEditTableCapacity('');
+        setSelectedTable(null);
+        // Table will be updated via real-time subscription
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      Alert.alert('Error', 'Failed to update table');
+    }
+  };
+
+  const handleDeleteTable = async () => {
+    if (!selectedTable) return;
+
+    // Check if table is occupied
+    if (selectedTable.status === 'occupied') {
+      Alert.alert('Cannot Delete', 'Cannot delete an occupied table. Please complete the order first.');
+      return;
+    }
+
+    try {
+      const { error } = await database.delete('restaurant_tables', selectedTable.id);
+
+      if (error) {
+        console.error('Error deleting table:', error);
+        Alert.alert('Error', 'Failed to delete table');
+      } else {
+        setShowDeleteModal(false);
+        setSelectedTable(null);
+        // Table will be removed via real-time subscription
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      Alert.alert('Error', 'Failed to delete table');
+    }
+  };
+
+  const handleEditClick = (table: Table) => {
+    setSelectedTable(table);
+    setEditTableNumber(table.table_number.toString());
+    setEditTableCapacity(table.capacity.toString());
+    setShowEditModal(true);
+    setShowTableActions(null);
+  };
+
+  const handleDeleteClick = (table: Table) => {
+    setSelectedTable(table);
+    setShowDeleteModal(true);
+    setShowTableActions(null);
+  };
+
   const handleTableClick = (table: Table) => {
+    // Close any open dropdowns
+    setShowTableActions(null);
+
     if (table.status === 'occupied') {
       setSelectedTable(table);
       setShowOrderModal(true);
@@ -245,7 +332,18 @@ export default function TablesScreen() {
             <Text style={styles.loadingText}>Loading tables...</Text>
           </View>
         ) : (
-          <ScrollView style={styles.tablesList} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.tablesList}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={fetchTables}
+                tintColor={Colors.dark.primary}
+                colors={[Colors.dark.primary]}
+              />
+            }
+          >
             <View style={styles.tablesGrid}>
               {filteredTables.map(table => (
                 <TouchableOpacity
@@ -263,19 +361,60 @@ export default function TablesScreen() {
                   ]}>
 
                     <View style={styles.tableHeader}>
-                      <Text style={[
-                        styles.tableNumberText,
-                        table.status === 'occupied' && { color: Colors.dark.text }
-                      ]}>Table {table.table_number}</Text>
-                      <View style={[
-                        styles.statusBadge,
-                        { backgroundColor: table.status === 'available' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }
-                      ]}>
+                      <View style={{ flex: 1 }}>
                         <Text style={[
-                          styles.statusBadgeText,
-                          { color: table.status === 'available' ? '#10B981' : '#EF4444' }
-                        ]}>{table.status}</Text>
+                          styles.tableNumberText,
+                          table.status === 'occupied' && { color: Colors.dark.text }
+                        ]}>Table {table.table_number}</Text>
+                        <View style={[
+                          styles.statusBadge,
+                          { backgroundColor: table.status === 'available' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }
+                        ]}>
+                          <Text style={[
+                            styles.statusBadgeText,
+                            { color: table.status === 'available' ? '#10B981' : '#EF4444' }
+                          ]}>{table.status}</Text>
+                        </View>
                       </View>
+
+                      {/* Action Menu for Available Tables */}
+                      {table.status === 'available' && (
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            setShowTableActions(showTableActions === table.id ? null : table.id);
+                          }}
+                          style={styles.actionMenuButton}
+                        >
+                          <MoreVertical size={16} color={Colors.dark.textSecondary} />
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Actions Dropdown */}
+                      {showTableActions === table.id && (
+                        <View style={styles.actionsDropdown}>
+                          <TouchableOpacity
+                            style={styles.actionItem}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleEditClick(table);
+                            }}
+                          >
+                            <Edit2 size={14} color={Colors.dark.primary} />
+                            <Text style={styles.actionText}>Edit</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionItem, { borderTopWidth: 1, borderTopColor: Colors.dark.border }]}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(table);
+                            }}
+                          >
+                            <Trash2 size={14} color="#EF4444" />
+                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Delete</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
 
                     <View style={styles.tableInfoRow}>
@@ -337,27 +476,148 @@ export default function TablesScreen() {
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Table Number *"
-              placeholderTextColor={Colors.dark.textSecondary}
-              keyboardType="numeric"
-              value={newTableNumber}
-              onChangeText={setNewTableNumber}
-            />
+            {/* Table Number Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Table Number *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter table number"
+                placeholderTextColor={Colors.dark.textSecondary}
+                keyboardType="numeric"
+                value={newTableNumber}
+                onChangeText={setNewTableNumber}
+              />
+              <Text style={styles.inputHint}>Unique identifier for this table</Text>
+            </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Seating Capacity *"
-              placeholderTextColor={Colors.dark.textSecondary}
-              keyboardType="numeric"
-              value={newTableCapacity}
-              onChangeText={setNewTableCapacity}
-            />
+            {/* Capacity Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Seating Capacity *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter number of seats"
+                placeholderTextColor={Colors.dark.textSecondary}
+                keyboardType="numeric"
+                value={newTableCapacity}
+                onChangeText={setNewTableCapacity}
+              />
+              <Text style={styles.inputHint}>Maximum number of guests for this table</Text>
+            </View>
 
             <TouchableOpacity style={styles.addButton} onPress={handleAddTable}>
               <Text style={styles.addButtonText}>Add Table</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Table Modal */}
+      <Modal visible={showEditModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Table</Text>
+              <TouchableOpacity onPress={() => { setShowEditModal(false); setEditTableNumber(''); setEditTableCapacity(''); setSelectedTable(null); }}>
+                <X size={24} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Current Info Display */}
+            {selectedTable && (
+              <View style={styles.currentInfoCard}>
+                <Text style={styles.currentInfoLabel}>Currently:</Text>
+                <Text style={styles.currentInfoText}>
+                  Table {selectedTable.table_number} • {selectedTable.capacity} Seats
+                </Text>
+              </View>
+            )}
+
+            {/* Table Number Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Table Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter table number"
+                placeholderTextColor={Colors.dark.textSecondary}
+                keyboardType="numeric"
+                value={editTableNumber}
+                onChangeText={setEditTableNumber}
+              />
+              <Text style={styles.inputHint}>Unique identifier for this table</Text>
+            </View>
+
+            {/* Capacity Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Seating Capacity</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter number of seats"
+                placeholderTextColor={Colors.dark.textSecondary}
+                keyboardType="numeric"
+                value={editTableCapacity}
+                onChangeText={setEditTableCapacity}
+              />
+              <Text style={styles.inputHint}>Maximum number of guests for this table</Text>
+            </View>
+
+            <TouchableOpacity style={styles.addButton} onPress={handleEditTable}>
+              <Text style={styles.addButtonText}>Save Changes</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={showDeleteModal} animationType="fade" transparent>
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            {/* Warning Icon */}
+            <View style={styles.deleteIconContainer}>
+              <Trash2 size={48} color="#EF4444" />
+            </View>
+
+            {/* Title */}
+            <Text style={styles.deleteModalTitle}>Delete Table?</Text>
+
+            {/* Message */}
+            <Text style={styles.deleteModalMessage}>
+              Are you sure you want to delete{' '}
+              <Text style={styles.deleteHighlight}>
+                Table {selectedTable?.table_number}
+              </Text>
+              {selectedTable?.capacity && (
+                <Text> ({selectedTable.capacity} seats)</Text>
+              )}
+              ?
+            </Text>
+
+            {/* Warning */}
+            <View style={styles.warningBox}>
+              <Text style={styles.warningText}>
+                ⚠️ This action cannot be undone
+              </Text>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.cancelDeleteButton}
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  setSelectedTable(null);
+                }}
+              >
+                <Text style={styles.cancelDeleteText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmDeleteButton}
+                onPress={handleDeleteTable}
+              >
+                <Trash2 size={18} color="#FFFFFF" />
+                <Text style={styles.confirmDeleteText}>Delete Table</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -891,5 +1151,222 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#EF4444',
+  },
+  actionMenuButton: {
+    padding: 4,
+    borderRadius: 4,
+  },
+  actionsDropdown: {
+    position: 'absolute',
+    top: 30,
+    right: 0,
+    backgroundColor: Colors.dark.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.dark.text,
+  },
+  deleteConfirmText: {
+    fontSize: 16,
+    color: Colors.dark.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  deleteWarningText: {
+    fontSize: 14,
+    color: Colors.dark.textSecondary,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  deleteButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: Colors.dark.secondary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.dark.text,
+  },
+  deleteButton: {
+    flex: 1,
+    backgroundColor: '#EF4444',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  currentInfoCard: {
+    backgroundColor: Colors.dark.secondary,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  currentInfoLabel: {
+    fontSize: 12,
+    color: Colors.dark.textSecondary,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  currentInfoText: {
+    fontSize: 16,
+    color: Colors.dark.text,
+    fontWeight: '600',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.dark.text,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  inputHint: {
+    fontSize: 12,
+    color: Colors.dark.textSecondary,
+    marginTop: 6,
+    marginLeft: 4,
+    fontStyle: 'italic',
+  },
+  // Delete Modal Styles
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: Colors.dark.card,
+    borderRadius: 24,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#EF4444',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  deleteIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  deleteModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.dark.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    color: Colors.dark.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  deleteHighlight: {
+    color: Colors.dark.primary,
+    fontWeight: '700',
+  },
+  warningBox: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 24,
+    width: '100%',
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#F59E0B',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelDeleteButton: {
+    flex: 1,
+    backgroundColor: Colors.dark.secondary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  cancelDeleteText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.dark.text,
+  },
+  confirmDeleteButton: {
+    flex: 1,
+    backgroundColor: '#EF4444',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  confirmDeleteText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

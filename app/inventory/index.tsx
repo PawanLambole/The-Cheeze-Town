@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Plus, Minus, X } from 'lucide-react-native';
@@ -37,8 +37,10 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
   const [newItemUnit, setNewItemUnit] = useState('kg');
 
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchInventory = async () => {
+    if (!refreshing) setRefreshing(true);
     try {
       const { data } = await supabase.from('inventory_items').select('*').order('name');
       if (data) {
@@ -54,6 +56,8 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
       }
     } catch (e) {
       console.error("Error fetching inventory", e);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -146,7 +150,18 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
       </View>
 
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={fetchInventory}
+            tintColor={Colors.dark.primary}
+            colors={[Colors.dark.primary]}
+          />
+        }
+      >
         {lowStockItems.length > 0 && (
           <View style={styles.alertCard}>
             <AlertCircle size={20} color="#EF4444" />

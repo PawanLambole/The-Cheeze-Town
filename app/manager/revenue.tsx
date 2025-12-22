@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, TrendingUp, IndianRupee, ShoppingBag, Clock, Users } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
+import { supabase } from '@/services/database';
 
 interface RevenueItem {
     id: string;
@@ -24,17 +25,104 @@ interface CategoryStats {
 
 export default function RevenueScreen() {
     const router = useRouter();
+    const [revenueItems, setRevenueItems] = useState<RevenueItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [hourlyData, setHourlyData] = useState<Array<{ hour: string; amount: number }>>([]);
 
-    // Mock revenue data
-    const revenueItems: RevenueItem[] = [
-        { id: '1', orderId: 'ORD001', category: 'Pizza', amount: 650, time: '10:30 AM', items: 3 },
-        { id: '2', orderId: 'ORD002', category: 'Pizza', amount: 480, time: '11:15 AM', items: 2 },
-        { id: '3', orderId: 'ORD003', category: 'Pizza', amount: 890, time: '12:45 PM', items: 4 },
-        { id: '4', orderId: 'ORD004', category: 'Beverages', amount: 180, time: '1:20 PM', items: 2 },
-        { id: '5', orderId: 'ORD005', category: 'Pizza', amount: 520, time: '2:00 PM', items: 2 },
-        { id: '6', orderId: 'ORD006', category: 'Desserts', amount: 320, time: '3:30 PM', items: 3 },
-        { id: '7', orderId: 'ORD007', category: 'Pizza', amount: 780, time: '5:15 PM', items: 3 },
-    ];
+    const formatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    };
+
+    const getHourFromDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.getHours();
+    };
+
+    const fetchRevenueData = async () => {
+        if (!loading && !refreshing) setRefreshing(true);
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayISO = today.toISOString();
+
+            // Fetch today's completed orders with their items
+            const { data: ordersData, error } = await supabase
+                .from('orders')
+                .select(`
+                    id,
+                    order_number,
+                    total_amount,
+                    created_at,
+                    order_items (
+                        menu_item_name,
+                        quantity
+                    )
+                `)
+                .gte('created_at', todayISO)
+                .in('status', ['completed', 'served'])
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            // Transform data for revenue items
+            const items: RevenueItem[] = (ordersData || []).map((order: any) => {
+                // Get the first item's category or use 'General' as fallback
+                const firstItem = order.order_items?.[0]?.menu_item_name || 'General';
+                const category = firstItem.includes('Pizza') ? 'Pizza' :
+                    firstItem.includes('Burger') ? 'Burgers' :
+                        firstItem.includes('Drink') || firstItem.includes('Beverage') ? 'Beverages' :
+                            firstItem.includes('Dessert') ? 'Desserts' : 'Main Course';
+
+                return {
+                    id: String(order.id),
+                    orderId: order.order_number,
+                    category: category,
+                    amount: Number(order.total_amount),
+                    time: formatTime(order.created_at),
+                    items: order.order_items?.length || 0
+                };
+            });
+
+            setRevenueItems(items);
+
+            // Calculate hourly data
+            const hourlyMap: Record<number, number> = {};
+            items.forEach(item => {
+                const hour = getHourFromDate(item.time);
+                hourlyMap[hour] = (hourlyMap[hour] || 0) + item.amount;
+            });
+
+            // Create hourly data array for the chart
+            const hours = [];
+            const startHour = 9;
+            const endHour = 21; // 9 PM
+
+            for (let i = startHour; i <= endHour; i++) {
+                const hour12 = i > 12 ? i - 12 : i;
+                const ampm = i >= 12 ? 'PM' : 'AM';
+                hours.push({
+                    hour: `${hour12}${ampm}`,
+                    amount: hourlyMap[i] || 0
+                });
+            }
+
+            setHourlyData(hours);
+
+        } catch (error) {
+            console.error('Error fetching revenue data:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchRevenueData();
+        }, [])
+    );
 
     const totalRevenue = revenueItems.reduce((sum, item) => sum + item.amount, 0);
     const totalOrders = revenueItems.length;
@@ -50,7 +138,7 @@ export default function RevenueScreen() {
     });
 
     const categoryStats: CategoryStats[] = Object.entries(categoryTotals).map(([category, data], index) => {
-        const percentage = (data.amount / totalRevenue) * 100;
+        const percentage = totalRevenue > 0 ? (data.amount / totalRevenue) * 100 : 0;
         const colors = [Colors.dark.primary, '#F59E0B', '#10B981', '#3B82F6', '#EF4444'];
 
         return {
@@ -62,19 +150,7 @@ export default function RevenueScreen() {
         };
     }).sort((a, b) => b.amount - a.amount);
 
-    // Hourly data (mock)
-    const hourlyData = [
-        { hour: '9AM', amount: 0 },
-        { hour: '10AM', amount: 650 },
-        { hour: '11AM', amount: 480 },
-        { hour: '12PM', amount: 890 },
-        { hour: '1PM', amount: 700 },
-        { hour: '2PM', amount: 520 },
-        { hour: '3PM', amount: 320 },
-        { hour: '4PM', amount: 0 },
-        { hour: '5PM', amount: 780 },
-    ];
-    const maxHourly = Math.max(...hourlyData.map(d => d.amount));
+    const maxHourly = Math.max(...hourlyData.map(d => d.amount), 1);
 
     const insets = useSafeAreaInsets();
 
@@ -88,111 +164,147 @@ export default function RevenueScreen() {
                 <View style={{ width: 24 }} />
             </View>
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {/* Today's Total */}
-                <View style={styles.totalCard}>
-                    <View style={styles.totalIconContainer}>
-                        <TrendingUp size={32} color={Colors.dark.primary} />
+            <ScrollView
+                style={styles.content}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={fetchRevenueData}
+                        tintColor={Colors.dark.primary}
+                        colors={[Colors.dark.primary]}
+                    />
+                }
+            >
+                {loading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={Colors.dark.primary} />
+                        <Text style={styles.loadingText}>Loading revenue data...</Text>
                     </View>
-                    <View>
-                        <Text style={styles.totalLabel}>Today's Total Revenue</Text>
-                        <Text style={styles.totalAmount}>₹{totalRevenue.toLocaleString()}</Text>
-                        <Text style={styles.totalOrders}>{totalOrders} orders</Text>
-                    </View>
-                </View>
-
-                {/* Quick Stats */}
-                <View style={styles.quickStats}>
-                    <View style={styles.quickStatCard}>
-                        <ShoppingBag size={20} color={Colors.dark.primary} />
-                        <Text style={styles.quickStatValue}>{totalOrders}</Text>
-                        <Text style={styles.quickStatLabel}>Total Orders</Text>
-                    </View>
-                    <View style={styles.quickStatCard}>
-                        <IndianRupee size={20} color="#3B82F6" />
-                        <Text style={styles.quickStatValue}>₹{Math.round(totalRevenue / totalOrders)}</Text>
-                        <Text style={styles.quickStatLabel}>Avg Order</Text>
-                    </View>
-                    <View style={styles.quickStatCard}>
-                        <Users size={20} color="#10B981" />
-                        <Text style={styles.quickStatValue}>{totalOrders}</Text>
-                        <Text style={styles.quickStatLabel}>Customers</Text>
-                    </View>
-                </View>
-
-                {/* Category Breakdown */}
-                <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>Revenue by Category</Text>
-                    <View style={styles.categoriesContainer}>
-                        {categoryStats.map((cat) => (
-                            <View key={cat.name} style={styles.categoryItem}>
-                                <View style={styles.categoryHeader}>
-                                    <View style={[styles.categoryDot, { backgroundColor: cat.color }]} />
-                                    <View style={styles.categoryInfo}>
-                                        <Text style={styles.categoryName}>{cat.name}</Text>
-                                        <Text style={styles.categoryOrders}>{cat.orders} orders</Text>
-                                    </View>
-                                    <View style={styles.categoryRight}>
-                                        <Text style={styles.categoryAmount}>₹{cat.amount.toLocaleString()}</Text>
-                                        <Text style={styles.categoryPercentage}>{cat.percentage.toFixed(0)}%</Text>
-                                    </View>
-                                </View>
-                                <View style={styles.progressBarBg}>
-                                    <View style={[styles.progressBar, { width: `${cat.percentage}%`, backgroundColor: cat.color }]} />
-                                </View>
+                ) : (
+                    <>
+                        {/* Today's Total */}
+                        <View style={styles.totalCard}>
+                            <View style={styles.totalIconContainer}>
+                                <TrendingUp size={32} color={Colors.dark.primary} />
                             </View>
-                        ))}
-                    </View>
-                </View>
-
-                {/* Hourly Trend */}
-                <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>Hourly Revenue Trend</Text>
-                    <View style={styles.barChartContainer}>
-                        {hourlyData.map((hour, index) => (
-                            <View key={hour.hour} style={styles.barColumn}>
-                                <View style={styles.barWrapper}>
-                                    <View
-                                        style={[
-                                            styles.bar,
-                                            {
-                                                height: hour.amount > 0 ? `${(hour.amount / maxHourly) * 100}%` : '5%',
-                                                backgroundColor: hour.amount > 0 ? Colors.dark.primary : Colors.dark.border
-                                            }
-                                        ]}
-                                    />
-                                </View>
-                                <Text style={styles.barLabel}>{hour.hour}</Text>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-
-                {/* Recent Orders */}
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Today's Orders</Text>
-                </View>
-
-                {revenueItems.map(item => (
-                    <View key={item.id} style={styles.orderCard}>
-                        <View style={styles.orderIcon}>
-                            <ShoppingBag size={20} color={Colors.dark.primary} />
-                        </View>
-                        <View style={styles.orderInfo}>
-                            <Text style={styles.orderName}>#{item.orderId}</Text>
-                            <View style={styles.orderMeta}>
-                                <Text style={styles.orderCategory}>{item.category}</Text>
-                                <Text style={styles.orderDot}>•</Text>
-                                <Text style={styles.orderTime}>{item.time}</Text>
-                                <Text style={styles.orderDot}>•</Text>
-                                <Text style={styles.orderItems}>{item.items} items</Text>
+                            <View>
+                                <Text style={styles.totalLabel}>Today's Total Revenue</Text>
+                                <Text style={styles.totalAmount}>₹{totalRevenue.toLocaleString()}</Text>
+                                <Text style={styles.totalOrders}>{totalOrders} orders</Text>
                             </View>
                         </View>
-                        <Text style={styles.orderAmount}>₹{item.amount}</Text>
-                    </View>
-                ))}
 
-                <View style={{ height: 40 }} />
+                        {/* Quick Stats */}
+                        <View style={styles.quickStats}>
+                            <View style={styles.quickStatCard}>
+                                <ShoppingBag size={20} color={Colors.dark.primary} />
+                                <Text style={styles.quickStatValue}>{totalOrders}</Text>
+                                <Text style={styles.quickStatLabel}>Total Orders</Text>
+                            </View>
+                            <View style={styles.quickStatCard}>
+                                <IndianRupee size={20} color="#3B82F6" />
+                                <Text style={styles.quickStatValue}>₹{totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0}</Text>
+                                <Text style={styles.quickStatLabel}>Avg Order</Text>
+                            </View>
+                            <View style={styles.quickStatCard}>
+                                <Users size={20} color="#10B981" />
+                                <Text style={styles.quickStatValue}>{totalOrders}</Text>
+                                <Text style={styles.quickStatLabel}>Customers</Text>
+                            </View>
+                        </View>
+
+                        {/* Category Breakdown */}
+                        {categoryStats.length > 0 && (
+                            <View style={styles.chartCard}>
+                                <Text style={styles.chartTitle}>Revenue by Category</Text>
+                                <View style={styles.categoriesContainer}>
+                                    {categoryStats.map((cat) => (
+                                        <View key={cat.name} style={styles.categoryItem}>
+                                            <View style={styles.categoryHeader}>
+                                                <View style={[styles.categoryDot, { backgroundColor: cat.color }]} />
+                                                <View style={styles.categoryInfo}>
+                                                    <Text style={styles.categoryName}>{cat.name}</Text>
+                                                    <Text style={styles.categoryOrders}>{cat.orders} orders</Text>
+                                                </View>
+                                                <View style={styles.categoryRight}>
+                                                    <Text style={styles.categoryAmount}>₹{cat.amount.toLocaleString()}</Text>
+                                                    <Text style={styles.categoryPercentage}>{cat.percentage.toFixed(0)}%</Text>
+                                                </View>
+                                            </View>
+                                            <View style={styles.progressBarBg}>
+                                                <View style={[styles.progressBar, { width: `${cat.percentage}%`, backgroundColor: cat.color }]} />
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Hourly Trend */}
+                        {hourlyData.length > 0 && (
+                            <View style={styles.chartCard}>
+                                <Text style={styles.chartTitle}>Hourly Revenue Trend</Text>
+                                <View style={styles.barChartContainer}>
+                                    {hourlyData.map((hour, index) => (
+                                        <View key={hour.hour} style={styles.barColumn}>
+                                            <View style={styles.barWrapper}>
+                                                <View
+                                                    style={[
+                                                        styles.bar,
+                                                        {
+                                                            height: hour.amount > 0 ? `${(hour.amount / maxHourly) * 100}%` : '5%',
+                                                            backgroundColor: hour.amount > 0 ? Colors.dark.primary : Colors.dark.border
+                                                        }
+                                                    ]}
+                                                />
+                                            </View>
+                                            <Text style={styles.barLabel}>{hour.hour}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Recent Orders */}
+                        {revenueItems.length > 0 && (
+                            <>
+                                <View style={styles.sectionHeader}>
+                                    <Text style={styles.sectionTitle}>Today's Orders</Text>
+                                </View>
+
+                                {revenueItems.map(item => (
+                                    <View key={item.id} style={styles.orderCard}>
+                                        <View style={styles.orderIcon}>
+                                            <ShoppingBag size={20} color={Colors.dark.primary} />
+                                        </View>
+                                        <View style={styles.orderInfo}>
+                                            <Text style={styles.orderName}>#{item.orderId}</Text>
+                                            <View style={styles.orderMeta}>
+                                                <Text style={styles.orderCategory}>{item.category}</Text>
+                                                <Text style={styles.orderDot}>•</Text>
+                                                <Text style={styles.orderTime}>{item.time}</Text>
+                                                <Text style={styles.orderDot}>•</Text>
+                                                <Text style={styles.orderItems}>{item.items} items</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={styles.orderAmount}>₹{item.amount}</Text>
+                                    </View>
+                                ))}
+                            </>
+                        )}
+
+                        {revenueItems.length === 0 && (
+                            <View style={styles.emptyContainer}>
+                                <ShoppingBag size={64} color={Colors.dark.textSecondary} />
+                                <Text style={styles.emptyText}>No revenue data for today</Text>
+                                <Text style={styles.emptySubtext}>Complete some orders to see revenue analytics</Text>
+                            </View>
+                        )}
+
+                        <View style={{ height: 40 }} />
+                    </>
+                )}
             </ScrollView>
         </View>
     );
@@ -440,5 +552,34 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: Colors.dark.primary,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 100,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: Colors.dark.textSecondary,
+        marginTop: 16,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 100,
+        gap: 12,
+    },
+    emptyText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: Colors.dark.text,
+        marginTop: 16,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
+        textAlign: 'center',
     },
 });

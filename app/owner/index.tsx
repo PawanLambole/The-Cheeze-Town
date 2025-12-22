@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -66,8 +66,10 @@ export default function OwnerDashboardScreen() {
     pendingOrders: 0,
     todayExpense: 0
   });
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboardData = async () => {
+    if (!refreshing) setRefreshing(true);
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -114,6 +116,8 @@ export default function OwnerDashboardScreen() {
 
     } catch (error) {
       console.error("Error fetching owner dashboard data", error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -159,6 +163,14 @@ export default function OwnerDashboardScreen() {
           style={styles.content}
           contentContainerStyle={{ paddingBottom: 16 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={fetchDashboardData}
+              tintColor={Colors.dark.primary}
+              colors={[Colors.dark.primary]}
+            />
+          }
         >
           <Text style={styles.sectionTitle}>Business Overview</Text>
 

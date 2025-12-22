@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Plus, Search, Edit2, Trash2, X, Camera, Image as ImageIcon } from 'lucide-react-native';
@@ -37,8 +37,10 @@ export default function MenuScreen() {
   const categories = ['All', 'Starters', 'Main Course', 'Beverages', 'Desserts'];
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchMenuItems = async () => {
+    if (!refreshing) setRefreshing(true);
     try {
       const { data, error } = await supabase
         .from('menu_items')
@@ -59,6 +61,8 @@ export default function MenuScreen() {
       setMenuItems(mapped);
     } catch (e) {
       console.error("Error fetching menu items", e);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -268,7 +272,18 @@ export default function MenuScreen() {
           ))}
         </ScrollView>
 
-        <ScrollView style={styles.itemsList} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.itemsList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={fetchMenuItems}
+              tintColor={Colors.dark.primary}
+              colors={[Colors.dark.primary]}
+            />
+          }
+        >
           <View style={styles.cardsGrid}>
             {filteredItems.map(item => (
               <View key={item.id} style={styles.card}>
