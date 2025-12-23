@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { QrCode, Smartphone, CreditCard, Shield, Lock, ChevronRight, User } from 'lucide-react';
+import { QrCode, Smartphone, CreditCard, Shield, ChevronRight, User } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { customerDB } from '../services/database';
 
@@ -11,11 +11,6 @@ interface PaymentPageProps {
 
 export default function PaymentPage({ tableId, onPaymentComplete, onBack }: PaymentPageProps) {
   const { cart, getTotalPrice, clearCart } = useCart();
-  const [paymentMethod, setPaymentMethod] = useState<'qr' | 'upi' | 'card'>('qr');
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvv, setCvv] = useState('');
-  const [upiId, setUpiId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,10 +53,10 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
     <div className="min-h-screen bg-brand-darker py-6 pb-24">
       <div className="container mx-auto px-4 max-w-2xl">
         <div className="text-center mb-8 pt-4">
-          <h1 className="text-3xl md:text-5xl font-bold font-serif text-brand-yellow mb-2">Secure Payment</h1>
+          <h1 className="text-3xl md:text-5xl font-bold font-serif text-brand-yellow mb-2">Complete Order</h1>
           <div className="flex items-center justify-center gap-2 text-gray-500">
             <Shield className="w-3 h-3" />
-            <p className="text-xs uppercase tracking-wider">Encrypted Transaction</p>
+            <p className="text-xs uppercase tracking-wider">Secure Transaction</p>
           </div>
         </div>
 
@@ -98,118 +93,27 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
-            {[
-              { id: 'qr', icon: QrCode, label: 'Scan QR' },
-              { id: 'upi', icon: Smartphone, label: 'UPI ID' },
-              { id: 'card', icon: CreditCard, label: 'Card' }
-            ].map((method) => (
-              <button
-                key={method.id}
-                onClick={() => setPaymentMethod(method.id as 'qr' | 'upi' | 'card')}
-                className={`p-3 md:p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 ${paymentMethod === method.id
-                  ? 'bg-brand-yellow text-brand-darker border-brand-yellow shadow-lg shadow-brand-yellow/20'
-                  : 'bg-brand-gray/50 text-gray-400 border-transparent hover:border-brand-yellow/30 hover:bg-brand-gray'
-                  }`}
-              >
-                <method.icon className="w-5 h-5 md:w-6 md:h-6" />
-                <span className="font-semibold text-xs md:text-sm">{method.label}</span>
-              </button>
-            ))}
-          </div>
+          {/* Payment Methods Info */}
+          <div className="mb-6 bg-brand-gray/30 rounded-2xl p-6 border border-white/5">
+            <div className="text-center mb-4">
+              <p className="text-brand-yellow font-bold text-lg mb-2">Payment Options</p>
+              <p className="text-gray-400 text-sm">Pay at counter or via digital payment</p>
+            </div>
 
-          <div className="min-h-[300px] bg-brand-gray/30 rounded-2xl p-4 md:p-6 border border-white/5 mb-6">
-            {paymentMethod === 'qr' && (
-              <div className="text-center py-4">
-                <div className="bg-white p-4 rounded-xl inline-block mb-6 shadow-xl relative group">
-                  <div className="absolute inset-0 bg-brand-yellow/20 blur-xl group-hover:blur-2xl transition-all"></div>
-                  <div className="relative bg-white p-2 rounded-lg">
-                    <QrCode className="w-40 h-40 md:w-48 md:h-48 text-brand-dark" />
-                  </div>
-                </div>
-                <p className="text-gray-300 mb-2">Scan with <span className="text-brand-yellow font-bold">Any UPI App</span></p>
-                <p className="text-xs text-gray-500">Google Pay, PhonePe, Paytm, etc.</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-brand-dark p-3 rounded-lg text-center">
+                <QrCode className="w-6 h-6 mx-auto mb-1 text-brand-yellow" />
+                <p className="text-xs text-gray-400">UPI</p>
               </div>
-            )}
-
-            {paymentMethod === 'upi' && (
-              <div className="py-4">
-                <label className="block text-gray-300 font-medium mb-3 ml-1">Enter UPI ID</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={upiId}
-                    onChange={(e) => setUpiId(e.target.value)}
-                    placeholder="username@bank"
-                    className="w-full bg-brand-dark text-white border border-white/10 rounded-xl px-4 py-4 pl-12 focus:outline-none focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow/50 transition-all placeholder-gray-600"
-                  />
-                  <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-                </div>
-
-                <div className="mt-6">
-                  <p className="text-gray-500 text-xs mb-3 uppercase tracking-wider font-semibold">Popular Apps</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {['Google Pay', 'PhonePe', 'Paytm', 'Amazon Pay'].map((app) => (
-                      <div key={app} className="bg-brand-dark p-3 rounded-lg text-center text-gray-400 text-sm border border-white/5 hover:border-brand-yellow/30 hover:text-brand-yellow transition-colors cursor-pointer">
-                        {app}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="bg-brand-dark p-3 rounded-lg text-center">
+                <CreditCard className="w-6 h-6 mx-auto mb-1 text-brand-yellow" />
+                <p className="text-xs text-gray-400">Card</p>
               </div>
-            )}
-
-            {paymentMethod === 'card' && (
-              <div className="py-2 space-y-5">
-                <div>
-                  <label className="block text-gray-300 font-medium mb-2 ml-1">Card Number</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                      placeholder="0000 0000 0000 0000"
-                      maxLength={19}
-                      className="w-full bg-brand-dark text-white border border-white/10 rounded-xl px-4 py-4 pl-12 focus:outline-none focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow/50 transition-all placeholder-gray-600 font-mono"
-                    />
-                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-300 font-medium mb-2 ml-1">Expiry</label>
-                    <input
-                      type="text"
-                      value={expiry}
-                      onChange={(e) => setExpiry(e.target.value)}
-                      placeholder="MM/YY"
-                      maxLength={5}
-                      className="w-full bg-brand-dark text-white border border-white/10 rounded-xl px-4 py-4 focus:outline-none focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow/50 transition-all placeholder-gray-600 font-mono text-center"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-300 font-medium mb-2 ml-1">CVV</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={cvv}
-                        onChange={(e) => setCvv(e.target.value)}
-                        placeholder="123"
-                        maxLength={3}
-                        className="w-full bg-brand-dark text-white border border-white/10 rounded-xl px-4 py-4 focus:outline-none focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow/50 transition-all placeholder-gray-600 font-mono text-center"
-                      />
-                      <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-gray-500 justify-center pt-2">
-                  <Shield className="w-3 h-3" />
-                  <span>Secure 256-bit SSL Encrypted</span>
-                </div>
+              <div className="bg-brand-dark p-3 rounded-lg text-center">
+                <Smartphone className="w-6 h-6 mx-auto mb-1 text-brand-yellow" />
+                <p className="text-xs text-gray-400">Cash</p>
               </div>
-            )}
+            </div>
           </div>
 
           <div className="flex gap-4">
@@ -232,7 +136,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
                 </>
               ) : (
                 <>
-                  Complete Payment
+                  Complete Order
                   <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </>
               )}

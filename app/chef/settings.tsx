@@ -5,7 +5,8 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, ChevronRight, Bell, Lock, Volume2, Settings as SettingsIcon, Info, LogOut, Languages, Clock } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/i18n';
-import { loadChefSettings, saveChefSettings, ChefSettings } from '@/utils/chefSettings';
+import { notificationPreferences } from '@/services/notificationPreferences';
+import { orderNotificationService } from '@/services/orderNotificationService';
 import { Colors } from '@/constants/Theme';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -57,33 +58,50 @@ export default function ChefSettingsScreen() {
     const router = useRouter();
     const { t, i18n } = useTranslation();
     const { signOut } = useAuth();
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+    const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(true);
     const [soundEnabled, setSoundEnabled] = useState(true);
-    const [vibrationEnabled, setVibrationEnabled] = useState(true);
+    const [bannerNotificationsEnabled, setBannerNotificationsEnabled] = useState(true);
 
-    // Load settings on mount
+    // Load notification preferences on mount
     useEffect(() => {
-        loadChefSettings().then(settings => {
-            setNotificationsEnabled(settings.notificationsEnabled);
-            setSoundEnabled(settings.soundEnabled);
-            setVibrationEnabled(settings.vibrationEnabled);
-        });
+        loadPreferences();
     }, []);
 
-    // Save setting handler
-    const handleSettingChange = async (key: keyof ChefSettings, value: boolean) => {
-        const newSettings = {
-            notificationsEnabled,
-            soundEnabled,
-            vibrationEnabled,
-            [key]: value,
-        };
-        await saveChefSettings(newSettings);
+    const loadPreferences = async () => {
+        const prefs = await notificationPreferences.get();
+        setPushNotificationsEnabled(prefs.pushEnabled);
+        setSoundEnabled(prefs.soundEnabled);
+        setBannerNotificationsEnabled(prefs.bannerEnabled);
+    };
 
-        // Update local state
-        if (key === 'notificationsEnabled') setNotificationsEnabled(value);
-        if (key === 'soundEnabled') setSoundEnabled(value);
-        if (key === 'vibrationEnabled') setVibrationEnabled(value);
+    const handlePushToggle = async (value: boolean) => {
+        setPushNotificationsEnabled(value);
+        await notificationPreferences.update('pushEnabled', value);
+        await orderNotificationService.updatePreferences({
+            pushEnabled: value,
+            soundEnabled,
+            bannerEnabled: bannerNotificationsEnabled,
+        });
+    };
+
+    const handleSoundToggle = async (value: boolean) => {
+        setSoundEnabled(value);
+        await notificationPreferences.update('soundEnabled', value);
+        await orderNotificationService.updatePreferences({
+            pushEnabled: pushNotificationsEnabled,
+            soundEnabled: value,
+            bannerEnabled: bannerNotificationsEnabled,
+        });
+    };
+
+    const handleBannerToggle = async (value: boolean) => {
+        setBannerNotificationsEnabled(value);
+        await notificationPreferences.update('bannerEnabled', value);
+        await orderNotificationService.updatePreferences({
+            pushEnabled: pushNotificationsEnabled,
+            soundEnabled,
+            bannerEnabled: value,
+        });
     };
 
     const handleLanguageChange = async (language: string) => {
@@ -147,29 +165,29 @@ export default function ChefSettingsScreen() {
                     <View style={styles.settingsList}>
                         <SettingItem
                             icon={<Bell size={20} color={Colors.dark.textSecondary} />}
-                            title="Order Notifications"
-                            subtitle="Receive alerts for new orders"
+                            title="Push Notifications"
+                            subtitle="Receive order notifications in system tray"
                             hasSwitch
-                            switchValue={notificationsEnabled}
-                            onSwitchChange={(value) => handleSettingChange('notificationsEnabled', value)}
-                            showArrow={false}
-                        />
-                        <SettingItem
-                            icon={<Volume2 size={20} color={Colors.dark.textSecondary} />}
-                            title="Sound Alerts"
-                            subtitle="Play sound for new orders"
-                            hasSwitch
-                            switchValue={soundEnabled}
-                            onSwitchChange={(value) => handleSettingChange('soundEnabled', value)}
+                            switchValue={pushNotificationsEnabled}
+                            onSwitchChange={handlePushToggle}
                             showArrow={false}
                         />
                         <SettingItem
                             icon={<Bell size={20} color={Colors.dark.textSecondary} />}
-                            title="Vibration"
-                            subtitle="Vibrate on new orders"
+                            title="Banner Notifications"
+                            subtitle="Show pop-up banner for new orders"
                             hasSwitch
-                            switchValue={vibrationEnabled}
-                            onSwitchChange={(value) => handleSettingChange('vibrationEnabled', value)}
+                            switchValue={bannerNotificationsEnabled}
+                            onSwitchChange={handleBannerToggle}
+                            showArrow={false}
+                        />
+                        <SettingItem
+                            icon={<Volume2 size={20} color={Colors.dark.textSecondary} />}
+                            title="Sound"
+                            subtitle="Play sound for new orders"
+                            hasSwitch
+                            switchValue={soundEnabled}
+                            onSwitchChange={handleSoundToggle}
                             showArrow={false}
                         />
                     </View>

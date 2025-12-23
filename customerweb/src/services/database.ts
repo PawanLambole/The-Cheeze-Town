@@ -69,8 +69,7 @@ export const customerDB = {
                     table_id: orderData.table_id,
                     customer_name: orderData.customer_name || null,
                     status: 'pending',
-                    total_amount: totalAmount,
-                    order_type: 'dine-in'
+                    total_amount: totalAmount
                 }])
                 .select()
                 .single();
