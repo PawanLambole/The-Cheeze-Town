@@ -1,44 +1,22 @@
+import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 
-// Supabase configuration
-const SUPABASE_URL = 'https://hncahlshvismwagbcryi.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuY2FobHNodmlzbXdhZ2JjcnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzMjgzOTIsImV4cCI6MjA4MTkwNDM5Mn0.iTroRZEtMfNzVN2rvfQ5nIt325h3NbdvbXMOxd9tmTA';
+// Supabase configuration (Expo)
+// Values are provided via EXPO_PUBLIC_* env vars
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://gnpdhisyxwqvnjleyola.supabase.co';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY ?? 'sb_publishable_l2p6m13fqhlAC4unPTnulg_gK69Qict';
 
-// Create and export the Supabase client
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false,
-    },
+// Debug logging
+console.log('🔧 Supabase Config:');
+console.log('URL:', SUPABASE_URL);
+console.log('Key (first 20 chars):', SUPABASE_ANON_KEY.substring(0, 20) + '...');
+console.log('Key length:', SUPABASE_ANON_KEY.length);
+
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+	auth: {
+		autoRefreshToken: true,
+		persistSession: true,
+		detectSessionInUrl: false,
+	},
 });
-
-// Export database instance for direct table access
-export const db = supabase;
-
-// Export auth instance
-export const auth = supabase.auth;
-
-// Export storage instance
-export const storage = supabase.storage;
-
-// Helper function to test the connection
-export async function testConnection() {
-    try {
-        const { data, error } = await supabase
-            .from('_health')
-            .select('*')
-            .limit(1);
-
-        if (error) {
-            console.log('Database connected successfully (expected error for health check)');
-            return true;
-        }
-
-        console.log('Database connected successfully');
-        return true;
-    } catch (error) {
-        console.error('Database connection error:', error);
-        return false;
-    }
-}

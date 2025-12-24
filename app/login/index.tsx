@@ -67,17 +67,75 @@ export default function LoginScreen() {
             }
 
             if (data?.session?.user) {
-                // 2. Immediately fetch verification data
-                // We use single() to get exact match
+                // 2. Fetch user role - use maybeSingle() to handle case where profile doesn't exist yet
                 const { data: userRoleData, error: roleError } = await supabase
                     .from('users')
-                    .select('role') // Just get the role directly
-                    .eq('auth_id', data.session.user.id)
-                    .single();
+                    .select('role')
+                    .eq('id', data.session.user.id)
+                    .maybeSingle();
 
-                if (roleError || !userRoleData) {
-                    console.error('Role verification error:', roleError);
-                    await signOut(); // Abort
+                // If error (not just null data), something went wrong
+                if (roleError) {
+                    console.error('Database error during role fetch:', roleError);
+                    await signOut();
+                    setLoading(false);
+                    setErrorModalMessage('Could not verify user role.');
+                    setErrorModalVisible(true);
+                    return;
+                }
+
+                // If no profile exists, create one with the selected role
+                if (!userRoleData) {
+                    console.log('No user profile found, creating with role:', role);
+                    const { data: { user } } = await supabase.auth.getUser();
+
+                    if (user) {
+                        const newUser = {
+                            id: data.session.user.id,
+                            email: user.email,
+                            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+                            role: role, // Use the role they selected during login
+                            phone: user.phone || ''
+                        };
+
+                        // Use UPSERT to handle case where record exists but couldn't be read due to RLS
+                        const { data: upsertedData, error: createError } = await supabase
+                            .from('users')
+                            .upsert([newUser], {
+                                onConflict: 'id',
+                                ignoreDuplicates: false
+                            })
+                            .select('role')
+                            .single();
+
+                        if (createError) {
+                            console.error('Error creating/updating user profile:', createError);
+
+                            // Check if it's a duplicate key error on email (different ID)
+                            if (createError.code === '23505' && createError.message.includes('email')) {
+                                setErrorModalMessage('This email is already registered with a different account. Please contact support.');
+                            } else {
+                                setErrorModalMessage('Could not create user profile. Please try again.');
+                            }
+
+                            await signOut();
+                            setLoading(false);
+                            setErrorModalVisible(true);
+                            return;
+                        }
+
+                        // Successfully created/updated, use the role from the upserted data
+                        const finalRole = upsertedData?.role || role;
+                        navigateToDashboard(finalRole);
+                        return;
+                    }
+                }
+
+                // At this point, userRoleData should exist (we created it if it didn't)
+                // But TypeScript doesn't know that, so add a safety check
+                if (!userRoleData) {
+                    console.error('Unexpected: userRoleData is null after creation attempt');
+                    await signOut();
                     setLoading(false);
                     setErrorModalMessage('Could not verify user role.');
                     setErrorModalVisible(true);
@@ -87,15 +145,7 @@ export default function LoginScreen() {
                 const dbRole = userRoleData.role;
 
                 // 3. Compare with selected UI role
-                // Special case: Waiters log in as Managers in UI if there's no waiter button
-                // But user requested Strict Check, so we enforce exact match or sensible mapping.
-                // Assuming UI only has Owner, Manager, Chef.
-
                 const isMismatch = dbRole !== role;
-
-                // Allow 'waiter' to act as 'manager' if UI logic permits, but user said "incorrect role... please select correct role".
-                // Since there is no "Waiter" button on login screen, waiters MUST select Manager?
-                // Let's assume strict for now based on user request.
 
                 if (isMismatch) {
                     // Mismatch detected! Sign out immediately before layout redirect can trigger
