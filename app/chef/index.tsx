@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, RefreshControl, Switch } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LogOut, Clock, CheckCircle, Settings, Bell, X } from 'lucide-react-native';
@@ -42,6 +43,40 @@ export default function ChefDashboard() {
     // Notification State
     const [notificationOrder, setNotificationOrder] = useState<any>(null);
     const [showNotification, setShowNotification] = useState(false);
+
+    // Settings State
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [soundEnabled, setSoundEnabled] = useState(true);
+    const [popupEnabled, setPopupEnabled] = useState(true);
+    const [systemEnabled, setSystemEnabled] = useState(true);
+
+    // Load settings on mount
+    useEffect(() => {
+        loadSettings();
+    }, []);
+
+    const loadSettings = async () => {
+        try {
+            const sound = await AsyncStorage.getItem('chef_sound_enabled');
+            const popup = await AsyncStorage.getItem('chef_popup_enabled');
+            const system = await AsyncStorage.getItem('chef_system_enabled');
+
+            if (sound !== null) setSoundEnabled(sound === 'true');
+            if (popup !== null) setPopupEnabled(popup === 'true');
+            if (system !== null) setSystemEnabled(system === 'true');
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        }
+    };
+
+    const toggleSetting = async (key: string, value: boolean, setter: (v: boolean) => void) => {
+        try {
+            setter(value);
+            await AsyncStorage.setItem(key, String(value));
+        } catch (error) {
+            console.error('Error saving setting:', error);
+        }
+    };
 
     // Initialize data and real-time subscriptions
     // Initialize data and real-time subscriptions
@@ -263,7 +298,7 @@ export default function ChefDashboard() {
 
                     <TouchableOpacity
                         style={styles.settingsButton}
-                        onPress={() => router.push('/chef/settings')}
+                        onPress={() => setShowSettingsModal(true)}
                     >
                         <Settings size={20} color={Colors.dark.primary} />
                     </TouchableOpacity>
@@ -474,6 +509,75 @@ export default function ChefDashboard() {
             </Modal>
 
 
+
+            {/* SETTINGS MODAL */}
+            <Modal visible={showSettingsModal} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 20 }}>
+                            <Text style={styles.modalTitle}>Notification Settings</Text>
+                            <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
+                                <X size={24} color={Colors.dark.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Sound Setting */}
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={styles.settingLabel}>Sound Alerts</Text>
+                                <Text style={styles.settingDescription}>Play sound on new order</Text>
+                            </View>
+                            <Switch
+                                value={soundEnabled}
+                                onValueChange={(val) => toggleSetting('chef_sound_enabled', val, setSoundEnabled)}
+                                trackColor={{ false: '#333', true: Colors.dark.primary }}
+                                thumbColor={soundEnabled ? '#000' : '#f4f3f4'}
+                            />
+                        </View>
+
+                        <View style={styles.settingDivider} />
+
+                        {/* Popup Setting */}
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={styles.settingLabel}>In-App Popup</Text>
+                                <Text style={styles.settingDescription}>Show modal while app is open</Text>
+                            </View>
+                            <Switch
+                                value={popupEnabled}
+                                onValueChange={(val) => toggleSetting('chef_popup_enabled', val, setPopupEnabled)}
+                                trackColor={{ false: '#333', true: Colors.dark.primary }}
+                                thumbColor={popupEnabled ? '#000' : '#f4f3f4'}
+                            />
+                        </View>
+
+                        <View style={styles.settingDivider} />
+
+                        {/* System Notification Setting */}
+                        <View style={styles.settingRow}>
+                            <View style={styles.settingInfo}>
+                                <Text style={styles.settingLabel}>System Notifications</Text>
+                                <Text style={styles.settingDescription}>Show in notification drawer</Text>
+                            </View>
+                            <Switch
+                                value={systemEnabled}
+                                onValueChange={(val) => toggleSetting('chef_system_enabled', val, setSystemEnabled)}
+                                trackColor={{ false: '#333', true: Colors.dark.primary }}
+                                thumbColor={systemEnabled ? '#000' : '#f4f3f4'}
+                            />
+                        </View>
+
+                        <View style={{ height: 24 }} />
+
+                        <TouchableOpacity
+                            style={styles.modalButton}
+                            onPress={() => setShowSettingsModal(false)}
+                        >
+                            <Text style={styles.confirmButtonText}>Done</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -796,41 +900,67 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(16, 185, 129, 0.2)',
         opacity: 0.8,
     },
-    completedBadge: {
+    // Settings Modal Styles
+    settingRow: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 20,
-        gap: 6,
+        width: '100%',
+        paddingVertical: 12,
     },
-    completedText: {
-        color: '#10B981',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    quantityBadgeCompleted: {
-        backgroundColor: 'rgba(16, 185, 129, 0.2)',
-        width: 32,
-        height: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 8,
-    },
-    quantityTextCompleted: {
-        color: '#10B981',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    itemNameCompleted: {
-        fontSize: 16,
-        color: Colors.dark.textSecondary,
+    settingInfo: {
         flex: 1,
+        marginRight: 16,
     },
-    emptySubtext: {
-        fontSize: 14,
+    settingLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: Colors.dark.text,
+    },
+    settingDescription: {
+        fontSize: 12,
         color: Colors.dark.textSecondary,
-        marginTop: 8,
+        marginTop: 4,
     },
+    settingDivider: {
+        height: 1,
+        backgroundColor: Colors.dark.border,
+        width: '100%',
+        marginVertical: 4,
+    },
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+},
+    completedText: {
+    color: '#10B981',
+    fontWeight: '600',
+    fontSize: 14,
+},
+    quantityBadgeCompleted: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+},
+    quantityTextCompleted: {
+    color: '#10B981',
+    fontWeight: '700',
+    fontSize: 14,
+},
+    itemNameCompleted: {
+    fontSize: 16,
+    color: Colors.dark.textSecondary,
+    flex: 1,
+},
+    emptySubtext: {
+    fontSize: 14,
+    color: Colors.dark.textSecondary,
+    marginTop: 8,
+},
 });
