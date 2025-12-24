@@ -1,95 +1,149 @@
 /**
- * Customer Website Database Service (Mock / No Database)
- *
- * This implementation uses in-memory mock data so the
- * customer website can run without any external database.
+ * Customer Website Database Service
+ * Real Supabase integration for menu, tables, and orders
  */
 
-// Simple mock menu and table data
-const mockMenuItems = [
-    { id: 1, name: 'Margherita Pizza', description: 'Classic cheese pizza', price: 299, category: 'Pizza', status: 'approved', is_vegetarian: true },
-    { id: 2, name: 'Pepperoni Pizza', description: 'Spicy pepperoni', price: 399, category: 'Pizza', status: 'approved', is_vegetarian: false },
-    { id: 3, name: 'Veggie Burger', description: 'Healthy vegetable burger', price: 199, category: 'Burgers', status: 'approved', is_vegetarian: true },
-];
-
-const mockTables = [
-    { id: 1, table_number: 1, capacity: 2, status: 'available', location: 'indoor' },
-    { id: 2, table_number: 2, capacity: 4, status: 'available', location: 'indoor' },
-    { id: 3, table_number: 3, capacity: 6, status: 'available', location: 'outdoor' },
-];
-
-let nextOrderId = 1;
+import { supabase } from '../config/supabase';
 
 export const customerDB = {
     /**
-     * Get all approved menu items (from mock data)
+     * Get all approved menu items from database
      */
     async getMenuItems() {
-        return { data: mockMenuItems, error: null };
+        try {
+            const { data, error } = await supabase
+                .from('menu_items')
+                .select('*')
+                .eq('status', 'approved')
+                .order('category', { ascending: true });
+
+            if (error) throw error;
+            return { data: data || [], error: null };
+        } catch (error) {
+            console.error('Error fetching menu items:', error);
+            return { data: [], error };
+        }
     },
 
     /**
-     * Get available tables (from mock data)
+     * Get available tables from database
      */
     async getAvailableTables() {
-        const available = mockTables.filter(t => t.status === 'available');
-        return { data: available, error: null };
+        try {
+            const { data, error } = await supabase
+                .from('tables')
+                .select('*')
+                .eq('status', 'available')
+                .order('table_number', { ascending: true });
+
+            if (error) throw error;
+            return { data: data || [], error: null };
+        } catch (error) {
+            console.error('Error fetching tables:', error);
+            return { data: [], error };
+        }
     },
 
     /**
-     * Create a new order (mocked)
+     * Create a new order in the database
      */
     async createOrder(orderData: {
         table_id: number;
         customer_name?: string;
         items: Array<{ menu_item_name: string; quantity: number; unit_price: number }>;
     }) {
-        const orderNumber = `WEB${String(nextOrderId).padStart(4, '0')}`;
-        const totalAmount = orderData.items.reduce(
-            (sum, item) => sum + item.unit_price * item.quantity,
-            0
-        );
+        try {
+            // Calculate total amount
+            const totalAmount = orderData.items.reduce(
+                (sum, item) => sum + item.unit_price * item.quantity,
+                0
+            );
 
-        const order = {
-            id: nextOrderId++,
-            order_number: orderNumber,
-            table_id: orderData.table_id,
-            customer_name: orderData.customer_name || null,
-            status: 'pending',
-            total_amount: totalAmount,
-            created_at: new Date().toISOString(),
-        };
+            // 1. Insert the order
+            const { data: order, error: orderError } = await supabase
+                .from('orders')
+                .insert({
+                    table_id: orderData.table_id,
+                    customer_name: orderData.customer_name || null,
+                    status: 'pending',
+                    total_amount: totalAmount,
+                    order_time: new Date().toISOString(),
+                })
+                .select()
+                .single();
 
-        console.log('Mock createOrder:', { order, items: orderData.items });
-        return { data: order, error: null };
+            if (orderError) throw orderError;
+
+            // 2. Insert order items
+            const orderItems = orderData.items.map(item => ({
+                order_id: order.id,
+                menu_item_name: item.menu_item_name,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+            }));
+
+            const { error: itemsError } = await supabase
+                .from('order_items')
+                .insert(orderItems);
+
+            if (itemsError) throw itemsError;
+
+            console.log('✅ Order created successfully:', order);
+            return { data: order, error: null };
+        } catch (error) {
+            console.error('Error creating order:', error);
+            return { data: null, error };
+        }
     },
 
     /**
-     * Subscribe to menu changes (no-op in mock mode)
+     * Subscribe to menu changes (real-time)
      */
-    subscribeToMenu(_callback: (payload: any) => void) {
-        console.log('Mock subscribeToMenu called (no real-time database).');
+    subscribeToMenu(callback: (payload: any) => void) {
+        const channel = supabase
+            .channel('menu_changes')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'menu_items',
+            }, payload => {
+                console.log('Menu updated:', payload);
+                callback(payload);
+            })
+            .subscribe();
+
         return {
-            unsubscribe() {
-                console.log('Mock menu subscription unsubscribed.');
+            unsubscribe: () => {
+                channel.unsubscribe();
             },
         };
     },
 
     /**
-     * Subscribe to table changes (no-op in mock mode)
+     * Subscribe to table changes (real-time)
      */
-    subscribeToTables(_callback: (payload: any) => void) {
-        console.log('Mock subscribeToTables called (no real-time database).');
+    subscribeToTables(callback: (payload: any) => void) {
+        const channel = supabase
+            .channel('table_changes')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'tables',
+            }, payload => {
+                console.log('Tables updated:', payload);
+                callback(payload);
+            })
+            .subscribe();
+
         return {
-            unsubscribe() {
-                console.log('Mock table subscription unsubscribed.');
+            unsubscribe: () => {
+                channel.unsubscribe();
             },
         };
     },
 
     /**
-     * Unsubscribe from a channel (compatible with existing hooks)
+     * Unsubscribe from a channel
      */
     async unsubscribe(subscription: { unsubscribe?: () => void }) {
         if (subscription && typeof subscription.unsubscribe === 'function') {
@@ -101,5 +155,5 @@ export const customerDB = {
 // Default export for convenience
 export default customerDB;
 
-// No real supabase client is exported anymore; keep a stub for safety
-export const supabase = null as null;
+// Export supabase client for direct access if needed
+export { supabase };
