@@ -11,10 +11,11 @@ import { notificationService } from '@/services/NotificationService';
 import { soundService } from '@/services/SoundService';
 
 
-id ?: number;
-menu_item_name: string;
-quantity: number;
-special_instructions ?: string | null;
+interface OrderItem {
+    id?: number;
+    menu_item_name: string;
+    quantity: number;
+    special_instructions?: string | null;
 }
 
 interface Order {
