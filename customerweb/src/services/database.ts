@@ -7,14 +7,13 @@ import { supabase } from '../config/supabase';
 
 export const customerDB = {
     /**
-     * Get all approved menu items from database
+     * Get all menu items from database
      */
     async getMenuItems() {
         try {
             const { data, error } = await supabase
                 .from('menu_items')
                 .select('*')
-                .eq('status', 'approved')
                 .order('category', { ascending: true });
 
             if (error) throw error;
