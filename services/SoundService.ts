@@ -42,6 +42,7 @@ class SoundService {
 
             // expo-audio players can be played directly. 
             // They handle state better.
+            this.player.seekTo(0);
             this.player.play();
 
         } catch (error) {
