@@ -2,17 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { LogOut, Clock, CheckCircle, Settings } from 'lucide-react-native';
+import { LogOut, Clock, CheckCircle, Settings, Bell, X } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
 import { useSupabaseRealtimeQuery } from '@/hooks/useSupabase';
 import { database, supabase } from '@/services/database';
 import { useAuth } from '@/contexts/AuthContext';
+import { notificationService } from '@/services/NotificationService';
+import { soundService } from '@/services/SoundService';
 
-interface OrderItem {
-    id?: number;
-    menu_item_name: string;
-    quantity: number;
-    special_instructions?: string | null;
+
+id ?: number;
+menu_item_name: string;
+quantity: number;
+special_instructions ?: string | null;
 }
 
 interface Order {
@@ -36,14 +38,34 @@ export default function ChefDashboard() {
     const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
 
+    // Notification State
+    const [notificationOrder, setNotificationOrder] = useState<any>(null);
+    const [showNotification, setShowNotification] = useState(false);
+
+    // Initialize data and real-time subscriptions
     // Initialize data and real-time subscriptions
     useEffect(() => {
+        // Load sound service
+        soundService.loadSound();
+
         // Initial fetch
         fetchOrders();
 
         // Listen for ALL order changes (New orders, updates, etc)
-        const subOrders = database.subscribe('orders', (payload) => {
+        const subOrders = database.subscribe('orders', async (payload: any) => {
             console.log('⚡ Realtime order update:', payload.eventType);
+
+            // Check for NEW orders
+            if (payload.eventType === 'INSERT') {
+                console.log('🔔 New Order Received!', payload.new);
+                // Play Sound
+                await soundService.playNotificationSound();
+
+                // Show Notification Modal
+                setNotificationOrder(payload.new);
+                setShowNotification(true);
+            }
+
             // Refresh orders list
             fetchOrders();
         });
@@ -57,6 +79,8 @@ export default function ChefDashboard() {
         return () => {
             database.unsubscribe(subOrders);
             database.unsubscribe(subOrderItems);
+            // Unload sound when component unmounts
+            soundService.unload();
         };
     }, []);
 
@@ -156,6 +180,24 @@ export default function ChefDashboard() {
         }
     };
 
+    const handleTestNotification = async () => {
+        console.log('🔔 Testing Notification');
+        await soundService.playNotificationSound();
+
+        await notificationService.scheduleNotification(
+            'Test Order 🔔',
+            'This is a test notification for Table 99',
+            { test: true }
+        );
+
+        setNotificationOrder({
+            order_number: 'TEST-ORDER',
+            table_id: 99,
+            created_at: new Date().toISOString()
+        });
+        setShowNotification(true);
+    };
+
     const { signOut } = useAuth();
 
     const handleLogout = async () => {
@@ -186,6 +228,14 @@ export default function ChefDashboard() {
                     <Text style={styles.headerSubtitle}>Today's Orders</Text>
                 </View>
                 <View style={styles.headerButtons}>
+                    {/* Test Notification Button */}
+                    <TouchableOpacity
+                        style={styles.settingsButton}
+                        onPress={handleTestNotification}
+                    >
+                        <Bell size={20} color={Colors.dark.primary} />
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                         style={styles.settingsButton}
                         onPress={() => router.push('/chef/settings')}
@@ -334,6 +384,9 @@ export default function ChefDashboard() {
             </ScrollView>
 
             {/* Custom Confirmation Modal */}
+            {/* Active Orders Tab content... */}
+
+            {/* Custom Confirmation Modal */}
             <Modal visible={showConfirmModal} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
@@ -353,6 +406,44 @@ export default function ChefDashboard() {
                                 <Text style={styles.confirmButtonText}>Confirm</Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* NEW ORDER NOTIFICATION MODAL */}
+            <Modal visible={showNotification} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.notificationContent}>
+                        <TouchableOpacity
+                            style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}
+                            onPress={() => setShowNotification(false)}
+                        >
+                            <X size={24} color={Colors.dark.textSecondary} />
+                        </TouchableOpacity>
+
+                        <View style={styles.notificationHeader}>
+                            <Bell size={48} color={Colors.dark.primary} />
+                            <View style={{ height: 16 }} />
+                            <Text style={styles.notificationTitle}>New Order!</Text>
+                        </View>
+
+                        <View style={styles.notificationBody}>
+                            <Text style={styles.notificationText}>Table</Text>
+                            <Text style={styles.notificationHighlight}>{notificationOrder?.table_id || 'N/A'}</Text>
+                            <View style={{ height: 12 }} />
+                            <Text style={styles.notificationOrderId}>#{notificationOrder?.order_number || 'N/A'}</Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.notificationButton}
+                            onPress={() => {
+                                setShowNotification(false);
+                                // Optional: Scroll to top or highlight new order
+                                fetchOrders();
+                            }}
+                        >
+                            <Text style={styles.notificationButtonText}>View Order</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
@@ -643,6 +734,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         fontSize: 16,
     },
+
     // Tabs styles
     tabsContainer: {
         flexDirection: 'row',
