@@ -54,17 +54,41 @@ export default function ChefDashboard() {
 
         // Listen for ALL order changes (New orders, updates, etc)
         const subOrders = database.subscribe('orders', async (payload: any) => {
-            console.log('⚡ Realtime order update:', payload.eventType);
+            console.log('⚡ Realtime order update payload:', JSON.stringify(payload, null, 2));
+            console.log('⚡ Event Type:', payload.eventType);
 
             // Check for NEW orders
             if (payload.eventType === 'INSERT') {
-                console.log('🔔 New Order Received!', payload.new);
-                // Play Sound
-                await soundService.playNotificationSound();
+                console.log('🔔 INSERT EVENT DETECTED!');
+                console.log('🔔 New Order Data:', payload.new);
 
-                // Show Notification Modal
-                setNotificationOrder(payload.new);
-                setShowNotification(true);
+                const orderNumber = payload.new.order_number || 'New Order';
+                const tableId = payload.new.table_id ? `Table ${payload.new.table_id}` : 'Takeaway';
+
+                try {
+                    // 1. Play Sound
+                    console.log('🎵 Attempting to play sound...');
+                    await soundService.playNotificationSound();
+                    console.log('🎵 Sound played successfully');
+
+                    // 2. Show System Notification (Notification Drawer)
+                    console.log('🔔 Attempting to show system notification...');
+                    await notificationService.scheduleNotification(
+                        'New Order Received! 🔔',
+                        `New order #${orderNumber} for ${tableId}`,
+                        { orderId: payload.new.id }
+                    );
+                    console.log('🔔 System notification scheduled');
+
+                    // 3. Show In-App Notification Modal
+                    console.log('📱 Showing in-app modal');
+                    setNotificationOrder(payload.new);
+                    setShowNotification(true);
+                } catch (err) {
+                    console.error('❌ Error handling notification:', err);
+                }
+            } else {
+                console.log('ℹ️ Event was not INSERT, ignored for notification.');
             }
 
             // Refresh orders list
@@ -116,7 +140,7 @@ export default function ChefDashboard() {
                 .in('status', ['pending', 'preparing'])
                 .gte('created_at', start)
                 .lte('created_at', end)
-                .order('created_at', { ascending: true });
+                .order('created_at', { ascending: false });
 
             // Fetch completed orders (ready or completed) from today
             const { data: completedData, error: completedError } = await supabase
