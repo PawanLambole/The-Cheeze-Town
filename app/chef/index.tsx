@@ -69,15 +69,21 @@ export default function ChefDashboard() {
 
                 try {
                     // Fetch complete order details with items
-                    const { data: orderItems } = await supabase
+                    const { data: orderItems, error: itemsError } = await supabase
                         .from('order_items')
                         .select(`
                             id,
                             quantity,
                             special_instructions,
-                            menu_items (name)
+                            menu_items (
+                                name
+                            )
                         `)
                         .eq('order_id', payload.new.id);
+
+                    if (itemsError) {
+                        console.error('Error fetching order items:', itemsError);
+                    }
 
                     const completeOrder = {
                         ...payload.new,
@@ -364,9 +370,14 @@ export default function ChefDashboard() {
                                         <Text style={styles.tableNumber}>Table {order.table_id ?? 'N/A'}</Text>
                                         <Text style={styles.orderId}>#{order.order_number ?? 'N/A'}</Text>
                                     </View>
-                                    <View style={styles.timerBadge}>
-                                        <Clock size={14} color="#F59E0B" />
-                                        <Text style={styles.timerText}>{getOrderDuration(order.created_at ?? new Date().toISOString())}</Text>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                        <View style={styles.timerBadge}>
+                                            <Clock size={14} color="#F59E0B" />
+                                            <Text style={styles.timerText}>{getOrderDuration(order.created_at ?? new Date().toISOString())}</Text>
+                                        </View>
+                                        {order.total_amount && (
+                                            <Text style={styles.orderTotal}>₹{order.total_amount}</Text>
+                                        )}
                                     </View>
                                 </View>
 
@@ -379,7 +390,7 @@ export default function ChefDashboard() {
                                                 <Text style={styles.quantityText}>{item.quantity}x</Text>
                                             </View>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={styles.itemName}>{item.menu_item_name}</Text>
+                                                <Text style={styles.itemName} numberOfLines={2}>{item.menu_item_name}</Text>
                                                 {item.special_instructions && (
                                                     <Text style={styles.itemNotes}>Note: {item.special_instructions}</Text>
                                                 )}
@@ -398,7 +409,10 @@ export default function ChefDashboard() {
                                     style={styles.completeButton}
                                     onPress={() => handleMarkServed(order.id)}
                                 >
-                                    <Text style={styles.completeButtonText}>Mark Ready</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <CheckCircle size={20} color="#000000" />
+                                        <Text style={styles.completeButtonText}>Mark Ready</Text>
+                                    </View>
                                 </TouchableOpacity>
                             </View>
                         ))
@@ -445,9 +459,10 @@ export default function ChefDashboard() {
                             </View>
                         ))
                     )
-                )}
+                )
+                }
                 <View style={{ height: 20 }} />
-            </ScrollView>
+            </ScrollView >
 
             {/* Custom Confirmation Modal */}
             {/* Active Orders Tab content... */}
@@ -549,7 +564,7 @@ export default function ChefDashboard() {
 
 
 
-        </View>
+        </View >
     );
 }
 
@@ -623,6 +638,12 @@ const styles = StyleSheet.create({
     orderId: {
         fontSize: 14,
         color: Colors.dark.textSecondary,
+    },
+    orderTotal: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: Colors.dark.primary,
+        marginTop: 4,
     },
     timerBadge: {
         flexDirection: 'row',
