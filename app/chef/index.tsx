@@ -298,7 +298,7 @@ export default function ChefDashboard() {
 
                     <TouchableOpacity
                         style={styles.settingsButton}
-                        onPress={() => setShowSettingsModal(true)}
+                        onPress={() => router.push('/chef/settings')}
                     >
                         <Settings size={20} color={Colors.dark.primary} />
                     </TouchableOpacity>
@@ -510,74 +510,6 @@ export default function ChefDashboard() {
 
 
 
-            {/* SETTINGS MODAL */}
-            <Modal visible={showSettingsModal} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 20 }}>
-                            <Text style={styles.modalTitle}>Notification Settings</Text>
-                            <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
-                                <X size={24} color={Colors.dark.textSecondary} />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Sound Setting */}
-                        <View style={styles.settingRow}>
-                            <View style={styles.settingInfo}>
-                                <Text style={styles.settingLabel}>Sound Alerts</Text>
-                                <Text style={styles.settingDescription}>Play sound on new order</Text>
-                            </View>
-                            <Switch
-                                value={soundEnabled}
-                                onValueChange={(val) => toggleSetting('chef_sound_enabled', val, setSoundEnabled)}
-                                trackColor={{ false: '#333', true: Colors.dark.primary }}
-                                thumbColor={soundEnabled ? '#000' : '#f4f3f4'}
-                            />
-                        </View>
-
-                        <View style={styles.settingDivider} />
-
-                        {/* Popup Setting */}
-                        <View style={styles.settingRow}>
-                            <View style={styles.settingInfo}>
-                                <Text style={styles.settingLabel}>In-App Popup</Text>
-                                <Text style={styles.settingDescription}>Show modal while app is open</Text>
-                            </View>
-                            <Switch
-                                value={popupEnabled}
-                                onValueChange={(val) => toggleSetting('chef_popup_enabled', val, setPopupEnabled)}
-                                trackColor={{ false: '#333', true: Colors.dark.primary }}
-                                thumbColor={popupEnabled ? '#000' : '#f4f3f4'}
-                            />
-                        </View>
-
-                        <View style={styles.settingDivider} />
-
-                        {/* System Notification Setting */}
-                        <View style={styles.settingRow}>
-                            <View style={styles.settingInfo}>
-                                <Text style={styles.settingLabel}>System Notifications</Text>
-                                <Text style={styles.settingDescription}>Show in notification drawer</Text>
-                            </View>
-                            <Switch
-                                value={systemEnabled}
-                                onValueChange={(val) => toggleSetting('chef_system_enabled', val, setSystemEnabled)}
-                                trackColor={{ false: '#333', true: Colors.dark.primary }}
-                                thumbColor={systemEnabled ? '#000' : '#f4f3f4'}
-                            />
-                        </View>
-
-                        <View style={{ height: 24 }} />
-
-                        <TouchableOpacity
-                            style={styles.modalButton}
-                            onPress={() => setShowSettingsModal(false)}
-                        >
-                            <Text style={styles.confirmButtonText}>Done</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
         </View>
     );
 }
@@ -928,39 +860,41 @@ const styles = StyleSheet.create({
         width: '100%',
         marginVertical: 4,
     },
-    alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-},
+    completedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 20,
+        gap: 6,
+    },
     completedText: {
-    color: '#10B981',
-    fontWeight: '600',
-    fontSize: 14,
-},
+        color: '#10B981',
+        fontWeight: '600',
+        fontSize: 14,
+    },
     quantityBadgeCompleted: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-},
+        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+        width: 32,
+        height: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 8,
+    },
     quantityTextCompleted: {
-    color: '#10B981',
-    fontWeight: '700',
-    fontSize: 14,
-},
+        color: '#10B981',
+        fontWeight: '700',
+        fontSize: 14,
+    },
     itemNameCompleted: {
-    fontSize: 16,
-    color: Colors.dark.textSecondary,
-    flex: 1,
-},
+        fontSize: 16,
+        color: Colors.dark.textSecondary,
+        flex: 1,
+    },
     emptySubtext: {
-    fontSize: 14,
-    color: Colors.dark.textSecondary,
-    marginTop: 8,
-},
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
+        marginTop: 8,
+    },
 });
