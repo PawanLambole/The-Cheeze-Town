@@ -1,8 +1,9 @@
-import { Audio } from 'expo-av';
+import { AudioPlayer, createAudioPlayer } from 'expo-audio';
 
 class SoundService {
     private static instance: SoundService;
-    private sound: Audio.Sound | null = null;
+    private player: AudioPlayer | null = null;
+    private soundSource = require('../assets/sounds/belli.m4a');
 
     private constructor() { }
 
@@ -15,23 +16,17 @@ class SoundService {
 
     async loadSound() {
         try {
-            // Unload if already loaded to avoid memory leaks or duplicate sounds
-            if (this.sound) {
-                await this.sound.unloadAsync();
+            // No direct load needed in expo-audio for creating players on demand, 
+            // but we can pre-create the player here if desired.
+            // For now, we'll create it when needed or reuse if possible.
+            if (!this.player) {
+                this.player = createAudioPlayer(this.soundSource);
             }
 
-            const { sound } = await Audio.Sound.createAsync(
-                require('../assets/sounds/belli.m4a'),
-                { shouldPlay: false }
-            );
-            this.sound = sound;
-
-            // Configure audio mode to play even if switch is on silent
-            await Audio.setAudioModeAsync({
-                playsInSilentModeIOS: true,
-                staysActiveInBackground: true,
-                shouldDuckAndroid: true,
-            });
+            // Configure audio mode
+            // Note: expo-audio handles audio mode differently or defaults might be sufficient.
+            // We can explicitly set category if needed, but expo-audio often defaults well.
+            // If needed: AudioModule.setAudioModeAsync({ ... }) - check docs if available/needed.
 
         } catch (error) {
             console.error('Error loading sound:', error);
@@ -40,26 +35,34 @@ class SoundService {
 
     async playNotificationSound() {
         try {
-            if (!this.sound) {
-                await this.loadSound();
+            // Create player if not exists
+            if (!this.player) {
+                this.player = createAudioPlayer(this.soundSource);
             }
 
-            if (this.sound) {
-                // Reset to start if already played
-                await this.sound.setPositionAsync(0);
-                await this.sound.playAsync();
-            }
+            // expo-audio players can be played directly. 
+            // They handle state better.
+            this.player.play();
+
         } catch (error) {
             console.error('Error playing sound:', error);
-            // Try enabling again in case of error
-            await this.loadSound();
+            // Retry logic could be simpler: create new player
+            try {
+                this.player = createAudioPlayer(this.soundSource);
+                this.player.play();
+            } catch (e) {
+                console.error('Retry failed:', e);
+            }
         }
     }
 
     async unload() {
-        if (this.sound) {
-            await this.sound.unloadAsync();
-            this.sound = null;
+        // expo-audio players are garbage collected or can be stopped.
+        // Explicit release might not be strictly necessary like unloadAsync,
+        // but stopping is good practice.
+        if (this.player) {
+            this.player.pause(); // or stop if available in method signature
+            this.player = null;
         }
     }
 }
