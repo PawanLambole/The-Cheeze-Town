@@ -75,9 +75,7 @@ export default function ChefDashboard() {
                             id,
                             quantity,
                             special_instructions,
-                            menu_items (
-                                name
-                            )
+                            menu_item_name
                         `)
                         .eq('order_id', payload.new.id);
 
@@ -85,14 +83,11 @@ export default function ChefDashboard() {
                         console.error('Error fetching order items:', itemsError);
                     }
 
+                    console.log('📦 Fetched order items:', orderItems);
+
                     const completeOrder = {
                         ...payload.new,
-                        order_items: orderItems?.map(item => ({
-                            id: item.id,
-                            quantity: item.quantity,
-                            menu_item_name: item.menu_items?.name || 'Unknown Item',
-                            special_instructions: item.special_instructions
-                        })) || []
+                        order_items: orderItems || []
                     };
 
                     // Create notification message with items
@@ -796,9 +791,10 @@ const styles = StyleSheet.create({
     notificationContent: {
         backgroundColor: Colors.dark.card,
         borderRadius: 20,
-        padding: 24,
-        width: '90%',
-        maxWidth: 380,
+        padding: 20,
+        width: '92%',
+        maxWidth: 420,
+        maxHeight: '85%',
         borderWidth: 2,
         borderColor: Colors.dark.primary,
         alignItems: 'center',
@@ -810,56 +806,61 @@ const styles = StyleSheet.create({
     },
     notificationHeader: {
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 12,
     },
     notificationTitle: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: '700',
         color: Colors.dark.primary,
     },
     notificationBody: {
         width: '100%',
-        marginBottom: 24,
-        paddingVertical: 16,
-        paddingHorizontal: 20,
+        marginBottom: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
         backgroundColor: Colors.dark.secondary,
         borderRadius: 12,
     },
     notificationInfoRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         width: '100%',
-        marginBottom: 12,
+        marginBottom: 10,
+        flexWrap: 'wrap',
+        gap: 4,
     },
     notificationLabel: {
-        fontSize: 14,
+        fontSize: 13,
         color: Colors.dark.textSecondary,
         fontWeight: '500',
+        minWidth: 90,
     },
     notificationValue: {
-        fontSize: 16,
+        fontSize: 15,
         color: Colors.dark.text,
         fontWeight: '600',
+        flex: 1,
+        textAlign: 'right',
     },
     notificationItemsSection: {
         width: '100%',
-        marginTop: 12,
-        paddingTop: 12,
+        marginTop: 8,
+        paddingTop: 8,
         borderTopWidth: 1,
         borderTopColor: Colors.dark.border,
     },
     notificationItemsTitle: {
-        fontSize: 14,
+        fontSize: 13,
         color: Colors.dark.textSecondary,
         fontWeight: '600',
-        marginBottom: 8,
+        marginBottom: 6,
     },
     notificationItemsList: {
-        maxHeight: 150,
+        maxHeight: 180,
     },
     notificationItem: {
-        marginBottom: 8,
+        marginBottom: 6,
     },
     notificationItemRow: {
         flexDirection: 'row',
