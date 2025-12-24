@@ -68,33 +68,66 @@ export default function ChefDashboard() {
                 const tableId = payload.new.table_id ? `Table ${payload.new.table_id}` : 'Takeaway';
 
                 try {
-                    // Fetch complete order details with items
-                    const { data: orderItems, error: itemsError } = await supabase
-                        .from('order_items')
-                        .select(`
-                            id,
-                            quantity,
-                            special_instructions,
-                            menu_item_name
-                        `)
-                        .eq('order_id', payload.new.id);
+                    // Small delay to ensure order_items are inserted
+                    await new Promise(resolve => setTimeout(resolve, 500));
 
-                    if (itemsError) {
-                        console.error('Error fetching order items:', itemsError);
+                    // Fetch complete order details with items (with retry)
+                    let orderItems = null;
+                    let itemsError = null;
+
+                    // Try fetching items up to 3 times with delays
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        const result = await supabase
+                            .from('order_items')
+                            .select(`
+                                id,
+                                quantity,
+                                special_instructions,
+                                menu_item_name
+                            `)
+                            .eq('order_id', payload.new.id);
+
+                        orderItems = result.data;
+                        itemsError = result.error;
+
+                        console.log(`📦 Fetch attempt ${attempt + 1}:`, {
+                            itemsCount: orderItems?.length || 0,
+                            items: orderItems,
+                            error: itemsError
+                        });
+
+                        if (orderItems && orderItems.length > 0) {
+                            break; // Success!
+                        }
+
+                        // Wait before retrying (except on last attempt)
+                        if (attempt < 2) {
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        }
                     }
 
-                    console.log('📦 Fetched order items:', orderItems);
+                    if (itemsError) {
+                        console.error('❌ Error fetching order items:', itemsError);
+                    }
+
+                    if (!orderItems || orderItems.length === 0) {
+                        console.warn('⚠️ No order items found after retries');
+                    }
 
                     const completeOrder = {
                         ...payload.new,
                         order_items: orderItems || []
                     };
 
+                    console.log('✅ Complete order for notification:', completeOrder);
+
                     // Create notification message with items
                     const itemsList = completeOrder.order_items
                         .map((item: OrderItem) => `${item.quantity}x ${item.menu_item_name}`)
                         .join(', ');
                     const notificationBody = itemsList || 'No items';
+
+                    console.log('📝 Notification body:', notificationBody);
 
                     // 1. Play Sound (if enabled)
                     if (soundEnabled) {
@@ -120,7 +153,7 @@ export default function ChefDashboard() {
 
                     // 3. Show In-App Notification Modal (if enabled)
                     if (popupEnabled) {
-                        console.log('📱 Showing in-app modal');
+                        console.log('📱 Showing in-app modal with order:', completeOrder);
                         setNotificationOrder(completeOrder);
                         setShowNotification(true);
                     } else {
