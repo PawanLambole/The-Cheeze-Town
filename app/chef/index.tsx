@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, RefreshControl, Switch } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LogOut, Clock, CheckCircle, Settings, Bell, X } from 'lucide-react-native';
@@ -8,6 +7,7 @@ import { Colors } from '@/constants/Theme';
 import { useSupabaseRealtimeQuery } from '@/hooks/useSupabase';
 import { database, supabase } from '@/services/database';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotificationSettings } from '@/contexts/NotificationSettingsContext';
 import { notificationService } from '@/services/NotificationService';
 import { soundService } from '@/services/SoundService';
 
@@ -34,6 +34,7 @@ interface Order {
 export default function ChefDashboard() {
     const router = useRouter();
     const { userData } = useAuth();
+    const { soundEnabled, popupEnabled, systemEnabled } = useNotificationSettings();
     const [orders, setOrders] = useState<Order[]>([]);
     const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,40 +44,6 @@ export default function ChefDashboard() {
     // Notification State
     const [notificationOrder, setNotificationOrder] = useState<any>(null);
     const [showNotification, setShowNotification] = useState(false);
-
-    // Settings State
-    const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const [soundEnabled, setSoundEnabled] = useState(true);
-    const [popupEnabled, setPopupEnabled] = useState(true);
-    const [systemEnabled, setSystemEnabled] = useState(true);
-
-    // Load settings on mount
-    useEffect(() => {
-        loadSettings();
-    }, []);
-
-    const loadSettings = async () => {
-        try {
-            const sound = await AsyncStorage.getItem('chef_sound_enabled');
-            const popup = await AsyncStorage.getItem('chef_popup_enabled');
-            const system = await AsyncStorage.getItem('chef_system_enabled');
-
-            if (sound !== null) setSoundEnabled(sound === 'true');
-            if (popup !== null) setPopupEnabled(popup === 'true');
-            if (system !== null) setSystemEnabled(system === 'true');
-        } catch (error) {
-            console.error('Error loading settings:', error);
-        }
-    };
-
-    const toggleSetting = async (key: string, value: boolean, setter: (v: boolean) => void) => {
-        try {
-            setter(value);
-            await AsyncStorage.setItem(key, String(value));
-        } catch (error) {
-            console.error('Error saving setting:', error);
-        }
-    };
 
     // Initialize data and real-time subscriptions
     // Initialize data and real-time subscriptions
@@ -101,24 +68,36 @@ export default function ChefDashboard() {
                 const tableId = payload.new.table_id ? `Table ${payload.new.table_id}` : 'Takeaway';
 
                 try {
-                    // 1. Play Sound
-                    console.log('🎵 Attempting to play sound...');
-                    await soundService.playNotificationSound();
-                    console.log('🎵 Sound played successfully');
+                    // 1. Play Sound (if enabled)
+                    if (soundEnabled) {
+                        console.log('🎵 Attempting to play sound...');
+                        await soundService.playNotificationSound();
+                        console.log('🎵 Sound played successfully');
+                    } else {
+                        console.log('🔇 Sound disabled, skipping...');
+                    }
 
-                    // 2. Show System Notification (Notification Drawer)
-                    console.log('🔔 Attempting to show system notification...');
-                    await notificationService.scheduleNotification(
-                        'New Order Received! 🔔',
-                        `New order #${orderNumber} for ${tableId}`,
-                        { orderId: payload.new.id }
-                    );
-                    console.log('🔔 System notification scheduled');
+                    // 2. Show System Notification (if enabled)
+                    if (systemEnabled) {
+                        console.log('🔔 Attempting to show system notification...');
+                        await notificationService.scheduleNotification(
+                            'New Order Received! 🔔',
+                            `New order #${orderNumber} for ${tableId}`,
+                            { orderId: payload.new.id }
+                        );
+                        console.log('🔔 System notification scheduled');
+                    } else {
+                        console.log('🔕 System notifications disabled, skipping...');
+                    }
 
-                    // 3. Show In-App Notification Modal
-                    console.log('📱 Showing in-app modal');
-                    setNotificationOrder(payload.new);
-                    setShowNotification(true);
+                    // 3. Show In-App Notification Modal (if enabled)
+                    if (popupEnabled) {
+                        console.log('📱 Showing in-app modal');
+                        setNotificationOrder(payload.new);
+                        setShowNotification(true);
+                    } else {
+                        console.log('📵 In-app popup disabled, skipping...');
+                    }
                 } catch (err) {
                     console.error('❌ Error handling notification:', err);
                 }
@@ -142,7 +121,7 @@ export default function ChefDashboard() {
             // Unload sound when component unmounts
             soundService.unload();
         };
-    }, []);
+    }, [soundEnabled, popupEnabled, systemEnabled]);
 
     // Helper function to get today's start and end timestamps
     const getTodayRange = () => {
