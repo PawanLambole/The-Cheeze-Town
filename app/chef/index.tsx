@@ -520,67 +520,77 @@ export default function ChefDashboard() {
             </Modal>
 
             {/* NEW ORDER NOTIFICATION MODAL */}
-            <Modal visible={showNotification} transparent animationType="slide">
+            <Modal visible={showNotification} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.notificationContent}>
-                        <TouchableOpacity
-                            style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}
-                            onPress={() => setShowNotification(false)}
-                        >
-                            <X size={24} color={Colors.dark.textSecondary} />
-                        </TouchableOpacity>
-
+                        {/* Header */}
                         <View style={styles.notificationHeader}>
-                            <Bell size={48} color={Colors.dark.primary} />
-                            <View style={{ height: 16 }} />
-                            <Text style={styles.notificationTitle}>New Order!</Text>
+                            <View style={styles.notificationHeaderLeft}>
+                                <Bell size={32} color={Colors.dark.primary} />
+                                <Text style={styles.notificationTitle}>New Order</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setShowNotification(false)}>
+                                <X size={24} color={Colors.dark.textSecondary} />
+                            </TouchableOpacity>
                         </View>
 
-                        <View style={styles.notificationBody}>
-                            <View style={styles.notificationInfoRow}>
-                                <Text style={styles.notificationLabel}>Order Number:</Text>
-                                <Text style={styles.notificationValue}>#{notificationOrder?.order_number || 'N/A'}</Text>
+                        {/* Order Info Section */}
+                        <View style={styles.notificationSection}>
+                            <View style={styles.notificationRow}>
+                                <Text style={styles.notificationLabel}>Order #</Text>
+                                <Text style={styles.notificationValue} numberOfLines={1}>
+                                    {notificationOrder?.order_number || 'N/A'}
+                                </Text>
                             </View>
-                            <View style={styles.notificationInfoRow}>
-                                <Text style={styles.notificationLabel}>Table:</Text>
+                            <View style={styles.notificationDivider} />
+                            <View style={styles.notificationRow}>
+                                <Text style={styles.notificationLabel}>Table</Text>
                                 <Text style={styles.notificationValue}>
                                     {notificationOrder?.table_id ? `Table ${notificationOrder.table_id}` : 'Takeaway'}
                                 </Text>
                             </View>
                             {notificationOrder?.total_amount && (
-                                <View style={styles.notificationInfoRow}>
-                                    <Text style={styles.notificationLabel}>Total:</Text>
-                                    <Text style={styles.notificationValue}>₹{notificationOrder.total_amount}</Text>
-                                </View>
-                            )}
-
-                            {notificationOrder?.order_items && notificationOrder.order_items.length > 0 && (
-                                <View style={styles.notificationItemsSection}>
-                                    <Text style={styles.notificationItemsTitle}>Items:</Text>
-                                    <ScrollView style={styles.notificationItemsList} nestedScrollEnabled>
-                                        {notificationOrder.order_items.map((item: any, index: number) => (
-                                            <View key={index} style={styles.notificationItem}>
-                                                <View style={styles.notificationItemRow}>
-                                                    <Text style={styles.notificationItemQty}>{item.quantity}x</Text>
-                                                    <Text style={styles.notificationItemName}>{item.menu_item_name}</Text>
-                                                </View>
-                                                {item.special_instructions && (
-                                                    <Text style={styles.notificationItemNotes}>
-                                                        Note: {item.special_instructions}
-                                                    </Text>
-                                                )}
-                                            </View>
-                                        ))}
-                                    </ScrollView>
-                                </View>
+                                <>
+                                    <View style={styles.notificationDivider} />
+                                    <View style={styles.notificationRow}>
+                                        <Text style={styles.notificationLabel}>Total</Text>
+                                        <Text style={styles.notificationValueHighlight}>₹{notificationOrder.total_amount}</Text>
+                                    </View>
+                                </>
                             )}
                         </View>
 
+                        {/* Items Section */}
+                        {notificationOrder?.order_items && notificationOrder.order_items.length > 0 && (
+                            <View style={styles.notificationSection}>
+                                <Text style={styles.notificationSectionTitle}>Order Items</Text>
+                                <ScrollView style={styles.notificationItemsList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                                    {notificationOrder.order_items.map((item: any, index: number) => (
+                                        <View key={index} style={styles.notificationItemCard}>
+                                            <View style={styles.notificationItemHeader}>
+                                                <View style={styles.notificationQtyBadge}>
+                                                    <Text style={styles.notificationQtyText}>{item.quantity}</Text>
+                                                </View>
+                                                <Text style={styles.notificationItemName} numberOfLines={2}>
+                                                    {item.menu_item_name}
+                                                </Text>
+                                            </View>
+                                            {item.special_instructions && (
+                                                <Text style={styles.notificationItemNotes} numberOfLines={2}>
+                                                    📝 {item.special_instructions}
+                                                </Text>
+                                            )}
+                                        </View>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+
+                        {/* Action Button */}
                         <TouchableOpacity
                             style={styles.notificationButton}
                             onPress={() => {
                                 setShowNotification(false);
-                                // Optional: Scroll to top or highlight new order
                                 fetchOrders();
                             }}
                         >
@@ -823,88 +833,96 @@ const styles = StyleSheet.create({
     },
     notificationContent: {
         backgroundColor: Colors.dark.card,
-        borderRadius: 20,
-        padding: 20,
-        width: '92%',
-        maxWidth: 420,
-        maxHeight: '85%',
-        borderWidth: 2,
-        borderColor: Colors.dark.primary,
-        alignItems: 'center',
-        shadowColor: Colors.dark.primary,
-        shadowOffset: { width: 0, height: 10 },
+        borderRadius: 16,
+        width: '90%',
+        maxWidth: 400,
+        maxHeight: '80%',
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
-        shadowRadius: 20,
+        shadowRadius: 8,
         elevation: 10,
     },
     notificationHeader: {
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    notificationTitle: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: Colors.dark.primary,
-    },
-    notificationBody: {
-        width: '100%',
-        marginBottom: 16,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        backgroundColor: Colors.dark.secondary,
-        borderRadius: 12,
-    },
-    notificationInfoRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        width: '100%',
-        marginBottom: 10,
-        flexWrap: 'wrap',
-        gap: 4,
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.dark.border,
+    },
+    notificationHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    notificationTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: Colors.dark.text,
+    },
+    notificationSection: {
+        padding: 16,
+        gap: 12,
+    },
+    notificationRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    notificationDivider: {
+        height: 1,
+        backgroundColor: Colors.dark.border,
     },
     notificationLabel: {
-        fontSize: 13,
+        fontSize: 14,
         color: Colors.dark.textSecondary,
         fontWeight: '500',
-        minWidth: 90,
     },
     notificationValue: {
         fontSize: 15,
         color: Colors.dark.text,
         fontWeight: '600',
-        flex: 1,
-        textAlign: 'right',
     },
-    notificationItemsSection: {
-        width: '100%',
-        marginTop: 8,
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: Colors.dark.border,
-    },
-    notificationItemsTitle: {
-        fontSize: 13,
-        color: Colors.dark.textSecondary,
-        fontWeight: '600',
-        marginBottom: 6,
-    },
-    notificationItemsList: {
-        maxHeight: 180,
-    },
-    notificationItem: {
-        marginBottom: 6,
-    },
-    notificationItemRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    notificationItemQty: {
-        fontSize: 15,
+    notificationValueHighlight: {
+        fontSize: 18,
         color: Colors.dark.primary,
         fontWeight: '700',
-        minWidth: 30,
+    },
+    notificationSectionTitle: {
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
+        fontWeight: '600',
+        marginBottom: 8,
+    },
+    notificationItemsList: {
+        maxHeight: 200,
+    },
+    notificationItemCard: {
+        backgroundColor: Colors.dark.secondary,
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 8,
+    },
+    notificationItemHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    notificationQtyBadge: {
+        backgroundColor: Colors.dark.primary,
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    notificationQtyText: {
+        fontSize: 14,
+        color: '#000',
+        fontWeight: '700',
     },
     notificationItemName: {
         fontSize: 15,
@@ -915,32 +933,15 @@ const styles = StyleSheet.create({
     notificationItemNotes: {
         fontSize: 13,
         color: Colors.dark.textSecondary,
-        fontStyle: 'italic',
-        marginTop: 4,
-        marginLeft: 38,
-    },
-    notificationText: {
-        fontSize: 18,
-        color: Colors.dark.text,
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    notificationHighlight: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: Colors.dark.primary,
-    },
-    notificationOrderId: {
-        fontSize: 16,
-        color: Colors.dark.textSecondary,
-        fontWeight: '600',
+        marginTop: 6,
+        lineHeight: 18,
     },
     notificationButton: {
         backgroundColor: Colors.dark.primary,
         paddingVertical: 14,
-        paddingHorizontal: 40,
-        borderRadius: 12,
-        width: '100%',
+        margin: 16,
+        marginTop: 0,
+        borderRadius: 10,
         alignItems: 'center',
     },
     notificationButtonText: {
