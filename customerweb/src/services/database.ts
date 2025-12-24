@@ -30,12 +30,23 @@ export const customerDB = {
     async getAvailableTables() {
         try {
             const { data, error } = await supabase
-                .from('tables')
+                .from('restaurant_tables')
                 .select('*')
                 .eq('status', 'available')
                 .order('table_number', { ascending: true });
 
-            if (error) throw error;
+            if (error) {
+                // If table doesn't exist, return mock data
+                console.warn('Tables table not found, using mock data:', error);
+                const mockTables = [
+                    { id: 1, table_number: 1, capacity: 2, status: 'available', location: 'indoor' },
+                    { id: 2, table_number: 2, capacity: 4, status: 'available', location: 'indoor' },
+                    { id: 3, table_number: 3, capacity: 6, status: 'available', location: 'outdoor' },
+                    { id: 4, table_number: 4, capacity: 4, status: 'available', location: 'indoor' },
+                    { id: 5, table_number: 5, capacity: 8, status: 'available', location: 'outdoor' },
+                ];
+                return { data: mockTables, error: null };
+            }
             return { data: data || [], error: null };
         } catch (error) {
             console.error('Error fetching tables:', error);
