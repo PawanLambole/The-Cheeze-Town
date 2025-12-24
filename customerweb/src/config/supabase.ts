@@ -18,7 +18,7 @@ export const db = supabase;
 
 export async function testConnection() {
     try {
-        const { data, error } = await supabase.from('menu_items').select('count').limit(1);
+        const { error } = await supabase.from('menu_items').select('count').limit(1);
         if (error) throw error;
         console.log('✅ Supabase connection successful');
         return true;
