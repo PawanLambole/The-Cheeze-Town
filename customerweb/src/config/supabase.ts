@@ -1,38 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+// Supabase Config - DISABLED (Customer Web)
+// This app is currently running without any external database.
 
-// Supabase configuration - same database as the mobile app
-const SUPABASE_URL = 'https://hncahlshvismwagbcryi.supabase.co';
-const SUPABASE_ANON_KEY = 'REDACTED_JWT';
+console.log('⚠️ Customer Web: Supabase is disabled. Using mock data instead.');
 
-// Create and export the Supabase client
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false,
-    },
-});
-
-// Export database instance for direct access
+// Keep exports for backwards compatibility, but they do nothing.
+export const supabase: null = null;
 export const db = supabase;
 
-// Test the connection
 export async function testConnection() {
-    try {
-        const { error } = await supabase
-            .from('menu_items')
-            .select('count')
-            .limit(1);
-
-        if (error) {
-            console.error('❌ Database connection error:', error);
-            return false;
-        }
-
-        console.log('✅ Customer Website - Database connected successfully');
-        return true;
-    } catch (error) {
-        console.error('❌ Database connection error:', error);
-        return false;
-    }
+    // Always report "no database" but without throwing.
+    console.warn('Customer Web: testConnection called, but no database is configured.');
+    return false;
 }

@@ -282,11 +282,21 @@ export default function HomeScreen() {
 
   // Realtime subscription
   useEffect(() => {
-    const sub = database.subscribe('orders', () => {
+    console.log('Setting up manager orders subscription...');
+    const subOrders = database.subscribe('orders', (payload) => {
+      console.log('Manager received order update, refreshing dashboard...', payload);
       fetchDashboardData();
     });
+
+    const subOrderItems = database.subscribe('order_items', (payload) => {
+      console.log('Manager received order_items update, refreshing dashboard...', payload);
+      fetchDashboardData();
+    });
+
     return () => {
-      database.unsubscribe(sub);
+      console.log('Unsubscribing from manager channels...');
+      database.unsubscribe(subOrders);
+      database.unsubscribe(subOrderItems);
     };
   }, []);
 

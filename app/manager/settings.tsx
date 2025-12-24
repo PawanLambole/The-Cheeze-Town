@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ChevronRight, Bell, Lock, Globe, IndianRupee, Printer, Database, Info, LogOut, Languages } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, Lock, Globe, IndianRupee, Printer, Database, Info, LogOut, Languages } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/i18n';
 import { Colors } from '@/constants/Theme';
 import { useAuth } from '@/contexts/AuthContext';
-import { notificationPreferences } from '@/services/notificationPreferences';
-import { orderNotificationService } from '@/services/orderNotificationService';
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -62,53 +60,12 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const { signOut } = useAuth();
-  const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [bannerNotificationsEnabled, setBannerNotificationsEnabled] = useState(true);
+
+
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const insets = useSafeAreaInsets();
 
-  // Load notification preferences on mount
-  useEffect(() => {
-    loadPreferences();
-  }, []);
 
-  const loadPreferences = async () => {
-    const prefs = await notificationPreferences.get();
-    setPushNotificationsEnabled(prefs.pushEnabled);
-    setSoundEnabled(prefs.soundEnabled);
-    setBannerNotificationsEnabled(prefs.bannerEnabled);
-  };
-
-  const handlePushToggle = async (value: boolean) => {
-    setPushNotificationsEnabled(value);
-    await notificationPreferences.update('pushEnabled', value);
-    await orderNotificationService.updatePreferences({
-      pushEnabled: value,
-      soundEnabled,
-      bannerEnabled: bannerNotificationsEnabled,
-    });
-  };
-
-  const handleSoundToggle = async (value: boolean) => {
-    setSoundEnabled(value);
-    await notificationPreferences.update('soundEnabled', value);
-    await orderNotificationService.updatePreferences({
-      pushEnabled: pushNotificationsEnabled,
-      soundEnabled: value,
-      bannerEnabled: bannerNotificationsEnabled,
-    });
-  };
-
-  const handleBannerToggle = async (value: boolean) => {
-    setBannerNotificationsEnabled(value);
-    await notificationPreferences.update('bannerEnabled', value);
-    await orderNotificationService.updatePreferences({
-      pushEnabled: pushNotificationsEnabled,
-      soundEnabled,
-      bannerEnabled: value,
-    });
-  };
 
   const handleLanguageChange = async (language: string) => {
     await changeLanguage(language);
@@ -166,38 +123,7 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('manager.settings.notifications')}</Text>
-          <View style={styles.settingsList}>
-            <SettingItem
-              icon={<Bell size={20} color={Colors.dark.primary} />}
-              title="Push Notifications"
-              subtitle="Receive order and update notifications"
-              hasSwitch
-              switchValue={pushNotificationsEnabled}
-              onSwitchChange={handlePushToggle}
-              showArrow={false}
-            />
-            <SettingItem
-              icon={<Bell size={20} color={Colors.dark.primary} />}
-              title="Banner Notifications"
-              subtitle="Show pop-up banner for new orders"
-              hasSwitch
-              switchValue={bannerNotificationsEnabled}
-              onSwitchChange={handleBannerToggle}
-              showArrow={false}
-            />
-            <SettingItem
-              icon={<Bell size={20} color={Colors.dark.primary} />}
-              title="Sound"
-              subtitle="Play sound for new orders"
-              hasSwitch
-              switchValue={soundEnabled}
-              onSwitchChange={handleSoundToggle}
-              showArrow={false}
-            />
-          </View>
-        </View>
+
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Business Settings</Text>

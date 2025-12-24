@@ -3,9 +3,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, Act
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LogOut, Clock, CheckCircle, Settings } from 'lucide-react-native';
-import { useAudioPlayer } from 'expo-audio';
-import * as Notifications from 'expo-notifications';
-import { loadChefSettings, ChefSettings } from '@/utils/chefSettings';
 import { Colors } from '@/constants/Theme';
 import { useSupabaseRealtimeQuery } from '@/hooks/useSupabase';
 import { database, supabase } from '@/services/database';
@@ -15,84 +12,72 @@ interface OrderItem {
     id?: number;
     menu_item_name: string;
     quantity: number;
-    special_instructions?: string;
+    special_instructions?: string | null;
 }
 
 interface Order {
     id: number;
-    order_number: string;
-    table_id: number;
-    status: string;
-    total_amount: number;
-    notes?: string;
-    order_time: string;
-    created_at: string;
+    order_number: string | null;
+    table_id: number | null;
+    status: string | null;
+    total_amount: number | null;
+    notes?: string | null;
+    order_time: string | null;
+    created_at: string | null;
     order_items?: OrderItem[];
 }
 
-// Configure how notifications should be handled when app is in foreground
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
-});
-
 export default function ChefDashboard() {
     const router = useRouter();
+    const { userData } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
+    const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
 
-    // Settings state
-    const [settings, setSettings] = useState<ChefSettings>({
-        notificationsEnabled: true,
-        soundEnabled: true,
-        vibrationEnabled: true,
-    });
-
-    // Load settings on mount and when screen comes into focus
-    useFocusEffect(
-        React.useCallback(() => {
-            loadChefSettings().then(setSettings);
-        }, [])
-    );
-
-    // Fetch orders from database
+    // Initialize data and real-time subscriptions
     useEffect(() => {
+        // Initial fetch
         fetchOrders();
 
-        // Set up real-time subscription for new orders
-        const subscription = database.subscribe('orders', (payload) => {
-            if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
-                // New order received
-                fetchOrders();
-                setNewOrderInfo({
-                    tableNo: payload.new.table_id,
-                    orderId: payload.new.order_number
-                });
-                setShowNewOrderModal(true);
-                sendOrderNotification(payload.new);
-                playOrderNotification();
-            } else if (payload.eventType === 'UPDATE') {
-                // Order updated
-                fetchOrders();
-            }
+        // Listen for ALL order changes (New orders, updates, etc)
+        const subOrders = database.subscribe('orders', (payload) => {
+            console.log('⚡ Realtime order update:', payload.eventType);
+            // Refresh orders list
+            fetchOrders();
+        });
+
+        // Listen for order items changes (to handle race condition where items are added after order)
+        const subOrderItems = database.subscribe('order_items', (payload) => {
+            console.log('⚡ Realtime order_items update:', payload.eventType);
+            fetchOrders();
         });
 
         return () => {
-            database.unsubscribe(subscription);
+            database.unsubscribe(subOrders);
+            database.unsubscribe(subOrderItems);
         };
     }, []);
+
+    // Helper function to get today's start and end timestamps
+    const getTodayRange = () => {
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        return {
+            start: startOfDay.toISOString(),
+            end: endOfDay.toISOString()
+        };
+    };
 
     const fetchOrders = async () => {
         if (!loading && !refreshing) setRefreshing(true);
         try {
-            // Fetch orders with status 'pending' or 'preparing' with their items
-            const { data, error } = await supabase
+            const { start, end } = getTodayRange();
+
+            // Fetch active orders (pending or preparing) from today
+            const { data: activeData, error: activeError } = await supabase
                 .from('orders')
                 .select(`
                     *,
@@ -104,12 +89,37 @@ export default function ChefDashboard() {
                     )
                 `)
                 .in('status', ['pending', 'preparing'])
+                .gte('created_at', start)
+                .lte('created_at', end)
                 .order('created_at', { ascending: true });
 
-            if (error) {
-                console.error('Error fetching orders:', error);
+            // Fetch completed orders (ready or completed) from today
+            const { data: completedData, error: completedError } = await supabase
+                .from('orders')
+                .select(`
+                    *,
+                    order_items (
+                        id,
+                        menu_item_name,
+                        quantity,
+                        special_instructions
+                    )
+                `)
+                .in('status', ['ready', 'completed'])
+                .gte('created_at', start)
+                .lte('created_at', end)
+                .order('prepared_time', { ascending: false });
+
+            if (activeError) {
+                console.error('Error fetching active orders:', activeError);
             } else {
-                setOrders(data || []);
+                setOrders(activeData || []);
+            }
+
+            if (completedError) {
+                console.error('Error fetching completed orders:', completedError);
+            } else {
+                setCompletedOrders(completedData || []);
             }
         } catch (error) {
             console.error('Error:', error);
@@ -119,98 +129,9 @@ export default function ChefDashboard() {
         }
     };
 
-    // Use local bell sound file
-    const bellPlayer = useAudioPlayer(require('../../assets/sounds/belli.m4a'));
-
-    // Request notification permissions on mount
-    useEffect(() => {
-        registerForPushNotificationsAsync();
-    }, []);
-
-    // Function to request notification permissions
-    async function registerForPushNotificationsAsync() {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-        }
-
-        if (finalStatus !== 'granted') {
-            console.log('Failed to get push notification permissions');
-            return;
-        }
-    }
-
-    // Function to send order notification with full details
-    async function sendOrderNotification(order: Order) {
-        // Check if notifications are enabled
-        if (!settings.notificationsEnabled) return;
-
-        // Create items list text
-        const itemsText = order.order_items?.map(item => `${item.quantity}x ${item.menu_item_name}`).join(', ') || 'No items';
-
-        await Notifications.scheduleNotificationAsync({
-            content: {
-                title: '🔔 New Order Received!',
-                body: `Table ${order.table_id} - ${itemsText}`,
-                data: { orderId: order.order_number, tableNo: order.table_id },
-                sound: settings.soundEnabled,
-                priority: Notifications.AndroidNotificationPriority.HIGH,
-                vibrate: settings.vibrationEnabled ? [0, 250, 250, 250] : [],
-            },
-            trigger: null, // Send immediately
-        });
-    }
-
-    // Function to play notification bell sound
-    const playOrderNotification = () => {
-        // Check if sound is enabled
-        if (!settings.soundEnabled) return;
-
-        try {
-            // Reset to beginning and play
-            bellPlayer.seekTo(0);
-            bellPlayer.play();
-        } catch (error) {
-            console.log('Error playing bell sound:', error);
-        }
-    };
-
-    // Simulate incoming orders - DISABLED for production
-    // Uncomment for testing/demo purposes
-    /*
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const newOrder: Order = {
-                id: String(Date.now()),
-                orderId: `ORD${Math.floor(Math.random() * 2000)}`,
-                tableNo: Math.floor(Math.random() * 15) + 1,
-                items: [
-                    { name: 'New Pizza Item', quantity: 1 },
-                    { name: 'Extra Cheese', quantity: 1 }
-                ],
-                isServed: false,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                duration: 'Just now'
-            };
-
-            setOrders(prev => [newOrder, ...prev]);
-            setNewOrderInfo({ tableNo: newOrder.tableNo, orderId: newOrder.orderId });
-            setShowNewOrderModal(true);
-            sendOrderNotification(newOrder); // Send push notification
-            playOrderNotification(); // Play notification for new order
-        }, 10000); // New order every 10 seconds
-
-        return () => clearInterval(interval);
-    }, []);
-    */
-
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
-    const [showNewOrderModal, setShowNewOrderModal] = useState(false);
-    const [newOrderInfo, setNewOrderInfo] = useState<{ tableNo: number; orderId: string } | null>(null);
+
 
     const handleMarkServed = (orderId: number) => {
         setSelectedOrderId(orderId);
@@ -262,7 +183,7 @@ export default function ChefDashboard() {
             <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                 <View>
                     <Text style={styles.headerTitle}>Kitchen Display</Text>
-                    <Text style={styles.headerSubtitle}>{orders.length} Active Orders</Text>
+                    <Text style={styles.headerSubtitle}>Today's Orders</Text>
                 </View>
                 <View style={styles.headerButtons}>
                     <TouchableOpacity
@@ -272,6 +193,26 @@ export default function ChefDashboard() {
                         <Settings size={20} color={Colors.dark.primary} />
                     </TouchableOpacity>
                 </View>
+            </View>
+
+            {/* Tabs */}
+            <View style={styles.tabsContainer}>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'active' && styles.activeTab]}
+                    onPress={() => setActiveTab('active')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>
+                        Active ({orders.length})
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'completed' && styles.activeTab]}
+                    onPress={() => setActiveTab('completed')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>
+                        Completed ({completedOrders.length})
+                    </Text>
+                </TouchableOpacity>
             </View>
 
             <ScrollView
@@ -291,57 +232,103 @@ export default function ChefDashboard() {
                         <ActivityIndicator size="large" color={Colors.dark.primary} />
                         <Text style={styles.emptyText}>Loading orders...</Text>
                     </View>
-                ) : orders.length === 0 ? (
-                    <View style={styles.emptyContainer}>
-                        <CheckCircle size={64} color={Colors.dark.secondary} />
-                        <Text style={styles.emptyText}>All orders completed!</Text>
-                    </View>
-                ) : (
-                    orders.map(order => (
-                        <View key={order.id} style={styles.orderCard}>
-                            <View style={styles.orderHeader}>
-                                <View style={styles.orderInfo}>
-                                    <Text style={styles.tableNumber}>Table {order.table_id}</Text>
-                                    <Text style={styles.orderId}>#{order.order_number}</Text>
-                                </View>
-                                <View style={styles.timerBadge}>
-                                    <Clock size={14} color="#F59E0B" />
-                                    <Text style={styles.timerText}>{getOrderDuration(order.created_at)}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.divider} />
-
-                            <View style={styles.itemsList}>
-                                {order.order_items?.map((item, index) => (
-                                    <View key={index} style={styles.itemRow}>
-                                        <View style={styles.quantityBadge}>
-                                            <Text style={styles.quantityText}>{item.quantity}x</Text>
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.itemName}>{item.menu_item_name}</Text>
-                                            {item.special_instructions && (
-                                                <Text style={styles.itemNotes}>Note: {item.special_instructions}</Text>
-                                            )}
-                                        </View>
-                                    </View>
-                                ))}
-                            </View>
-
-                            {order.notes && (
-                                <View style={styles.orderNotes}>
-                                    <Text style={styles.orderNotesText}>📝 {order.notes}</Text>
-                                </View>
-                            )}
-
-                            <TouchableOpacity
-                                style={styles.completeButton}
-                                onPress={() => handleMarkServed(order.id)}
-                            >
-                                <Text style={styles.completeButtonText}>Mark Ready</Text>
-                            </TouchableOpacity>
+                ) : activeTab === 'active' ? (
+                    // Active Orders Tab
+                    orders.length === 0 ? (
+                        <View style={styles.emptyContainer}>
+                            <CheckCircle size={64} color={Colors.dark.secondary} />
+                            <Text style={styles.emptyText}>All orders completed!</Text>
+                            <Text style={styles.emptySubtext}>Great job! 🎉</Text>
                         </View>
-                    ))
+                    ) : (
+                        orders.map(order => (
+                            <View key={order.id} style={styles.orderCard}>
+                                <View style={styles.orderHeader}>
+                                    <View style={styles.orderInfo}>
+                                        <Text style={styles.tableNumber}>Table {order.table_id ?? 'N/A'}</Text>
+                                        <Text style={styles.orderId}>#{order.order_number ?? 'N/A'}</Text>
+                                    </View>
+                                    <View style={styles.timerBadge}>
+                                        <Clock size={14} color="#F59E0B" />
+                                        <Text style={styles.timerText}>{getOrderDuration(order.created_at ?? new Date().toISOString())}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.divider} />
+
+                                <View style={styles.itemsList}>
+                                    {order.order_items?.map((item, index) => (
+                                        <View key={index} style={styles.itemRow}>
+                                            <View style={styles.quantityBadge}>
+                                                <Text style={styles.quantityText}>{item.quantity}x</Text>
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.itemName}>{item.menu_item_name}</Text>
+                                                {item.special_instructions && (
+                                                    <Text style={styles.itemNotes}>Note: {item.special_instructions}</Text>
+                                                )}
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+
+                                {order.notes && (
+                                    <View style={styles.orderNotes}>
+                                        <Text style={styles.orderNotesText}>📝 {order.notes}</Text>
+                                    </View>
+                                )}
+
+                                <TouchableOpacity
+                                    style={styles.completeButton}
+                                    onPress={() => handleMarkServed(order.id)}
+                                >
+                                    <Text style={styles.completeButtonText}>Mark Ready</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))
+                    )
+                ) : (
+                    // Completed Orders Tab
+                    completedOrders.length === 0 ? (
+                        <View style={styles.emptyContainer}>
+                            <Clock size={64} color={Colors.dark.secondary} />
+                            <Text style={styles.emptyText}>No completed orders today</Text>
+                            <Text style={styles.emptySubtext}>Completed orders will appear here</Text>
+                        </View>
+                    ) : (
+                        completedOrders.map(order => (
+                            <View key={order.id} style={styles.completedOrderCard}>
+                                <View style={styles.orderHeader}>
+                                    <View style={styles.orderInfo}>
+                                        <Text style={styles.tableNumber}>Table {order.table_id ?? 'N/A'}</Text>
+                                        <Text style={styles.orderId}>#{order.order_number ?? 'N/A'}</Text>
+                                    </View>
+                                    <View style={styles.completedBadge}>
+                                        <CheckCircle size={14} color="#10B981" />
+                                        <Text style={styles.completedText}>Ready</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.divider} />
+
+                                <View style={styles.itemsList}>
+                                    {order.order_items?.map((item, index) => (
+                                        <View key={index} style={styles.itemRow}>
+                                            <View style={styles.quantityBadgeCompleted}>
+                                                <Text style={styles.quantityTextCompleted}>{item.quantity}x</Text>
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.itemNameCompleted}>{item.menu_item_name}</Text>
+                                                {item.special_instructions && (
+                                                    <Text style={styles.itemNotes}>Note: {item.special_instructions}</Text>
+                                                )}
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        ))
+                    )
                 )}
                 <View style={{ height: 20 }} />
             </ScrollView>
@@ -370,28 +357,7 @@ export default function ChefDashboard() {
                 </View>
             </Modal>
 
-            {/* New Order Notification Modal */}
-            <Modal visible={showNewOrderModal} transparent animationType="slide">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.notificationContent}>
-                        <View style={styles.notificationHeader}>
-                            <Text style={styles.notificationTitle}>🔔 New Order!</Text>
-                        </View>
-                        <View style={styles.notificationBody}>
-                            <Text style={styles.notificationText}>
-                                Table <Text style={styles.notificationHighlight}>{newOrderInfo?.tableNo}</Text>
-                            </Text>
-                            <Text style={styles.notificationOrderId}>#{newOrderInfo?.orderId}</Text>
-                        </View>
-                        <TouchableOpacity
-                            style={styles.notificationButton}
-                            onPress={() => setShowNewOrderModal(false)}
-                        >
-                            <Text style={styles.notificationButtonText}>Got it!</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+
         </View>
     );
 }
@@ -676,5 +642,78 @@ const styles = StyleSheet.create({
         color: '#000000',
         fontWeight: '700',
         fontSize: 16,
+    },
+    // Tabs styles
+    tabsContainer: {
+        flexDirection: 'row',
+        backgroundColor: Colors.dark.card,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.dark.border,
+        paddingHorizontal: 20,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 16,
+        alignItems: 'center',
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
+    },
+    activeTab: {
+        borderBottomColor: Colors.dark.primary,
+    },
+    tabText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: Colors.dark.textSecondary,
+    },
+    activeTabText: {
+        color: Colors.dark.primary,
+    },
+    // Completed order styles
+    completedOrderCard: {
+        backgroundColor: Colors.dark.card,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(16, 185, 129, 0.2)',
+        opacity: 0.8,
+    },
+    completedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 20,
+        gap: 6,
+    },
+    completedText: {
+        color: '#10B981',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    quantityBadgeCompleted: {
+        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+        width: 32,
+        height: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    quantityTextCompleted: {
+        color: '#10B981',
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    itemNameCompleted: {
+        fontSize: 16,
+        color: Colors.dark.textSecondary,
+        flex: 1,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
+        marginTop: 8,
     },
 });
