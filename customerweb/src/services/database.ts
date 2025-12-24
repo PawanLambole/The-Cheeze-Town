@@ -69,9 +69,11 @@ export const customerDB = {
                 0
             );
 
-            // Generate unique order number
+            // Generate simple sequential order number
             const timestamp = Date.now();
-            const orderNumber = `WEB${timestamp.toString().slice(-8)}`;
+            const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+            const dailyCounter = timestamp % 1000; // Simple counter based on milliseconds
+            const orderNumber = `${dayOfYear}${dailyCounter.toString().padStart(3, '0')}`;
 
             // 1. Insert the order
             const { data: order, error: orderError } = await supabase
