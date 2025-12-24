@@ -1,162 +1,81 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React from 'react';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ChevronRight, Lock, Info, LogOut, Languages } from 'lucide-react-native';
-import { useTranslation } from 'react-i18next';
-import { changeLanguage } from '@/i18n';
+import { ArrowLeft } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNotificationSettings } from '@/contexts/NotificationSettingsContext';
 
-interface SettingItemProps {
-    icon: React.ReactNode;
-    title: string;
-    subtitle?: string;
-    onPress?: () => void;
-    showArrow?: boolean;
-    value?: string;
-    hasSwitch?: boolean;
-    switchValue?: boolean;
-    onSwitchChange?: (value: boolean) => void;
-}
-
-function SettingItem({ icon, title, subtitle, onPress, showArrow = true, value, hasSwitch, switchValue, onSwitchChange }: SettingItemProps) {
-    return (
-        <TouchableOpacity
-            style={styles.settingItem}
-            onPress={onPress}
-            disabled={hasSwitch}
-        >
-            <View style={styles.settingLeft}>
-                <View style={styles.settingIcon}>{icon}</View>
-                <View style={styles.settingTextContainer}>
-                    <Text style={styles.settingTitle}>{title}</Text>
-                    {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
-                </View>
-            </View>
-            <View style={styles.settingRight}>
-                {value && <Text style={styles.settingValue}>{value}</Text>}
-                {hasSwitch && (
-                    <Switch
-                        value={switchValue}
-                        onValueChange={onSwitchChange}
-                        trackColor={{ false: Colors.dark.secondary, true: Colors.dark.primary }}
-                        thumbColor="#1E1E1E"
-                    />
-                )}
-                {showArrow && !hasSwitch && <ChevronRight size={20} color={Colors.dark.textSecondary} />}
-            </View>
-        </TouchableOpacity>
-    );
-}
-
-
-
-export default function ChefSettingsScreen() {
+export default function ChefSettings() {
     const router = useRouter();
-    const { t, i18n } = useTranslation();
-    const { signOut } = useAuth();
-
-
-
-
-    const handleLanguageChange = async (language: string) => {
-        await changeLanguage(language);
-    };
-
-    const handleLogout = async () => {
-        try {
-            await signOut();
-            router.replace('/login');
-        } catch (error) {
-            console.error('Error signing out:', error);
-        }
-    };
-
     const insets = useSafeAreaInsets();
+    const {
+        soundEnabled, setSoundEnabled,
+        popupEnabled, setPopupEnabled,
+        systemEnabled, setSystemEnabled,
+        toggleSetting
+    } = useNotificationSettings();
 
     return (
-        <View style={styles.container}>
-            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-                <TouchableOpacity onPress={() => router.back()}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Settings</Text>
-                <View style={{ width: 24 }} />
+                <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Language</Text>
-                    <View style={styles.settingsList}>
-                        <TouchableOpacity
-                            style={styles.languageOption}
-                            onPress={() => handleLanguageChange('en')}
-                        >
-                            <View style={styles.languageLeft}>
-                                <Languages size={20} color={Colors.dark.textSecondary} style={styles.settingIcon} />
-                                <Text style={styles.languageText}>English</Text>
-                            </View>
-                            {i18n.language === 'en' && (
-                                <View style={styles.selectedDot} />
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.languageOption}
-                            onPress={() => handleLanguageChange('mr')}
-                        >
-                            <View style={styles.languageLeft}>
-                                <Languages size={20} color={Colors.dark.textSecondary} style={styles.settingIcon} />
-                                <Text style={styles.languageText}>मराठी (Marathi)</Text>
-                            </View>
-                            {i18n.language === 'mr' && (
-                                <View style={styles.selectedDot} />
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                </View>
+            <ScrollView style={styles.content}>
+                <Text style={styles.sectionTitle}>Notifications</Text>
 
-
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Security</Text>
-                    <View style={styles.settingsList}>
-                        <SettingItem
-                            icon={<Lock size={20} color={Colors.dark.textSecondary} />}
-                            title="PIN Lock"
-                            subtitle="Secure kitchen access with PIN"
-                            onPress={() => console.log('PIN lock')}
+                <View style={styles.card}>
+                    {/* Sound Setting */}
+                    <View style={styles.settingRow}>
+                        <View style={styles.settingInfo}>
+                            <Text style={styles.settingLabel}>Sound Alerts</Text>
+                            <Text style={styles.settingDescription}>Play sound on new order</Text>
+                        </View>
+                        <Switch
+                            value={soundEnabled}
+                            onValueChange={(val) => toggleSetting('chef_sound_enabled', val, setSoundEnabled)}
+                            trackColor={{ false: '#333', true: Colors.dark.primary }}
+                            thumbColor={soundEnabled ? '#000' : '#f4f3f4'}
                         />
                     </View>
-                </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>About</Text>
-                    <View style={styles.settingsList}>
-                        <SettingItem
-                            icon={<Info size={20} color={Colors.dark.textSecondary} />}
-                            title="App Version"
-                            value="1.0.0"
-                            showArrow={false}
-                        />
-                        <SettingItem
-                            icon={<Info size={20} color={Colors.dark.textSecondary} />}
-                            title="Help & Support"
-                            onPress={() => console.log('Help')}
-                        />
-                        <SettingItem
-                            icon={<Info size={20} color={Colors.dark.textSecondary} />}
-                            title="Terms of Service"
-                            onPress={() => console.log('Terms')}
+                    <View style={styles.divider} />
+
+                    {/* Popup Setting */}
+                    <View style={styles.settingRow}>
+                        <View style={styles.settingInfo}>
+                            <Text style={styles.settingLabel}>In-App Popup</Text>
+                            <Text style={styles.settingDescription}>Show modal while app is open</Text>
+                        </View>
+                        <Switch
+                            value={popupEnabled}
+                            onValueChange={(val) => toggleSetting('chef_popup_enabled', val, setPopupEnabled)}
+                            trackColor={{ false: '#333', true: Colors.dark.primary }}
+                            thumbColor={popupEnabled ? '#000' : '#f4f3f4'}
                         />
                     </View>
-                </View>
 
-                <View style={styles.logoutSection}>
-                    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                        <LogOut size={20} color="#EF4444" />
-                        <Text style={styles.logoutText}>Logout</Text>
-                    </TouchableOpacity>
+                    <View style={styles.divider} />
+
+                    {/* System Notification Setting */}
+                    <View style={styles.settingRow}>
+                        <View style={styles.settingInfo}>
+                            <Text style={styles.settingLabel}>System Notifications</Text>
+                            <Text style={styles.settingDescription}>Show in notification drawer</Text>
+                        </View>
+                        <Switch
+                            value={systemEnabled}
+                            onValueChange={(val) => toggleSetting('chef_system_enabled', val, setSystemEnabled)}
+                            trackColor={{ false: '#333', true: Colors.dark.primary }}
+                            thumbColor={systemEnabled ? '#000' : '#f4f3f4'}
+                        />
+                    </View>
                 </View>
             </ScrollView>
         </View>
@@ -172,121 +91,62 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        paddingHorizontal: 16,
+        paddingBottom: 16,
         backgroundColor: Colors.dark.card,
         borderBottomWidth: 1,
         borderBottomColor: Colors.dark.border,
     },
+    backButton: {
+        padding: 8,
+    },
     headerTitle: {
         fontSize: 20,
-        fontWeight: '700',
+        fontWeight: 'bold',
         color: Colors.dark.text,
     },
     content: {
         flex: 1,
-    },
-    section: {
-        marginTop: 24,
+        padding: 16,
     },
     sectionTitle: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: '600',
-        color: Colors.dark.text,
+        color: Colors.dark.primary,
         marginBottom: 12,
-        paddingHorizontal: 20,
+        marginLeft: 4,
     },
-    settingsList: {
+    card: {
         backgroundColor: Colors.dark.card,
-        borderTopWidth: 1,
-        borderBottomWidth: 1,
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 1,
         borderColor: Colors.dark.border,
     },
-    settingItem: {
+    settingRow: {
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.dark.border,
-    },
-    settingLeft: {
-        flexDirection: 'row',
         alignItems: 'center',
-        flex: 1,
+        paddingVertical: 12,
     },
-    settingIcon: {
+    settingInfo: {
+        flex: 1,
         marginRight: 16,
     },
-    settingTextContainer: {
-        flex: 1,
-    },
-    settingTitle: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: Colors.dark.text,
-        marginBottom: 2,
-    },
-    settingSubtitle: {
-        fontSize: 14,
-        color: Colors.dark.textSecondary,
-    },
-    settingRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    settingValue: {
-        fontSize: 14,
-        color: Colors.dark.textSecondary,
-        marginRight: 8,
-    },
-    logoutSection: {
-        marginTop: 24,
-        marginBottom: 40,
-        paddingHorizontal: 20,
-    },
-    logoutButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: Colors.dark.card,
-        borderWidth: 1,
-        borderColor: 'rgba(239, 68, 68, 0.3)',
-        paddingVertical: 16,
-        borderRadius: 12,
-        gap: 8,
-    },
-    logoutText: {
+    settingLabel: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#EF4444',
-    },
-    languageOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.dark.border,
-    },
-    languageLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    languageText: {
-        fontSize: 16,
-        fontWeight: '500',
         color: Colors.dark.text,
-        marginLeft: 16,
     },
-    selectedDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: Colors.dark.primary,
+    settingDescription: {
+        fontSize: 12,
+        color: Colors.dark.textSecondary,
+        marginTop: 4,
     },
-
+    divider: {
+        height: 1,
+        backgroundColor: Colors.dark.border,
+        width: '100%',
+        marginVertical: 4,
+    },
 });

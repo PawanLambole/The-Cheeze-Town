@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { NotificationSettingsProvider } from '@/contexts/NotificationSettingsContext';
 import '@/i18n'; // Initialize i18n
 
 function RootLayoutNav() {
@@ -56,7 +57,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <NotificationSettingsProvider>
+        <RootLayoutNav />
+      </NotificationSettingsProvider>
     </AuthProvider>
   );
 }
