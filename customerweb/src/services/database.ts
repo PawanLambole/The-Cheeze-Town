@@ -69,10 +69,15 @@ export const customerDB = {
                 0
             );
 
+            // Generate unique order number
+            const timestamp = Date.now();
+            const orderNumber = `WEB${timestamp.toString().slice(-8)}`;
+
             // 1. Insert the order
             const { data: order, error: orderError } = await supabase
                 .from('orders')
                 .insert({
+                    order_number: orderNumber,
                     table_id: orderData.table_id,
                     customer_name: orderData.customer_name || null,
                     status: 'pending',
