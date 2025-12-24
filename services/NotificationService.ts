@@ -18,7 +18,6 @@ class NotificationService {
     private configure() {
         Notifications.setNotificationHandler({
             handleNotification: async () => ({
-                shouldShowAlert: true,
                 shouldPlaySound: true,
                 shouldSetBadge: false,
                 shouldShowBanner: true,
@@ -28,7 +27,9 @@ class NotificationService {
     }
 
     async registerForPushNotificationsAsync() {
-        let token;
+        // In Expo Go, we can't get a remote push token without EAS or development build.
+        // We only need local notifications for now, so we can skip the push token part if in Expo Go.
+        // However, we still need permissions for local notifications.
 
         if (Platform.OS === 'android') {
             await Notifications.setNotificationChannelAsync('default', {
@@ -52,8 +53,8 @@ class NotificationService {
             return;
         }
 
-        // token = (await Notifications.getExpoPushTokenAsync()).data;
-        // return token;
+        // We are NOT calling getExpoPushTokenAsync() here to avoid the Expo Go error.
+        // Since we are using local notifications, we don't strictly need the remote token yet.
     }
 
     async scheduleNotification(title: string, body: string, data: any = {}) {
