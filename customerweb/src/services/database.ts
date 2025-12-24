@@ -30,7 +30,7 @@ export const customerDB = {
     async getAvailableTables() {
         try {
             const { data, error } = await supabase
-                .from('tables')
+                .from('restaurant_tables')
                 .select('*')
                 .eq('status', 'available')
                 .order('table_number', { ascending: true });
