@@ -28,15 +28,18 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
       }));
 
       // Create order in database
-      const { error: orderError } = await customerDB.createOrder({
+      const { data, error: orderError } = await customerDB.createOrder({
         table_id: tableId,
         customer_name: customerName || undefined,
         items: orderItems,
       });
 
       if (orderError) {
-        throw new Error('Failed to create order. Please try again.');
+        console.error('Order creation error:', orderError);
+        throw new Error(orderError.message || 'Failed to create order. Please try again.');
       }
+
+      console.log('Order created successfully:', data);
 
       // Clear cart after successful order
       clearCart();
@@ -44,6 +47,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
       // Navigate to success page
       onPaymentComplete();
     } catch (err: any) {
+      console.error('Payment error:', err);
       setError(err.message || 'An error occurred. Please try again.');
       setIsProcessing(false);
     }
