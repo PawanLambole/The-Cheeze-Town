@@ -68,6 +68,33 @@ export default function ChefDashboard() {
                 const tableId = payload.new.table_id ? `Table ${payload.new.table_id}` : 'Takeaway';
 
                 try {
+                    // Fetch complete order details with items
+                    const { data: orderItems } = await supabase
+                        .from('order_items')
+                        .select(`
+                            id,
+                            quantity,
+                            special_instructions,
+                            menu_items (name)
+                        `)
+                        .eq('order_id', payload.new.id);
+
+                    const completeOrder = {
+                        ...payload.new,
+                        order_items: orderItems?.map(item => ({
+                            id: item.id,
+                            quantity: item.quantity,
+                            menu_item_name: item.menu_items?.name || 'Unknown Item',
+                            special_instructions: item.special_instructions
+                        })) || []
+                    };
+
+                    // Create notification message with items
+                    const itemsList = completeOrder.order_items
+                        .map((item: OrderItem) => `${item.quantity}x ${item.menu_item_name}`)
+                        .join(', ');
+                    const notificationBody = itemsList || 'No items';
+
                     // 1. Play Sound (if enabled)
                     if (soundEnabled) {
                         console.log('🎵 Attempting to play sound...');
@@ -81,8 +108,8 @@ export default function ChefDashboard() {
                     if (systemEnabled) {
                         console.log('🔔 Attempting to show system notification...');
                         await notificationService.scheduleNotification(
-                            'New Order Received! 🔔',
-                            `New order #${orderNumber} for ${tableId}`,
+                            `New Order #${orderNumber} - ${tableId}`,
+                            notificationBody,
                             { orderId: payload.new.id }
                         );
                         console.log('🔔 System notification scheduled');
@@ -93,7 +120,7 @@ export default function ChefDashboard() {
                     // 3. Show In-App Notification Modal (if enabled)
                     if (popupEnabled) {
                         console.log('📱 Showing in-app modal');
-                        setNotificationOrder(payload.new);
+                        setNotificationOrder(completeOrder);
                         setShowNotification(true);
                     } else {
                         console.log('📵 In-app popup disabled, skipping...');
@@ -467,10 +494,43 @@ export default function ChefDashboard() {
                         </View>
 
                         <View style={styles.notificationBody}>
-                            <Text style={styles.notificationText}>Table</Text>
-                            <Text style={styles.notificationHighlight}>{notificationOrder?.table_id || 'N/A'}</Text>
-                            <View style={{ height: 12 }} />
-                            <Text style={styles.notificationOrderId}>#{notificationOrder?.order_number || 'N/A'}</Text>
+                            <View style={styles.notificationInfoRow}>
+                                <Text style={styles.notificationLabel}>Order Number:</Text>
+                                <Text style={styles.notificationValue}>#{notificationOrder?.order_number || 'N/A'}</Text>
+                            </View>
+                            <View style={styles.notificationInfoRow}>
+                                <Text style={styles.notificationLabel}>Table:</Text>
+                                <Text style={styles.notificationValue}>
+                                    {notificationOrder?.table_id ? `Table ${notificationOrder.table_id}` : 'Takeaway'}
+                                </Text>
+                            </View>
+                            {notificationOrder?.total_amount && (
+                                <View style={styles.notificationInfoRow}>
+                                    <Text style={styles.notificationLabel}>Total:</Text>
+                                    <Text style={styles.notificationValue}>₹{notificationOrder.total_amount}</Text>
+                                </View>
+                            )}
+
+                            {notificationOrder?.order_items && notificationOrder.order_items.length > 0 && (
+                                <View style={styles.notificationItemsSection}>
+                                    <Text style={styles.notificationItemsTitle}>Items:</Text>
+                                    <ScrollView style={styles.notificationItemsList} nestedScrollEnabled>
+                                        {notificationOrder.order_items.map((item: any, index: number) => (
+                                            <View key={index} style={styles.notificationItem}>
+                                                <View style={styles.notificationItemRow}>
+                                                    <Text style={styles.notificationItemQty}>{item.quantity}x</Text>
+                                                    <Text style={styles.notificationItemName}>{item.menu_item_name}</Text>
+                                                </View>
+                                                {item.special_instructions && (
+                                                    <Text style={styles.notificationItemNotes}>
+                                                        Note: {item.special_instructions}
+                                                    </Text>
+                                                )}
+                                            </View>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+                            )}
                         </View>
 
                         <TouchableOpacity
@@ -481,7 +541,7 @@ export default function ChefDashboard() {
                                 fetchOrders();
                             }}
                         >
-                            <Text style={styles.notificationButtonText}>View Order</Text>
+                            <Text style={styles.notificationButtonText}>Got It!</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -737,13 +797,72 @@ const styles = StyleSheet.create({
         color: Colors.dark.primary,
     },
     notificationBody: {
-        alignItems: 'center',
+        width: '100%',
         marginBottom: 24,
         paddingVertical: 16,
         paddingHorizontal: 20,
         backgroundColor: Colors.dark.secondary,
         borderRadius: 12,
+    },
+    notificationInfoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         width: '100%',
+        marginBottom: 12,
+    },
+    notificationLabel: {
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
+        fontWeight: '500',
+    },
+    notificationValue: {
+        fontSize: 16,
+        color: Colors.dark.text,
+        fontWeight: '600',
+    },
+    notificationItemsSection: {
+        width: '100%',
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: Colors.dark.border,
+    },
+    notificationItemsTitle: {
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
+        fontWeight: '600',
+        marginBottom: 8,
+    },
+    notificationItemsList: {
+        maxHeight: 150,
+    },
+    notificationItem: {
+        marginBottom: 8,
+    },
+    notificationItemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    notificationItemQty: {
+        fontSize: 15,
+        color: Colors.dark.primary,
+        fontWeight: '700',
+        minWidth: 30,
+    },
+    notificationItemName: {
+        fontSize: 15,
+        color: Colors.dark.text,
+        fontWeight: '500',
+        flex: 1,
+    },
+    notificationItemNotes: {
+        fontSize: 13,
+        color: Colors.dark.textSecondary,
+        fontStyle: 'italic',
+        marginTop: 4,
+        marginLeft: 38,
     },
     notificationText: {
         fontSize: 18,
