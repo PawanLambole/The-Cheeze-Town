@@ -95,6 +95,7 @@ export const customerDB = {
                 menu_item_name: item.menu_item_name,
                 quantity: item.quantity,
                 unit_price: item.unit_price,
+                total_price: item.unit_price * item.quantity, // Calculate total price per item
             }));
 
             const { error: itemsError } = await supabase
