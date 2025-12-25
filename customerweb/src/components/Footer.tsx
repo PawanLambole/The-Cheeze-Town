@@ -18,9 +18,11 @@ export default function Footer({ onNavigate }: FooterProps) {
             {/* Brand Section */}
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
-                <div className="bg-brand-yellow rounded-lg p-2">
-                  <span className="text-brand-darker font-bold text-xl">🧀</span>
-                </div>
+                <img
+                  src="/logo.jpeg"
+                  alt="The Cheeze Town"
+                  className="w-12 h-12 object-cover rounded-full border-2 border-brand-yellow/50"
+                />
                 <div>
                   <p className="text-white font-bold text-lg">The Cheeze</p>
                   <p className="text-brand-yellow text-sm font-semibold">Town</p>
