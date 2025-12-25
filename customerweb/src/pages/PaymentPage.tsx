@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { QrCode, Smartphone, CreditCard, Shield, ChevronRight, User, ArrowLeft } from 'lucide-react';
+import { Shield, ChevronRight, User, ArrowLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { customerDB } from '../services/database';
 import { Button, Card, Input, Alert } from '../components';
@@ -17,6 +17,10 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
   const [error, setError] = useState<string | null>(null);
 
   const handlePayment = async () => {
+    if (!cart.length) {
+      setError('Your cart is empty. Please add some items before placing an order.');
+      return;
+    }
     setIsProcessing(true);
     setError(null);
 
@@ -127,25 +131,13 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
             />
           </div>
 
-          {/* Payment Methods */}
-          <div>
-            <h3 className="text-xl font-bold text-white mb-4">Payment Methods</h3>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { icon: QrCode, label: 'UPI', desc: 'Digital Payment' },
-                { icon: CreditCard, label: 'Card', desc: 'Debit/Credit' },
-                { icon: Smartphone, label: 'Cash', desc: 'At Counter' },
-              ].map((method) => {
-                const Icon = method.icon;
-                return (
-                  <div key={method.label} className="bg-brand-gray/30 border border-white/5 hover:border-brand-yellow/30 rounded-2xl p-4 text-center transition-all cursor-pointer">
-                    <Icon className="w-8 h-8 mx-auto mb-2 text-brand-yellow" />
-                    <p className="text-white font-semibold text-sm">{method.label}</p>
-                    <p className="text-gray-400 text-xs mt-1">{method.desc}</p>
-                  </div>
-                );
-              })}
-            </div>
+          {/* Info */}
+          <div className="rounded-xl border border-white/10 bg-brand-gray/30 p-4 text-sm text-gray-300">
+            <p>
+              After you confirm this order, our staff will prepare your food for table{' '}
+              <span className="text-brand-yellow font-semibold">#{tableId}</span>. Payment (cash, UPI or card) will be
+              handled directly at the restaurant.
+            </p>
           </div>
 
           {/* Action Buttons */}
@@ -170,7 +162,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
               iconPosition="right"
               className="shadow-lg shadow-brand-yellow/20"
             >
-              {isProcessing ? 'Processing' : 'Complete Order'}
+              {isProcessing ? 'Placing Order...' : 'Confirm Order'}
             </Button>
           </div>
         </Card>
