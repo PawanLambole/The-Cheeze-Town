@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { QrCode, Smartphone, CreditCard, Shield, ChevronRight, User } from 'lucide-react';
+import { QrCode, Smartphone, CreditCard, Shield, ChevronRight, User, ArrowLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { customerDB } from '../services/database';
+import { Button, Card, Input, Badge, Alert, LoadingSpinner } from '../components';
 
 interface PaymentPageProps {
   tableId: number;
@@ -54,99 +55,121 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
   };
 
   return (
-    <div className="min-h-screen bg-brand-darker py-6 pb-24">
+    <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker py-8 pb-24">
       <div className="container mx-auto px-4 max-w-2xl">
-        <div className="text-center mb-8 pt-4">
-          <h1 className="text-3xl md:text-5xl font-bold font-serif text-brand-yellow mb-2">Complete Order</h1>
-          <div className="flex items-center justify-center gap-2 text-gray-500">
-            <Shield className="w-3 h-3" />
-            <p className="text-xs uppercase tracking-wider">Secure Transaction</p>
+        {/* Header */}
+        <div className="mb-12 animate-fade-in-down">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-gray-400 hover:text-brand-yellow transition-colors mb-6 font-medium"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <h1 className="text-5xl md:text-6xl font-bold font-serif text-white mb-3">
+            Complete Your <span className="text-brand-yellow">Order</span>
+          </h1>
+          <div className="flex items-center gap-2 text-gray-400 font-medium">
+            <Shield className="w-5 h-5" />
+            Secure & Encrypted Transaction
           </div>
         </div>
 
-        <div className="bg-brand-dark rounded-3xl p-5 md:p-8 border border-white/5 shadow-2xl relative overflow-hidden">
-          {/* Decorative background blob */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-brand-yellow/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-
-          {/* Customer Name Input */}
-          <div className="mb-6 pb-6 border-b border-white/10 relative z-10">
-            <label className="block text-gray-300 font-medium mb-3 ml-1">Your Name (Optional)</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full bg-brand-gray/50 text-white border border-white/10 rounded-xl px-4 py-4 pl-12 focus:outline-none focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow/50 transition-all placeholder-gray-600"
-              />
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+        {/* Main Card */}
+        <Card glowing className="p-8 md:p-12 animate-fade-in-up space-y-8">
+          {/* Order Summary */}
+          <div className="bg-brand-gray/30 rounded-2xl p-6 border border-brand-yellow/20">
+            <p className="text-gray-400 text-sm uppercase tracking-widest font-medium mb-2">Table Number</p>
+            <p className="text-3xl font-bold text-brand-yellow mb-6">#{tableId}</p>
+            
+            <div className="space-y-3 mb-6 pb-6 border-b border-white/10">
+              {cart.map((item) => (
+                <div key={item.id} className="flex justify-between items-center">
+                  <div>
+                    <p className="text-white font-medium">{item.name}</p>
+                    <p className="text-gray-400 text-sm">x {item.quantity}</p>
+                  </div>
+                  <p className="text-brand-yellow font-bold">₹{(item.price * item.quantity).toFixed(0)}</p>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-2xl font-bold text-white">Total Amount</span>
+              <span className="text-4xl font-bold text-brand-yellow">₹{getTotalPrice()}</span>
             </div>
           </div>
 
-          {/* Error Message */}
+          {/* Error Alert */}
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
+            <Alert
+              type="error"
+              title="Order Error"
+              message={error}
+              dismissible
+              onClose={() => setError(null)}
+            />
           )}
 
-          <div className="text-center mb-6 pb-6 border-b border-white/10 relative z-10">
-            <p className="text-gray-500 text-xs uppercase tracking-widest mb-2">Total Amount</p>
-            <div className="inline-block bg-brand-yellow/10 px-6 py-3 rounded-2xl border border-brand-yellow/20">
-              <p className="text-3xl md:text-5xl font-bold text-white">₹{getTotalPrice()}</p>
+          {/* Customer Name */}
+          <div>
+            <Input
+              label="Your Name (Optional)"
+              icon={<User className="w-5 h-5" />}
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Enter your name for the order"
+            />
+          </div>
+
+          {/* Payment Methods */}
+          <div>
+            <h3 className="text-xl font-bold text-white mb-4">Payment Methods</h3>
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { icon: QrCode, label: 'UPI', desc: 'Digital Payment' },
+                { icon: CreditCard, label: 'Card', desc: 'Debit/Credit' },
+                { icon: Smartphone, label: 'Cash', desc: 'At Counter' },
+              ].map((method) => {
+                const Icon = method.icon;
+                return (
+                  <div key={method.label} className="bg-brand-gray/30 border border-white/5 hover:border-brand-yellow/30 rounded-2xl p-4 text-center transition-all cursor-pointer">
+                    <Icon className="w-8 h-8 mx-auto mb-2 text-brand-yellow" />
+                    <p className="text-white font-semibold text-sm">{method.label}</p>
+                    <p className="text-gray-400 text-xs mt-1">{method.desc}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Payment Methods Info */}
-          <div className="mb-6 bg-brand-gray/30 rounded-2xl p-6 border border-white/5">
-            <div className="text-center mb-4">
-              <p className="text-brand-yellow font-bold text-lg mb-2">Payment Options</p>
-              <p className="text-gray-400 text-sm">Pay at counter or via digital payment</p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-brand-dark p-3 rounded-lg text-center">
-                <QrCode className="w-6 h-6 mx-auto mb-1 text-brand-yellow" />
-                <p className="text-xs text-gray-400">UPI</p>
-              </div>
-              <div className="bg-brand-dark p-3 rounded-lg text-center">
-                <CreditCard className="w-6 h-6 mx-auto mb-1 text-brand-yellow" />
-                <p className="text-xs text-gray-400">Card</p>
-              </div>
-              <div className="bg-brand-dark p-3 rounded-lg text-center">
-                <Smartphone className="w-6 h-6 mx-auto mb-1 text-brand-yellow" />
-                <p className="text-xs text-gray-400">Cash</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-4">
-            <button
+          {/* Action Buttons */}
+          <div className="flex gap-4 pt-4 border-t border-white/10">
+            <Button
               onClick={onBack}
+              variant="secondary"
+              size="lg"
+              fullWidth
               disabled={isProcessing}
-              className="flex-1 bg-brand-gray hover:bg-brand-gray/80 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              icon={<ArrowLeft className="w-5 h-5" />}
             >
               Back
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handlePayment}
+              isLoading={isProcessing}
+              size="lg"
+              fullWidth
               disabled={isProcessing}
-              className="flex-2 bg-brand-yellow hover:bg-yellow-400 text-brand-darker font-bold text-lg py-4 px-8 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              icon={<ChevronRight className="w-5 h-5" />}
+              iconPosition="right"
+              className="shadow-lg shadow-brand-yellow/20"
             >
-              {isProcessing ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-brand-darker"></div>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  Complete Order
-                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </button>
+              {isProcessing ? 'Processing' : 'Complete Order'}
+            </Button>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
