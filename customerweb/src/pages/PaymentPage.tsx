@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { QrCode, Smartphone, CreditCard, Shield, ChevronRight, User, ArrowLeft } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { customerDB } from '../services/database';
-import { Button, Card, Input, Badge, Alert, LoadingSpinner } from '../components';
+import { Button, Card, Input, Alert } from '../components';
 
 interface PaymentPageProps {
   tableId: number;
@@ -37,7 +37,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
 
       if (orderError) {
         console.error('Order creation error:', orderError);
-        throw new Error(orderError.message || 'Failed to create order. Please try again.');
+        throw new Error((orderError as any).message || 'Failed to create order. Please try again.');
       }
 
       console.log('Order created successfully:', data);
@@ -79,9 +79,13 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
         <Card glowing className="p-8 md:p-12 animate-fade-in-up space-y-8">
           {/* Order Summary */}
           <div className="bg-brand-gray/30 rounded-2xl p-6 border border-brand-yellow/20">
-            <p className="text-gray-400 text-sm uppercase tracking-widest font-medium mb-2">Table Number</p>
-            <p className="text-3xl font-bold text-brand-yellow mb-6">#{tableId}</p>
-            
+            {tableId > 0 && (
+              <>
+                <p className="text-gray-400 text-sm uppercase tracking-widest font-medium mb-2">Table Number</p>
+                <p className="text-3xl font-bold text-brand-yellow mb-6">#{tableId}</p>
+              </>
+            )}
+
             <div className="space-y-3 mb-6 pb-6 border-b border-white/10">
               {cart.map((item) => (
                 <div key={item.id} className="flex justify-between items-center">
@@ -93,7 +97,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
                 </div>
               ))}
             </div>
-            
+
             <div className="flex justify-between items-center">
               <span className="text-2xl font-bold text-white">Total Amount</span>
               <span className="text-4xl font-bold text-brand-yellow">₹{getTotalPrice()}</span>
