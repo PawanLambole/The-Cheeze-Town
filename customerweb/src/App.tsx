@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CartProvider, useCart } from './context/CartContext';
 import { NavigationBar, Footer } from './components';
 import SplashScreen from './pages/SplashScreen';
 import HomePage from './pages/HomePage';
 import MenuPage from './pages/MenuPage';
-import TableSelectionPage from './pages/TableSelectionPage';
 import PaymentPage from './pages/PaymentPage';
 import SuccessPage from './pages/SuccessPage';
 import AboutPage from './pages/AboutPage';
@@ -20,6 +19,21 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('splash');
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
 
+  // Read table id from URL so QR codes can pre-select a table, e.g. ?table=1 or ?tableId=1
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('tableId') || params.get('table') || params.get('t');
+
+    if (raw) {
+      const parsed = Number(raw);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        setSelectedTableId(parsed);
+      }
+    }
+  }, []);
+
   const handleSplashComplete = () => {
     setCurrentPage('home');
   };
@@ -29,11 +43,7 @@ function AppContent() {
   };
 
   const handlePlaceOrder = () => {
-    setCurrentPage('table-selection');
-  };
-
-  const handleTableSelected = (tableId: number) => {
-    setSelectedTableId(tableId);
+    // Navigate directly to payment, bypassing table selection
     setCurrentPage('payment');
   };
 
@@ -50,20 +60,12 @@ function AppContent() {
     setCurrentPage('menu');
   };
 
-  const handleBackToTableSelection = () => {
-    setCurrentPage('table-selection');
-  };
-
   const navigateToPage = (page: Page) => {
     setCurrentPage(page);
   };
 
   const handleNavigation = (page: NavPage) => {
-    if (page === 'tables') {
-      setCurrentPage('table-selection');
-    } else {
-      navigateToPage(page);
-    }
+    navigateToPage(page);
   };
 
   const handleFooterNavigation = (page: Page) => {
@@ -72,7 +74,7 @@ function AppContent() {
 
   const getActivePage = (): NavPage => {
     if (currentPage === 'menu') return 'menu';
-    if (currentPage === 'table-selection' || currentPage === 'payment') return 'tables';
+    if (currentPage === 'payment') return 'menu'; // Keep menu active during payment
     if (currentPage === 'about') return 'about';
     if (currentPage === 'contact') return 'contact';
     return 'home';
@@ -95,17 +97,11 @@ function AppContent() {
         {currentPage === 'splash' && <SplashScreen onComplete={handleSplashComplete} />}
         {currentPage === 'home' && <HomePage onNavigate={handleNavigateToMenu} />}
         {currentPage === 'menu' && <MenuPage onPlaceOrder={handlePlaceOrder} />}
-        {currentPage === 'table-selection' && (
-          <TableSelectionPage
-            onTableSelected={handleTableSelected}
-            onBack={handleBackToMenu}
-          />
-        )}
-        {currentPage === 'payment' && selectedTableId && (
+        {currentPage === 'payment' && (
           <PaymentPage
-            tableId={selectedTableId}
+            tableId={selectedTableId || 0} // Pass 0 if no table selected
             onPaymentComplete={handlePaymentComplete}
-            onBack={handleBackToTableSelection}
+            onBack={handleBackToMenu}
           />
         )}
         {currentPage === 'success' && <SuccessPage onBackToHome={handleBackToHome} />}

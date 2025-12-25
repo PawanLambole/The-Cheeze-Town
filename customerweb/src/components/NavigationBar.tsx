@@ -1,7 +1,6 @@
-import React from 'react';
-import { Home, ShoppingBag, MapPin, Info, Phone } from 'lucide-react';
+import { Home, ShoppingBag, Info, Phone } from 'lucide-react';
 
-export type NavPage = 'home' | 'menu' | 'tables' | 'about' | 'contact';
+export type NavPage = 'home' | 'menu' | 'about' | 'contact';
 
 interface NavigationBarProps {
   activePage: NavPage;
@@ -13,7 +12,6 @@ export default function NavigationBar({ activePage, onNavigate, cartCount = 0 }:
   const navItems = [
     { id: 'home' as NavPage, label: 'Home', icon: Home },
     { id: 'menu' as NavPage, label: 'Menu', icon: ShoppingBag, badge: cartCount > 0 ? cartCount : undefined },
-    { id: 'tables' as NavPage, label: 'Tables', icon: MapPin },
     { id: 'about' as NavPage, label: 'About', icon: Info },
     { id: 'contact' as NavPage, label: 'Contact', icon: Phone },
   ];
@@ -45,8 +43,8 @@ export default function NavigationBar({ activePage, onNavigate, cartCount = 0 }:
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
                   className={`relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 flex items-center gap-2 group ${isActive
-                      ? 'bg-brand-yellow text-brand-darker shadow-lg shadow-brand-yellow/20'
-                      : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-brand-yellow text-brand-darker shadow-lg shadow-brand-yellow/20'
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
                     }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -81,8 +79,8 @@ export default function NavigationBar({ activePage, onNavigate, cartCount = 0 }:
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
                 className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg font-medium text-xs whitespace-nowrap transition-all flex-shrink-0 ${isActive
-                    ? 'bg-brand-yellow text-brand-darker'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                  ? 'bg-brand-yellow text-brand-darker'
+                  : 'text-gray-300 hover:text-white hover:bg-white/5'
                   }`}
               >
                 <Icon className="w-5 h-5" />
