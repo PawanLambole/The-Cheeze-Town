@@ -18,6 +18,7 @@ function AppContent() {
   const { cart } = useCart();
   const [currentPage, setCurrentPage] = useState<Page>('splash');
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
+  const [hasTableFromUrl, setHasTableFromUrl] = useState(false);
 
   // Read table id from URL so QR codes can pre-select a table, e.g. ?table=1 or ?tableId=1
   useEffect(() => {
@@ -30,12 +31,18 @@ function AppContent() {
       const parsed = Number(raw);
       if (!Number.isNaN(parsed) && parsed > 0) {
         setSelectedTableId(parsed);
+        setHasTableFromUrl(true);
       }
     }
   }, []);
 
   const handleSplashComplete = () => {
-    setCurrentPage('home');
+    // If user came via table QR link, go directly to menu; otherwise go to home page
+    if (hasTableFromUrl) {
+      setCurrentPage('menu');
+    } else {
+      setCurrentPage('home');
+    }
   };
 
   const handleNavigateToMenu = () => {
@@ -80,7 +87,8 @@ function AppContent() {
     return 'home';
   };
 
-  const showNavAndFooter = currentPage !== 'splash' && currentPage !== 'success';
+  // Hide navigation/footer only on splash screen; show them during booking and success
+  const showNavAndFooter = currentPage !== 'splash';
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
