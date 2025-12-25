@@ -20,5 +20,16 @@ export interface RestaurantTable {
   current_order_id?: number;
 }
 
-export type Page = 'splash' | 'home' | 'menu' | 'table-selection' | 'payment' | 'success';
+export type Page =
+  | 'splash'
+  | 'home'
+  | 'menu'
+  | 'table-selection'
+  | 'payment'
+  | 'success'
+  | 'about'
+  | 'contact'
+  | 'terms'
+  | 'privacy'
+  | 'refund';
 
