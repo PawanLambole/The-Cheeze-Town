@@ -24,9 +24,11 @@ export default function NavigationBar({ activePage, onNavigate, cartCount = 0 }:
         <div className="flex items-center justify-between h-20">
           {/* Logo/Brand */}
           <div className="flex items-center gap-3">
-            <div className="bg-brand-yellow rounded-lg p-2">
-              <span className="text-brand-darker font-bold text-xl">🧀</span>
-            </div>
+            <img
+              src="/logo.jpeg"
+              alt="The Cheeze Town"
+              className="w-10 h-10 object-cover rounded-full border-2 border-brand-yellow/50"
+            />
             <div className="hidden sm:flex flex-col">
               <p className="text-white font-bold text-lg leading-none">The Cheeze</p>
               <p className="text-brand-yellow text-xs font-semibold">Town</p>
@@ -42,11 +44,10 @@ export default function NavigationBar({ activePage, onNavigate, cartCount = 0 }:
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 flex items-center gap-2 group ${
-                    isActive
+                  className={`relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 flex items-center gap-2 group ${isActive
                       ? 'bg-brand-yellow text-brand-darker shadow-lg shadow-brand-yellow/20'
                       : 'text-gray-300 hover:text-white hover:bg-white/5'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span>{item.label}</span>
@@ -79,11 +80,10 @@ export default function NavigationBar({ activePage, onNavigate, cartCount = 0 }:
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
-                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg font-medium text-xs whitespace-nowrap transition-all flex-shrink-0 ${
-                  isActive
+                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg font-medium text-xs whitespace-nowrap transition-all flex-shrink-0 ${isActive
                     ? 'bg-brand-yellow text-brand-darker'
                     : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 <span>{item.label}</span>
