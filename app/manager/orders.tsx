@@ -33,7 +33,12 @@ interface Order {
     paymentMethod?: string;
 }
 
-export default function OrdersScreen() {
+// Add interface
+interface OrdersScreenProps {
+    createOrderPath?: string;
+}
+
+export default function OrdersScreen({ createOrderPath = '/manager/create-order' }: OrdersScreenProps) {
     const router = useRouter();
     const { t } = useTranslation();
     const [selectedStatus, setSelectedStatus] = useState<'all' | 'pending' | 'served' | 'completed'>('all');
@@ -79,13 +84,13 @@ export default function OrdersScreen() {
             const ordersWithItems = await Promise.all((dbOrders || []).map(async (o: any) => {
                 const { data: items } = await supabase
                     .from('order_items')
-                    .select('menu_item_name, quantity, price')
+                    .select('menu_item_name, quantity, unit_price')
                     .eq('order_id', o.id);
 
                 const mappedItems = (items || []).map((i: any) => ({
                     name: i.menu_item_name,
                     quantity: i.quantity,
-                    price: i.price
+                    price: i.unit_price
                 }));
 
                 const isServed = o.status === 'served' || o.status === 'completed';
@@ -174,7 +179,7 @@ export default function OrdersScreen() {
             const { error } = await supabase
                 .from('orders')
                 .update({ status: newStatus })
-                .eq('id', orderId);
+                .eq('id', Number(orderId));
 
             if (error) throw error;
 
@@ -209,7 +214,12 @@ export default function OrdersScreen() {
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{t('manager.orders.title')}</Text>
-                <TouchableOpacity onPress={() => router.push('/manager/create-order')}>
+                <TouchableOpacity onPress={() => {
+                    // Use the prop here. 
+                    // Note: router.push accepts relative or absolute.
+                    // If strict typing is an issue, might need "as any" or proper typing, but string usually works.
+                    router.push(createOrderPath as any);
+                }}>
                     <Plus size={24} color={Colors.dark.primary} />
                 </TouchableOpacity>
             </View>

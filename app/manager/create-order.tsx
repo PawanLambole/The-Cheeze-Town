@@ -9,8 +9,14 @@ import ReceiptViewer from '../../components/ReceiptViewer';
 import { Colors } from '@/constants/Theme';
 import { supabase } from '@/services/database';
 
-function CreateOrderScreen() {
+// Add interface
+interface CreateOrderScreenProps {
+    redirectPath?: string;
+}
+
+function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScreenProps) {
     const router = useRouter();
+
     const [step, setStep] = useState(1); // 1: Select Table, 2: Add Items
     const [selectedTable, setSelectedTable] = useState<string | null>(null);
     const [menuSearch, setMenuSearch] = useState('');
@@ -169,7 +175,7 @@ function CreateOrderScreen() {
                 setShowReceipt(true);
             } else {
                 Alert.alert('Success', 'Order created successfully!');
-                router.push('/manager/orders');
+                router.push(redirectPath as any);
             }
         } catch (error) {
             console.error('Error creating order:', error);
@@ -180,7 +186,7 @@ function CreateOrderScreen() {
     const handleReceiptClose = () => {
         setShowReceipt(false);
         // Navigate to orders after closing receipt
-        router.push('/manager/orders');
+        router.push(redirectPath as any);
     };
 
     const handleBack = () => {

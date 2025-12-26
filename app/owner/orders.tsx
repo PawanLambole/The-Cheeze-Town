@@ -1,5 +1,5 @@
 import OrdersScreen from '../manager/orders';
 
 export default function OwnerOrdersScreen() {
-    return <OrdersScreen />;
+    return <OrdersScreen createOrderPath="/owner/create-order" />;
 }

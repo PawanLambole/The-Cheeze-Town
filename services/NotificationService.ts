@@ -58,16 +58,37 @@ class NotificationService {
     }
 
     async scheduleNotification(title: string, body: string, data: any = {}) {
-        await Notifications.scheduleNotificationAsync({
-            content: {
-                title,
-                body,
-                data,
-                sound: true,
-                vibrate: [0, 250, 250, 250],
-            },
-            trigger: null, // Show immediately
-        });
+        if (Platform.OS === 'web') {
+            console.log('Notification:', { title, body });
+            // Simple web notification fallback
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    new Notification(title, { body });
+                } else if (Notification.permission !== 'denied') {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') {
+                            new Notification(title, { body });
+                        }
+                    });
+                }
+            }
+            return;
+        }
+
+        try {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title,
+                    body,
+                    data,
+                    sound: true,
+                    vibrate: [0, 250, 250, 250],
+                },
+                trigger: null, // Show immediately
+            });
+        } catch (error) {
+            console.warn('Failed to schedule notification:', error);
+        }
     }
 }
 
