@@ -1,3 +1,20 @@
+import * as Crypto from 'expo-crypto';
+
+// Polyfill for crypto-js
+const polyfillCrypto = () => {
+  if (!global.crypto) {
+    // @ts-ignore
+    global.crypto = {};
+  }
+  if (!global.crypto.getRandomValues) {
+    // @ts-ignore
+    global.crypto.getRandomValues = (array) => {
+      // @ts-ignore
+      return Crypto.getRandomValues(array as any);
+    };
+  }
+};
+polyfillCrypto();
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
