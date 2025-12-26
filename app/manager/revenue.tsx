@@ -43,11 +43,7 @@ export default function RevenueScreen() {
     const fetchRevenueData = async () => {
         if (!loading && !refreshing) setRefreshing(true);
         try {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayISO = today.toISOString();
-
-            // Fetch today's completed orders with their items
+            // Fetch ALL completed/served orders for LIFETIME revenue
             const { data: ordersData, error } = await supabase
                 .from('orders')
                 .select(`
@@ -60,7 +56,6 @@ export default function RevenueScreen() {
                         quantity
                     )
                 `)
-                .gte('created_at', todayISO)
                 .in('status', ['completed', 'served'])
                 .order('created_at', { ascending: false });
 
@@ -189,9 +184,9 @@ export default function RevenueScreen() {
                                 <TrendingUp size={32} color={Colors.dark.primary} />
                             </View>
                             <View>
-                                <Text style={styles.totalLabel}>Today's Total Revenue</Text>
+                                <Text style={styles.totalLabel}>Total Lifetime Revenue</Text>
                                 <Text style={styles.totalAmount}>₹{totalRevenue.toLocaleString()}</Text>
-                                <Text style={styles.totalOrders}>{totalOrders} orders</Text>
+                                <Text style={styles.totalOrders}>{totalOrders} completed orders</Text>
                             </View>
                         </View>
 
@@ -244,7 +239,7 @@ export default function RevenueScreen() {
                         {/* Hourly Trend */}
                         {hourlyData.length > 0 && (
                             <View style={styles.chartCard}>
-                                <Text style={styles.chartTitle}>Hourly Revenue Trend</Text>
+                                <Text style={styles.chartTitle}>Peak Business Hours (Revenue)</Text>
                                 <View style={styles.barChartContainer}>
                                     {hourlyData.map((hour, index) => (
                                         <View key={hour.hour} style={styles.barColumn}>
@@ -270,7 +265,7 @@ export default function RevenueScreen() {
                         {revenueItems.length > 0 && (
                             <>
                                 <View style={styles.sectionHeader}>
-                                    <Text style={styles.sectionTitle}>Today's Orders</Text>
+                                    <Text style={styles.sectionTitle}>Recent Orders</Text>
                                 </View>
 
                                 {revenueItems.map(item => (

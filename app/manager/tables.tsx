@@ -85,56 +85,96 @@ export default function TablesScreen() {
   const fetchTables = async () => {
     if (!loading && !refreshing) setRefreshing(true);
     try {
-      // Fetch tables with their current orders
-      const { data: tablesData, error } = await supabase
+      // 1. Fetch tables
+      const { data: tablesData, error: tablesError } = await supabase
         .from('restaurant_tables')
-        .select(`
-          *,
-          order:orders!current_order_id (
-            id,
-            order_number,
-            status,
-            total_amount,
-            created_at,
-            order_items (
-              id,
-              menu_item_name,
-              quantity,
-              unit_price,
-              total_price
-            )
-          )
-        `)
+        .select('*')
         .order('table_number', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching tables:', error);
-        Alert.alert('Error', 'Failed to load tables');
-      } else {
-        // Transform data to match UI expectations
-        const transformedTables: Table[] = (tablesData || []).map(table => {
-          const order = table.order as unknown as Order | null;
-          const isServed = order?.status === 'ready' || order?.status === 'served';
+      if (tablesError) throw tablesError;
+
+      // 2. Fetch active orders manually
+      const activeOrderIds = tablesData
+        ?.filter(t => t.current_order_id !== null)
+        .map(t => t.current_order_id as number) || [];
+
+      let ordersMap: Record<string, any> = {};
+
+      if (activeOrderIds.length > 0) {
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select('*')
+          .in('id', activeOrderIds);
+
+        if (ordersError) throw ordersError;
+
+        // 3. Fetch items for these orders
+        const ordersWithItems = await Promise.all((ordersData || []).map(async (order) => {
+          const { data: items } = await supabase
+            .from('order_items')
+            .select('id, menu_item_name, quantity, unit_price, total_price')
+            .eq('order_id', order.id);
 
           return {
-            ...table,
-            order,
-            orderAmount: order?.total_amount,
-            orderId: order?.order_number,
-            duration: order ? calculateDuration(order.created_at) : undefined,
-            items: order?.order_items?.map(item => ({
-              name: item.menu_item_name,
-              quantity: item.quantity,
-              price: item.unit_price
-            })),
-            isServed,
+            ...order,
+            order_items: items
           };
-        });
+        }));
 
-        setTables(transformedTables);
+        ordersMap = ordersWithItems.reduce((acc: any, order) => {
+          acc[order.id] = order;
+          return acc;
+        }, {});
       }
+
+      // Transform data to match UI expectations
+      const transformedTables: Table[] = (tablesData || []).map(table => {
+        const orderRaw = table.current_order_id ? ordersMap[table.current_order_id] : null;
+
+        // Map raw order to Order interface if needed, or just use properties
+        let order: Order | undefined;
+        let items: any[] = [];
+
+        if (orderRaw) {
+          items = (orderRaw.order_items || []).map((i: any) => ({
+            name: i.menu_item_name,
+            quantity: i.quantity,
+            price: i.unit_price // Note: using unit_price as price
+          }));
+
+          order = {
+            id: orderRaw.id,
+            order_number: orderRaw.order_number,
+            table_id: orderRaw.table_id,
+            status: orderRaw.status,
+            total_amount: orderRaw.total_amount,
+            order_time: orderRaw.created_at, // mapped to order_time
+            created_at: orderRaw.created_at,
+            order_items: orderRaw.order_items
+          };
+        }
+
+        const isServed = order?.status === 'ready' || order?.status === 'served';
+
+        return {
+          ...table,
+          status: (table.status || 'available') as Table['status'],
+          current_order_id: table.current_order_id === null ? undefined : table.current_order_id,
+          location: table.location === null ? undefined : table.location,
+          order: order || undefined, // explicit undefined needed?
+          orderAmount: order?.total_amount,
+          orderId: order?.order_number,
+          duration: order ? calculateDuration(order.created_at) : undefined,
+          items: items,
+          isServed,
+        };
+      });
+
+      setTables(transformedTables);
+
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching tables:', JSON.stringify(error, null, 2));
+      Alert.alert('Error', 'Failed to load tables');
     } finally {
       setLoading(false);
       setRefreshing(false);

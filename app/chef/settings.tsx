@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ChevronRight, LogOut, Volume2, MessageSquare, Smartphone } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
@@ -61,25 +61,37 @@ export default function ChefSettings() {
         toggleSetting
     } = useNotificationSettings();
     const handleLogout = async () => {
-        Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Logout',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await signOut();
-                            router.replace('/login');
-                        } catch (error) {
-                            console.error('Error signing out:', error);
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm('Are you sure you want to logout?');
+            if (confirmed) {
+                try {
+                    await signOut();
+                    router.replace('/login');
+                } catch (error) {
+                    console.error('Error signing out:', error);
+                }
+            }
+        } else {
+            Alert.alert(
+                'Logout',
+                'Are you sure you want to logout?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Logout',
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                await signOut();
+                                router.replace('/login');
+                            } catch (error) {
+                                console.error('Error signing out:', error);
+                            }
                         }
                     }
-                }
-            ]
-        );
+                ]
+            );
+        }
     };
 
     return (

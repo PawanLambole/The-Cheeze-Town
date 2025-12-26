@@ -61,17 +61,16 @@ export default function ExpensesScreen() {
     );
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const todayExpenses = expenses.filter(e => e.date === todayStr);
-    const totalToday = todayExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalLifetime = expenses.reduce((sum, e) => sum + e.amount, 0);
 
     const categoryStats = useMemo(() => {
         const totals: Record<string, number> = {};
-        todayExpenses.forEach(e => {
+        expenses.forEach(e => {
             totals[e.category] = (totals[e.category] || 0) + e.amount;
         });
 
         return Object.entries(totals).map(([category, amount]) => {
-            const percentage = totalToday > 0 ? (amount / totalToday) * 100 : 0;
+            const percentage = totalLifetime > 0 ? (amount / totalLifetime) * 100 : 0;
             let color = '#EF4444';
             let icon = <Package size={20} color="#FFFFFF" />;
 
@@ -99,7 +98,7 @@ export default function ExpensesScreen() {
 
             return { name: category, amount, percentage, color, icon };
         }).sort((a, b) => b.amount - a.amount);
-    }, [todayExpenses, totalToday]);
+    }, [expenses, totalLifetime]);
 
     const weeklyData = useMemo(() => {
         const days = [];
@@ -139,14 +138,14 @@ export default function ExpensesScreen() {
                         <TrendingDown size={32} color="#EF4444" />
                     </View>
                     <View>
-                        <Text style={styles.totalLabel}>Today's Total Expense</Text>
-                        <Text style={styles.totalAmount}>₹{totalToday.toLocaleString()}</Text>
+                        <Text style={styles.totalLabel}>Total Lifetime Expense</Text>
+                        <Text style={styles.totalAmount}>₹{totalLifetime.toLocaleString()}</Text>
                     </View>
                 </View>
 
                 {/* Category Breakdown */}
                 <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>Expense by Category</Text>
+                    <Text style={styles.chartTitle}>Expense by Category (Lifetime)</Text>
                     <View style={styles.categoriesContainer}>
                         {categoryStats.map((cat, index) => (
                             <View key={cat.name} style={styles.categoryItem}>
@@ -194,10 +193,10 @@ export default function ExpensesScreen() {
 
                 {/* Recent Expenses List */}
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Today's Expenses</Text>
+                    <Text style={styles.sectionTitle}>All Expenses</Text>
                 </View>
 
-                {todayExpenses.map(expense => (
+                {expenses.map(expense => (
                     <View key={expense.id} style={styles.expenseCard}>
                         <View style={styles.expenseIcon}>
                             <Package size={20} color="#EF4444" />

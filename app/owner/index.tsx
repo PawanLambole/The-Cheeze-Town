@@ -60,58 +60,55 @@ export default function OwnerDashboardScreen() {
   const insets = useSafeAreaInsets();
   const { userData } = useAuth();
 
+  /* 
+   Updated to show TOTAL (Lifetime) data as requested. 
+   Fetching all completed orders for revenue and all purchases for expenses.
+  */
   const [stats, setStats] = useState({
-    todayRevenue: 0,
-    todayOrders: 0,
+    totalRevenue: 0,
+    totalOrders: 0,
     pendingOrders: 0,
-    todayExpense: 0
+    totalExpense: 0
   });
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboardData = async () => {
     if (!refreshing) setRefreshing(true);
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayISO = today.toISOString();
-
-      // 1. Get today's orders
-      const { data: todaysOrdersData, error: ordersError } = await database.query(
-        'orders',
-        'created_at',
-        'gte',
-        todayISO
-      );
+      // 1. Get ALL orders for total revenue
+      // We explicitly select orders that are completed or served to calculate actual revenue
+      const { data: allOrders, error: ordersError } = await supabase
+        .from('orders')
+        .select('total_amount, status');
 
       if (ordersError) throw ordersError;
 
-      const ordersList = todaysOrdersData || [];
-      const orderCount = ordersList.length;
+      const validOrders = (allOrders || []).filter((o: any) =>
+        o.status === 'completed' || o.status === 'served'
+      );
 
-      // Calculate Revenue
-      const revenue = ordersList
-        .filter((o: any) => o.status !== 'cancelled')
-        .reduce((sum: number, order: any) => sum + (Number(order.total_amount) || 0), 0);
+      const ordersCount = validOrders.length;
 
-      // 2. Get pending orders count
+      // Calculate Total Revenue
+      const revenue = validOrders.reduce((sum: number, order: any) => sum + (Number(order.total_amount) || 0), 0);
+
+      // 2. Get pending orders count (Real-time status)
       const { data: pendingData } = await database.query('orders', 'status', 'eq', 'pending');
       const { data: preparingData } = await database.query('orders', 'status', 'eq', 'preparing');
       const pendingCount = (pendingData?.length || 0) + (preparingData?.length || 0);
 
-      // 3. Get expenses from purchases table
-      const todayDateStr = todayISO.split('T')[0];
-      const { data: purchasesData } = await supabase
+      // 3. Get TOTAL expenses from purchases table
+      const { data: allPurchases } = await supabase
         .from('purchases')
-        .select('total_price')
-        .eq('purchase_date', todayDateStr);
+        .select('total_price');
 
-      const expenses = (purchasesData || []).reduce((sum: number, p: any) => sum + (Number(p.total_price) || 0), 0);
+      const expenses = (allPurchases || []).reduce((sum: number, p: any) => sum + (Number(p.total_price) || 0), 0);
 
       setStats({
-        todayRevenue: revenue,
-        todayOrders: orderCount,
+        totalRevenue: revenue,
+        totalOrders: ordersCount,
         pendingOrders: pendingCount,
-        todayExpense: expenses
+        totalExpense: expenses
       });
 
     } catch (error) {
@@ -177,16 +174,16 @@ export default function OwnerDashboardScreen() {
           <View style={styles.overviewRow}>
             <OwnerCard
               icon={<IndianRupee size={22} color="#16A34A" />}
-              title="Today's Revenue"
-              value={`₹${stats.todayRevenue.toLocaleString()}`}
-              subtitle="vs yesterday"
+              title="Total Revenue"
+              value={`₹${stats.totalRevenue.toLocaleString()}`}
+              subtitle="Lifetime earnings"
               onPress={() => router.push('/owner/revenue')}
             />
             <OwnerCard
               icon={<ClipboardList size={22} color="#2563EB" />}
-              title="Today's Total Orders"
-              value={stats.todayOrders.toString()}
-              subtitle="Across all tables"
+              title="Total Orders"
+              value={stats.totalOrders.toString()}
+              subtitle="Completed orders"
               onPress={() => router.push('/owner/orders')}
             />
           </View>
@@ -194,9 +191,9 @@ export default function OwnerDashboardScreen() {
           <View style={styles.overviewRow}>
             <OwnerCard
               icon={<TrendingDown size={22} color="#EF4444" />}
-              title="Today's Expense"
-              value={`₹${stats.todayExpense.toLocaleString()}`}
-              subtitle="Operational costs"
+              title="Total Expense"
+              value={`₹${stats.totalExpense.toLocaleString()}`}
+              subtitle="Lifetime costs"
               onPress={() => router.push('/owner/expenses')}
             />
             <OwnerCard
@@ -209,22 +206,22 @@ export default function OwnerDashboardScreen() {
           </View>
 
           <View style={styles.reportCard}>
-            <Text style={styles.reportTitle}>Today's Financial Report</Text>
+            <Text style={styles.reportTitle}>Financial Overview (Lifetime)</Text>
             <View style={styles.reportRow}>
               <View style={styles.reportItem}>
                 <Text style={styles.reportLabel}>Total Sales</Text>
-                <Text style={[styles.reportValue, { color: '#16A34A' }]}>₹{stats.todayRevenue.toLocaleString()}</Text>
+                <Text style={[styles.reportValue, { color: '#16A34A' }]}>₹{stats.totalRevenue.toLocaleString()}</Text>
               </View>
               <View style={styles.reportDivider} />
               <View style={styles.reportItem}>
                 <Text style={styles.reportLabel}>Total Expense</Text>
-                <Text style={[styles.reportValue, { color: '#EF4444' }]}>₹{stats.todayExpense.toLocaleString()}</Text>
+                <Text style={[styles.reportValue, { color: '#EF4444' }]}>₹{stats.totalExpense.toLocaleString()}</Text>
               </View>
               <View style={styles.reportDivider} />
               <View style={styles.reportItem}>
                 <Text style={styles.reportLabel}>Net Profit</Text>
                 <Text style={[styles.reportValue, { color: Colors.dark.primary }]}>
-                  ₹{(stats.todayRevenue - stats.todayExpense).toLocaleString()}
+                  ₹{(stats.totalRevenue - stats.totalExpense).toLocaleString()}
                 </Text>
               </View>
             </View>
