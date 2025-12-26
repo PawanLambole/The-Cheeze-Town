@@ -1,4 +1,3 @@
-import React from 'react';
 import { Facebook, Instagram, Twitter } from 'lucide-react';
 import { Page } from '../types';
 
@@ -10,7 +9,7 @@ export default function Footer({ onNavigate }: FooterProps) {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="hidden md:block bg-brand-darker border-t border-white/5">
+    <footer className="bg-brand-darker border-t border-white/5 mb-16 md:mb-0">
       <div className="container mx-auto px-4 py-10">
         <div className="max-w-6xl mx-auto">
           {/* Top Columns */}

@@ -41,10 +41,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       {/* Main Content */}
       <div className="relative z-10">
         {/* Hero Section */}
-        <div className="container mx-auto px-4 py-20 md:py-32">
+        <div className="container mx-auto px-4 py-8 md:py-32">
           <div className="flex flex-col items-center text-center max-w-5xl mx-auto">
             {/* Logo Animation */}
-            <div className="mb-10 md:mb-12 animate-fade-in-up">
+            <div className="mb-8 md:mb-12 animate-fade-in-up">
               <div className="relative group">
                 {/* Glow Effect */}
                 <div className="absolute inset-0 bg-brand-yellow/20 rounded-full blur-3xl group-hover:blur-[40px] transition-all duration-700 animate-pulse"></div>
@@ -60,8 +60,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             </div>
 
             {/* Main Heading */}
-            <div className="mb-6 animate-fade-in-up animation-delay-200">
-              <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold font-serif leading-tight mb-4">
+            <div className="mb-4 md:mb-6 animate-fade-in-up animation-delay-200">
+              <h1 className="text-4xl md:text-7xl lg:text-8xl font-bold font-serif leading-tight mb-2 md:mb-4">
                 <span className="text-white">The </span>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-yellow via-yellow-300 to-brand-yellow">Cheese</span>
                 <span className="text-white"> Town</span>
@@ -75,7 +75,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 <span className="font-serif italic text-brand-yellow font-bold"> cheesy delight</span>
               </p>
               <p className="text-gray-400 text-sm md:text-base leading-relaxed">
-                Experience the perfect blend of gourmet flavors, quality ingredients, and cozy moments. 
+                Experience the perfect blend of gourmet flavors, quality ingredients, and cozy moments.
                 Handcrafted with passion, served with love.
               </p>
             </div>

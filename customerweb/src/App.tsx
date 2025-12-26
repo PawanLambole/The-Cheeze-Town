@@ -14,21 +14,52 @@ import RefundPolicyPage from './pages/RefundPolicyPage';
 import { Page } from './types';
 import type { NavPage } from './components/NavigationBar';
 
+import AES from 'crypto-js/aes';
+import enc from 'crypto-js/enc-utf8';
+
+// ... other imports ...
+
 function AppContent() {
   const { cart } = useCart();
   const [currentPage, setCurrentPage] = useState<Page>('splash');
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [hasTableFromUrl, setHasTableFromUrl] = useState(false);
 
+  // Secret key for decryption - matching the one used for encryption
+  const SECRET_KEY = "CHEEZETOWN_SECRET";
+
   // Read table id from URL so QR codes can pre-select a table, e.g. ?table=1 or ?tableId=1
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const params = new URLSearchParams(window.location.search);
-    const raw = params.get('tableId') || params.get('table') || params.get('t');
+    const encryptedQ = params.get('q');
+    let rawTableId: string | null = null;
 
-    if (raw) {
-      const parsed = Number(raw);
+    // Try to decrypt if 'q' param exists
+    if (encryptedQ) {
+      try {
+        const bytes = AES.decrypt(encryptedQ, SECRET_KEY);
+        const decryptedData = bytes.toString(enc);
+        if (decryptedData) {
+          // expecting format "table-ID" to add some basic validation/salt, or just "ID"
+          // Let's assume just ID for now or a JSON
+          rawTableId = decryptedData;
+          console.log("Decrypted table ID:", rawTableId);
+        }
+      } catch (e) {
+        console.error("Failed to decrypt QR code", e);
+      }
+    }
+
+    // Fallback to unencrypted params (optional - can remove if we want strict enforcement)
+    // currently keeping it for easier testing if needed, or we can prioritize encrypted
+    if (!rawTableId) {
+      rawTableId = params.get('tableId') || params.get('table') || params.get('t');
+    }
+
+    if (rawTableId) {
+      const parsed = Number(rawTableId);
       if (!Number.isNaN(parsed) && parsed > 0) {
         setSelectedTableId(parsed);
         setHasTableFromUrl(true);
@@ -88,7 +119,8 @@ function AppContent() {
   };
 
   // Hide navigation/footer only on splash screen; show them during booking and success
-  const showNavAndFooter = currentPage !== 'splash';
+  // ALSO Hide navigation/footer if a table is selected (ordering mode) to focus user on the menu
+  const showNavAndFooter = currentPage !== 'splash' && !selectedTableId;
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
@@ -104,7 +136,12 @@ function AppContent() {
       <main className={showNavAndFooter ? 'flex-1 pt-24 pb-16' : 'flex-1'}>
         {currentPage === 'splash' && <SplashScreen onComplete={handleSplashComplete} />}
         {currentPage === 'home' && <HomePage onNavigate={handleNavigateToMenu} />}
-        {currentPage === 'menu' && <MenuPage onPlaceOrder={handlePlaceOrder} />}
+        {currentPage === 'menu' && (
+          <MenuPage
+            onPlaceOrder={handlePlaceOrder}
+            readOnly={!selectedTableId}
+          />
+        )}
         {currentPage === 'payment' && (
           <PaymentPage
             tableId={selectedTableId || 0} // Pass 0 if no table selected

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Users, Clock, Plus, X, ShoppingBag, User, Edit2, Trash2, MoreVertical } from 'lucide-react-native';
+import { ArrowLeft, Users, Clock, Plus, X, ShoppingBag, User, Edit2, Trash2, MoreVertical, QrCode } from 'lucide-react-native';
 import PaymentModal from '../../components/PaymentModal';
 import { printPaymentReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
@@ -437,6 +437,17 @@ export default function TablesScreen() {
                             style={styles.actionItem}
                             onPress={(e) => {
                               e.stopPropagation();
+                              router.push(`/manager/tables/${table.id}` as any);
+                              setShowTableActions(null);
+                            }}
+                          >
+                            <QrCode size={14} color={Colors.dark.primary} />
+                            <Text style={styles.actionText}>View QR Code</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.actionItem}
+                            onPress={(e) => {
+                              e.stopPropagation();
                               handleEditClick(table);
                             }}
                           >
@@ -545,7 +556,7 @@ export default function TablesScreen() {
             </View>
 
             <TouchableOpacity style={styles.addButton} onPress={handleAddTable}>
-              <Text style={styles.addButtonText}>Add Table</Text>
+              <Text style={styles.addButtonText}>Add Table & Generate QR</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -663,63 +674,65 @@ export default function TablesScreen() {
       </Modal>
 
       {/* Payment Modal */}
-      {selectedTable && (
-        <PaymentModal
-          visible={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          orderId={selectedTable.orderId || `TABLE_${selectedTable.table_number}`}
-          amount={selectedTable.orderAmount || 0}
-          customerName={selectedTable.customerName}
-          onPaymentSuccess={async (transactionId, method) => {
-            console.log('Payment successful:', { transactionId, method, tableId: selectedTable.id });
+      {
+        selectedTable && (
+          <PaymentModal
+            visible={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            orderId={selectedTable.orderId || `TABLE_${selectedTable.table_number}`}
+            amount={selectedTable.orderAmount || 0}
+            customerName={selectedTable.customerName}
+            onPaymentSuccess={async (transactionId, method) => {
+              console.log('Payment successful:', { transactionId, method, tableId: selectedTable.id });
 
-            // Generate payment receipt
-            try {
-              const paymentData = {
-                orderId: selectedTable.orderId || `TABLE_${selectedTable.table_number}`,
-                tableNo: selectedTable.table_number,
-                customerName: selectedTable.customerName,
-                items: selectedTable.items || [],
-                subtotal: selectedTable.orderAmount || 0,
-                tax: 0,
-                discount: 0,
-                totalAmount: selectedTable.orderAmount || 0,
-                paymentMethod: method,
-                transactionId: transactionId,
-                timestamp: new Date(),
-                orderType: 'dine-in' as const
-              };
-
-              const receiptResult = await printPaymentReceipt(paymentData);
-
-              if (receiptResult.success && receiptResult.receipt) {
-                setCurrentReceipt(receiptResult.receipt);
-                setShowReceipt(true);
-              }
-            } catch (error) {
-              console.error('Error generating payment receipt:', error);
-            }
-
-            // Update order and table in database
-            if (selectedTable.order?.id) {
+              // Generate payment receipt
               try {
-                await database.update('orders', selectedTable.order.id, {
-                  status: 'completed',
-                  completed_time: new Date().toISOString()
-                });
-                await database.update('restaurant_tables', selectedTable.id, {
-                  status: 'available',
-                  current_order_id: null
-                });
+                const paymentData = {
+                  orderId: selectedTable.orderId || `TABLE_${selectedTable.table_number}`,
+                  tableNo: selectedTable.table_number,
+                  customerName: selectedTable.customerName,
+                  items: selectedTable.items || [],
+                  subtotal: selectedTable.orderAmount || 0,
+                  tax: 0,
+                  discount: 0,
+                  totalAmount: selectedTable.orderAmount || 0,
+                  paymentMethod: method,
+                  transactionId: transactionId,
+                  timestamp: new Date(),
+                  orderType: 'dine-in' as const
+                };
+
+                const receiptResult = await printPaymentReceipt(paymentData);
+
+                if (receiptResult.success && receiptResult.receipt) {
+                  setCurrentReceipt(receiptResult.receipt);
+                  setShowReceipt(true);
+                }
               } catch (error) {
-                console.error('Error completing order:', error);
+                console.error('Error generating payment receipt:', error);
               }
-            }
-            setShowPaymentModal(false);
-            setShowOrderModal(false);
-          }}
-        />
-      )}
+
+              // Update order and table in database
+              if (selectedTable.order?.id) {
+                try {
+                  await database.update('orders', selectedTable.order.id, {
+                    status: 'completed',
+                    completed_time: new Date().toISOString()
+                  });
+                  await database.update('restaurant_tables', selectedTable.id, {
+                    status: 'available',
+                    current_order_id: null
+                  });
+                } catch (error) {
+                  console.error('Error completing order:', error);
+                }
+              }
+              setShowPaymentModal(false);
+              setShowOrderModal(false);
+            }}
+          />
+        )
+      }
 
       {/* Receipt Viewer */}
       <ReceiptViewer
@@ -801,7 +814,7 @@ export default function TablesScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </View >
   );
 }
 

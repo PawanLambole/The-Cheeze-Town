@@ -6,9 +6,10 @@ import { useState } from 'react';
 
 interface MenuPageProps {
   onPlaceOrder: () => void;
+  readOnly?: boolean;
 }
 
-export default function MenuPage({ onPlaceOrder }: MenuPageProps) {
+export default function MenuPage({ onPlaceOrder, readOnly = false }: MenuPageProps) {
   const { cart, addToCart, removeFromCart, getTotalPrice } = useCart();
   const { menuItems, loading, error } = useMenuItems();
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,17 +50,22 @@ export default function MenuPage({ onPlaceOrder }: MenuPageProps) {
       {/* Sticky Header */}
       {/* Sticky Header */}
       <div className="sticky top-0 z-30 bg-brand-dark/95 backdrop-blur-xl border-b border-white/5 shadow-2xl transition-all duration-300">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col gap-6">
+        <div className="container mx-auto px-4 py-3 md:py-6">
+          <div className="flex flex-col gap-3 md:gap-6">
 
             {/* Top Row: Title & Search */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-6">
               {/* Title */}
               <div className="flex-shrink-0">
-                <h1 className="text-3xl md:text-4xl font-bold font-serif text-white tracking-tight">
-                  Order Your <span className="text-brand-yellow">Favorites</span>
+                <h1 className="text-2xl md:text-4xl font-bold font-serif text-white tracking-tight">
+                  {readOnly ? 'Our' : 'Order Your'} <span className="text-brand-yellow">Favorites</span>
                 </h1>
-                <p className="text-gray-400 text-sm mt-1 font-medium">Handcrafted with passion, served with love</p>
+                <p className="text-gray-400 text-xs md:text-sm mt-0.5 md:mt-1 font-medium">Handcrafted with passion</p>
+                {readOnly && (
+                  <div className="mt-2 text-brand-yellow text-sm font-bold bg-brand-yellow/10 inline-block px-3 py-1 rounded-full border border-brand-yellow/20">
+                    Scan QR code on table to place order
+                  </div>
+                )}
               </div>
 
               {/* Search Bar - Sleek & Floating */}
@@ -171,34 +177,41 @@ export default function MenuPage({ onPlaceOrder }: MenuPageProps) {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center justify-between gap-4 mt-auto pt-4 border-t border-white/5">
-                          <span className="text-xl font-bold text-brand-yellow">₹{item.price}</span>
+                        {!readOnly && (
+                          <div className="flex items-center justify-between gap-4 mt-auto pt-4 border-t border-white/5">
+                            <span className="text-xl font-bold text-brand-yellow">₹{item.price}</span>
 
-                          {quantity === 0 ? (
-                            <button
-                              onClick={() => addToCart(item)}
-                              className="bg-brand-gray/50 hover:bg-brand-yellow text-white hover:text-brand-darker font-medium px-4 py-2 rounded-xl transition-all duration-300 flex items-center gap-2 group/btn"
-                            >
-                              Add <Plus className="w-4 h-4 transform group-hover/btn:rotate-90 transition-transform" />
-                            </button>
-                          ) : (
-                            <div className="flex items-center gap-1 bg-brand-yellow rounded-xl p-1 shadow-lg shadow-brand-yellow/20">
-                              <button
-                                onClick={() => removeFromCart(item.id)}
-                                className="w-8 h-8 flex items-center justify-center bg-brand-darker/20 hover:bg-brand-darker/40 rounded-lg text-brand-darker transition-colors"
-                              >
-                                <Minus className="w-4 h-4" />
-                              </button>
-                              <span className="w-8 text-center font-bold text-brand-darker">{quantity}</span>
+                            {quantity === 0 ? (
                               <button
                                 onClick={() => addToCart(item)}
-                                className="w-8 h-8 flex items-center justify-center bg-brand-darker/20 hover:bg-brand-darker/40 rounded-lg text-brand-darker transition-colors"
+                                className="bg-brand-gray/50 hover:bg-brand-yellow text-white hover:text-brand-darker font-medium px-4 py-2 rounded-xl transition-all duration-300 flex items-center gap-2 group/btn"
                               >
-                                <Plus className="w-4 h-4" />
+                                Add <Plus className="w-4 h-4 transform group-hover/btn:rotate-90 transition-transform" />
                               </button>
-                            </div>
-                          )}
-                        </div>
+                            ) : (
+                              <div className="flex items-center gap-1 bg-brand-yellow rounded-xl p-1 shadow-lg shadow-brand-yellow/20">
+                                <button
+                                  onClick={() => removeFromCart(item.id)}
+                                  className="w-8 h-8 flex items-center justify-center bg-brand-darker/20 hover:bg-brand-darker/40 rounded-lg text-brand-darker transition-colors"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                <span className="w-8 text-center font-bold text-brand-darker">{quantity}</span>
+                                <button
+                                  onClick={() => addToCart(item)}
+                                  className="w-8 h-8 flex items-center justify-center bg-brand-darker/20 hover:bg-brand-darker/40 rounded-lg text-brand-darker transition-colors"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {readOnly && (
+                          <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                            <span className="text-xl font-bold text-brand-yellow">₹{item.price}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -208,86 +221,88 @@ export default function MenuPage({ onPlaceOrder }: MenuPageProps) {
           </div>
 
           {/* Desktop Sticky Cart */}
-          <div className="hidden lg:block">
-            <div className="sticky top-32">
-              <div className="bg-brand-darker/60 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl">
-                {/* Cart Header */}
-                <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-brand-yellow rounded-xl p-2 text-brand-darker">
-                      <ShoppingCart className="w-5 h-5" />
+          {!readOnly && (
+            <div className="hidden lg:block">
+              <div className="sticky top-32">
+                <div className="bg-brand-darker/60 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl">
+                  {/* Cart Header */}
+                  <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-brand-yellow rounded-xl p-2 text-brand-darker">
+                        <ShoppingCart className="w-5 h-5" />
+                      </div>
+                      <span className="font-bold text-lg text-white">Current Order</span>
                     </div>
-                    <span className="font-bold text-lg text-white">Current Order</span>
+                    <span className="bg-white/5 text-xs font-bold px-2 py-1 rounded-lg text-gray-400">
+                      {cart.reduce((acc, item) => acc + item.quantity, 0)} Items
+                    </span>
                   </div>
-                  <span className="bg-white/5 text-xs font-bold px-2 py-1 rounded-lg text-gray-400">
-                    {cart.reduce((acc, item) => acc + item.quantity, 0)} Items
-                  </span>
-                </div>
 
-                {cart.length === 0 ? (
-                  <div className="text-center py-12 flex flex-col items-center">
-                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/5 border-dashed">
-                      <ShoppingCart className="w-6 h-6 text-gray-600" />
+                  {cart.length === 0 ? (
+                    <div className="text-center py-12 flex flex-col items-center">
+                      <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/5 border-dashed">
+                        <ShoppingCart className="w-6 h-6 text-gray-600" />
+                      </div>
+                      <p className="text-gray-400 font-medium text-sm">Your plate is empty</p>
+                      <p className="text-gray-600 text-xs mt-1">Start adding delicious items</p>
                     </div>
-                    <p className="text-gray-400 font-medium text-sm">Your plate is empty</p>
-                    <p className="text-gray-600 text-xs mt-1">Start adding delicious items</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-4 mb-6 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
-                      {cart.map((item) => (
-                        <div key={item.id} className="group flex items-start justify-between bg-white/5 p-3 rounded-xl border border-transparent hover:border-brand-yellow/20 transition-all">
-                          <div className="flex-1 min-w-0 pr-3">
-                            <p className="text-white font-medium text-sm line-clamp-1 mb-1">{item.name}</p>
-                            <p className="text-gray-500 text-xs flex items-center gap-2">
-                              <span>₹{item.price}</span>
-                              <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-                              <span className="text-brand-yellow font-bold">x{item.quantity}</span>
-                            </p>
+                  ) : (
+                    <>
+                      <div className="space-y-4 mb-6 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                        {cart.map((item) => (
+                          <div key={item.id} className="group flex items-start justify-between bg-white/5 p-3 rounded-xl border border-transparent hover:border-brand-yellow/20 transition-all">
+                            <div className="flex-1 min-w-0 pr-3">
+                              <p className="text-white font-medium text-sm line-clamp-1 mb-1">{item.name}</p>
+                              <p className="text-gray-500 text-xs flex items-center gap-2">
+                                <span>₹{item.price}</span>
+                                <span className="w-1 h-1 rounded-full bg-gray-600"></span>
+                                <span className="text-brand-yellow font-bold">x{item.quantity}</span>
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <span className="text-white font-bold text-sm">₹{(item.price * item.quantity).toFixed(0)}</span>
+                              <button
+                                onClick={() => removeFromCart(String(item.id))}
+                                className="text-gray-600 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <span className="text-white font-bold text-sm">₹{(item.price * item.quantity).toFixed(0)}</span>
-                            <button
-                              onClick={() => removeFromCart(String(item.id))}
-                              className="text-gray-600 hover:text-red-400 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="space-y-4 pt-4 border-t border-white/5">
-                      <div className="flex justify-between items-end">
-                        <span className="text-gray-400 text-sm mb-1">Total Amount</span>
-                        <div className="text-right">
-                          <span className="text-2xl font-bold text-brand-yellow">₹{totalPrice}</span>
-                        </div>
+                        ))}
                       </div>
 
-                      <Button
-                        onClick={onPlaceOrder}
-                        fullWidth
-                        size="lg"
-                        className="shadow-xl shadow-brand-yellow/20 hover:scale-[1.02] active:scale-[0.98] transition-transform"
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          Checkout Now <ChevronRight className="w-4 h-4" />
-                        </span>
-                      </Button>
-                    </div>
-                  </>
-                )}
+                      <div className="space-y-4 pt-4 border-t border-white/5">
+                        <div className="flex justify-between items-end">
+                          <span className="text-gray-400 text-sm mb-1">Total Amount</span>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold text-brand-yellow">₹{totalPrice}</span>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={onPlaceOrder}
+                          fullWidth
+                          size="lg"
+                          className="shadow-xl shadow-brand-yellow/20 hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            Checkout Now <ChevronRight className="w-4 h-4" />
+                          </span>
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Mobile Floating Cart Bar */}
       {
-        cart.length > 0 && (
+        !readOnly && cart.length > 0 && (
           <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-brand-dark to-brand-dark/95 border-t border-brand-yellow/20 p-4 lg:hidden z-40 pb-safe shadow-2xl shadow-black/50">
             <div className="container mx-auto flex items-center justify-between gap-4">
               <div>
