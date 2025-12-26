@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Users, ChevronRight, RefreshCw } from 'lucide-react';
+import { Users, ChevronRight, RefreshCw, ArrowLeft } from 'lucide-react';
 import { useAvailableTables } from '../hooks/useSupabase';
 import { RestaurantTable } from '../types';
+import { Button, Card, LoadingSpinner, Alert } from '../components';
 
 interface TableSelectionPageProps {
     onTableSelected: (tableId: number) => void;
@@ -18,107 +19,148 @@ export default function TableSelectionPage({ onTableSelected, onBack }: TableSel
         }
     };
 
+    if (loading) {
+        return <LoadingSpinner fullScreen message="Finding the perfect table for you..." />;
+    }
+
     return (
-        <div className="min-h-screen bg-brand-darker py-6 pb-24">
-            <div className="container mx-auto px-4 max-w-4xl">
-                {/* Header */}
-                <div className="text-center mb-8 pt-4">
-                    <h1 className="text-3xl md:text-5xl font-bold font-serif text-brand-yellow mb-2">Select Your Table</h1>
-                    <p className="text-gray-400">Choose an available table to continue</p>
+        <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker py-8 pb-24">
+            <div className="container mx-auto px-4 max-w-5xl">
+                {/* Header Section */}
+                <div className="mb-12 animate-fade-in-down">
+                    <button
+                        onClick={onBack}
+                        className="inline-flex items-center gap-2 text-gray-400 hover:text-brand-yellow transition-colors mb-6 font-medium"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Menu
+                    </button>
+                    <h1 className="text-5xl md:text-6xl font-bold font-serif text-white mb-3">
+                        Select Your <span className="text-brand-yellow">Table</span>
+                    </h1>
+                    <p className="text-gray-400 text-lg">Choose a comfortable seating for your dining experience</p>
                 </div>
 
-                <div className="bg-brand-dark rounded-3xl p-5 md:p-8 border border-white/5 shadow-2xl">
-                    {/* Refresh Button */}
-                    <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-                        <h2 className="text-xl font-bold text-white">Available Tables</h2>
+                {/* Error State */}
+                {error && (
+                    <Alert
+                        type="error"
+                        title="Failed to Load Tables"
+                        message={error.message || 'Please try again'}
+                        dismissible
+                        onClose={() => refetch()}
+                    />
+                )}
+
+                {/* Main Content Card */}
+                <Card glowing className="p-8 md:p-12 animate-fade-in-up">
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-8 pb-6 border-b border-white/10">
+                        <h2 className="text-2xl md:text-3xl font-bold text-white">Available Tables</h2>
                         <button
                             onClick={() => refetch()}
-                            className="p-2 bg-brand-gray/50 hover:bg-brand-yellow/10 text-gray-400 hover:text-brand-yellow rounded-lg transition-colors"
+                            className="p-3 bg-brand-yellow/10 hover:bg-brand-yellow/20 text-brand-yellow rounded-xl transition-all hover:scale-110 duration-300"
+                            title="Refresh table list"
                         >
                             <RefreshCw className="w-5 h-5" />
                         </button>
                     </div>
 
-                    {/* Loading State */}
-                    {loading && (
-                        <div className="text-center py-12">
-                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-yellow mx-auto mb-4"></div>
-                            <p className="text-gray-400">Loading tables...</p>
-                        </div>
-                    )}
-
-                    {/* Error State */}
-                    {error && (
-                        <div className="text-center py-12">
-                            <p className="text-red-400 mb-2">Failed to load tables</p>
-                            <p className="text-gray-500 text-sm mb-4">{error.message || 'Please try again'}</p>
-                            <button
-                                onClick={() => refetch()}
-                                className="px-6 py-2 bg-brand-yellow/10 hover:bg-brand-yellow/20 text-brand-yellow rounded-lg transition-colors"
-                            >
-                                Try Again
-                            </button>
-                        </div>
-                    )}
-
                     {/* No Tables Available */}
-                    {!loading && !error && tables.length === 0 && (
-                        <div className="text-center py-12">
-                            <div className="w-16 h-16 bg-brand-gray rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">🪑</div>
-                            <p className="text-gray-400 mb-2">No tables available</p>
-                            <p className="text-gray-500 text-sm">Please check back in a moment</p>
+                    {!loading && tables.length === 0 && !error && (
+                        <div className="text-center py-16">
+                            <div className="w-20 h-20 bg-brand-gray rounded-full flex items-center justify-center mx-auto mb-6 text-5xl">
+                                🪑
+                            </div>
+                            <p className="text-gray-400 text-xl font-medium mb-2">No tables available</p>
+                            <p className="text-gray-500 mb-6">Please check back in a moment</p>
+                            <Button
+                                onClick={() => refetch()}
+                                variant="ghost"
+                                icon={<RefreshCw className="w-4 h-4" />}
+                            >
+                                Refresh
+                            </Button>
                         </div>
                     )}
 
                     {/* Tables Grid */}
-                    {!loading && !error && tables.length > 0 && (
+                    {!loading && tables.length > 0 && (
                         <>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-                                {tables.map((table: RestaurantTable) => (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+                                {tables.map((table: RestaurantTable, index: number) => (
                                     <button
                                         key={table.id}
                                         onClick={() => setSelectedTable(table.id)}
-                                        className={`p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center justify-center gap-3 ${selectedTable === table.id
-                                            ? 'bg-brand-yellow text-brand-darker border-brand-yellow shadow-lg shadow-brand-yellow/20 scale-105'
-                                            : 'bg-brand-gray/50 text-white border-transparent hover:border-brand-yellow/30 hover:bg-brand-gray'
-                                            }`}
+                                        className={`p-6 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center justify-center gap-3 animate-fade-in-up`}
+                                        style={{ animationDelay: `${index * 50}ms` }}
                                     >
-                                        <Users className="w-8 h-8" />
-                                        <div>
-                                            <p className="font-bold text-lg">Table {table.table_number}</p>
-                                            {table.capacity && (
-                                                <p className={`text-xs ${selectedTable === table.id ? 'text-brand-darker/70' : 'text-gray-400'}`}>
-                                                    Seats {table.capacity}
+                                        <div
+                                            className={`w-full h-full absolute inset-0 rounded-2xl border-2 transition-all duration-300 ${
+                                                selectedTable === table.id
+                                                    ? 'bg-brand-yellow/20 border-brand-yellow shadow-lg shadow-brand-yellow/30 scale-110'
+                                                    : 'bg-brand-gray/30 border-transparent hover:border-brand-yellow/50 hover:bg-brand-gray/50'
+                                            }`}
+                                        />
+                                        <div className="relative z-10 flex flex-col items-center gap-2">
+                                            <div
+                                                className={`p-3 rounded-xl transition-all ${
+                                                    selectedTable === table.id
+                                                        ? 'bg-brand-yellow/20 text-brand-yellow'
+                                                        : 'bg-brand-yellow/10 text-gray-300 group-hover:text-brand-yellow'
+                                                }`}
+                                            >
+                                                <Users className="w-6 h-6" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p
+                                                    className={`font-bold text-lg transition-colors ${
+                                                        selectedTable === table.id ? 'text-brand-yellow' : 'text-white'
+                                                    }`}
+                                                >
+                                                    Table {table.table_number}
                                                 </p>
-                                            )}
+                                                {table.capacity && (
+                                                    <p
+                                                        className={`text-xs font-medium ${
+                                                            selectedTable === table.id ? 'text-brand-yellow/70' : 'text-gray-400'
+                                                        }`}
+                                                    >
+                                                        {table.capacity} seats
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </button>
                                 ))}
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex gap-4 pt-4 border-t border-white/10">
-                                <button
+                            <div className="flex gap-4 pt-8 border-t border-white/10">
+                                <Button
                                     onClick={onBack}
-                                    className="flex-1 bg-brand-gray hover:bg-brand-gray/80 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300"
+                                    variant="secondary"
+                                    size="lg"
+                                    fullWidth
+                                    icon={<ArrowLeft className="w-5 h-5" />}
                                 >
-                                    Back to Menu
-                                </button>
-                                <button
+                                    Back
+                                </Button>
+                                <Button
                                     onClick={handleContinue}
                                     disabled={selectedTable === null}
-                                    className={`flex-1 font-bold text-lg py-4 px-6 rounded-2xl transition-all duration-300 flex items-center justify-center gap-2 ${selectedTable === null
-                                        ? 'bg-brand-gray/50 text-gray-500 cursor-not-allowed'
-                                        : 'bg-brand-yellow hover:bg-yellow-400 text-brand-darker transform hover:scale-[1.02] shadow-lg'
-                                        }`}
+                                    size="lg"
+                                    fullWidth
+                                    icon={<ChevronRight className="w-5 h-5" />}
+                                    iconPosition="right"
+                                    className="shadow-lg shadow-brand-yellow/20"
                                 >
-                                    Continue to Payment
-                                    <ChevronRight className="w-5 h-5" />
-                                </button>
+                                    Continue
+                                </Button>
                             </div>
                         </>
                     )}
-                </div>
+                </Card>
             </div>
         </div>
     );
