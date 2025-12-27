@@ -65,13 +65,13 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="pt-20 pb-20">
-      <div className="bg-gradient-to-b from-brand-dark to-brand-darker py-20">
+    <div className="min-h-screen overflow-x-hidden">
+      <div className="bg-gradient-to-b from-brand-dark to-brand-darker py-12 md:py-20">
         <div className="container mx-auto px-4 text-center max-w-4xl">
-          <h1 className="text-5xl md:text-7xl font-bold font-serif text-white mb-6 animate-fade-in-down">
+          <h1 className="text-3xl md:text-7xl font-bold font-serif text-white mb-4 md:mb-6 animate-fade-in-down">
             Get In <span className="text-brand-yellow">Touch</span>
           </h1>
-          <p className="text-xl text-gray-300 animate-fade-in-up animation-delay-200">
+          <p className="text-base md:text-xl text-gray-300 animate-fade-in-up animation-delay-200">
             We love to hear from our customers. Reach out to us anytime!
           </p>
         </div>
@@ -82,47 +82,47 @@ export default function ContactPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <div className="space-y-8 animate-fade-in-up">
               <div>
-                <h2 className="text-3xl font-bold font-serif text-white mb-8">Contact Information</h2>
+                <h2 className="text-2xl md:text-3xl font-bold font-serif text-white mb-6 md:mb-8">Contact Information</h2>
               </div>
 
-              <Card hoverable className="p-8 flex gap-6">
-                <div className="bg-brand-yellow/10 rounded-2xl p-4 h-fit border border-brand-yellow/20">
-                  <Phone className="w-8 h-8 text-brand-yellow" />
+              <Card hoverable className="p-6 md:p-8 flex gap-4 md:gap-6">
+                <div className="bg-brand-yellow/10 rounded-2xl p-3 md:p-4 h-fit border border-brand-yellow/20">
+                  <Phone className="w-6 h-6 md:w-8 md:h-8 text-brand-yellow" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-white mb-2">Phone</h3>
-                  <p className="text-gray-400 mb-1">Call us for immediate assistance</p>
-                  <a href="tel:+919766573966" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-lg">
+                  <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">Phone</h3>
+                  <p className="text-gray-400 mb-1 text-sm md:text-base">Call us for immediate assistance</p>
+                  <a href="tel:+919766573966" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-base md:text-lg">
                     +91 97665 73966
                   </a>
                 </div>
               </Card>
 
-              <Card hoverable className="p-8 flex gap-6">
-                <div className="bg-brand-yellow/10 rounded-2xl p-4 h-fit border border-brand-yellow/20">
-                  <Mail className="w-8 h-8 text-brand-yellow" />
+              <Card hoverable className="p-6 md:p-8 flex gap-4 md:gap-6">
+                <div className="bg-brand-yellow/10 rounded-2xl p-3 md:p-4 h-fit border border-brand-yellow/20">
+                  <Mail className="w-6 h-6 md:w-8 md:h-8 text-brand-yellow" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-white mb-2">Email</h3>
-                  <p className="text-gray-400 mb-2">Send us an email anytime</p>
+                  <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">Email</h3>
+                  <p className="text-gray-400 mb-2 text-sm md:text-base">Send us an email anytime</p>
                   <div className="space-y-1">
-                    <a href="mailto:thecheesetown@gmail.com" className="text-brand-yellow font-semibold hover:text-yellow-300 transition-colors block">
+                    <a href="mailto:thecheesetown@gmail.com" className="text-brand-yellow font-semibold hover:text-yellow-300 transition-colors block text-sm md:text-base">
                       thecheesetown@gmail.com
                     </a>
-                    <a href="mailto:pavanlambole578@gmail.com" className="text-brand-yellow/80 font-medium hover:text-yellow-300 transition-colors block text-sm">
+                    <a href="mailto:pavanlambole578@gmail.com" className="text-brand-yellow/80 font-medium hover:text-yellow-300 transition-colors block text-xs md:text-sm">
                       pavanlambole578@gmail.com
                     </a>
                   </div>
                 </div>
               </Card>
 
-              <Card hoverable className="p-8 flex gap-6">
-                <div className="bg-brand-yellow/10 rounded-2xl p-4 h-fit border border-brand-yellow/20">
-                  <MapPin className="w-8 h-8 text-brand-yellow" />
+              <Card hoverable className="p-6 md:p-8 flex gap-4 md:gap-6">
+                <div className="bg-brand-yellow/10 rounded-2xl p-3 md:p-4 h-fit border border-brand-yellow/20">
+                  <MapPin className="w-6 h-6 md:w-8 md:h-8 text-brand-yellow" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-white mb-2">Location</h3>
-                  <p className="text-gray-400 leading-relaxed">
+                  <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">Location</h3>
+                  <p className="text-gray-400 leading-relaxed text-sm md:text-base">
                     45, Prashant Nagar, Biladi Road,<br />
                     Near 12 Feet Hanuman Mandir,<br />
                     Deopur, Dhule, Maharashtra
@@ -130,13 +130,13 @@ export default function ContactPage() {
                 </div>
               </Card>
 
-              <Card hoverable className="p-8 flex gap-6">
-                <div className="bg-brand-yellow/10 rounded-2xl p-4 h-fit border border-brand-yellow/20">
-                  <Clock className="w-8 h-8 text-brand-yellow" />
+              <Card hoverable className="p-6 md:p-8 flex gap-4 md:gap-6">
+                <div className="bg-brand-yellow/10 rounded-2xl p-3 md:p-4 h-fit border border-brand-yellow/20">
+                  <Clock className="w-6 h-6 md:w-8 md:h-8 text-brand-yellow" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-white mb-2">Hours</h3>
-                  <div className="space-y-1 text-gray-400">
+                  <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">Hours</h3>
+                  <div className="space-y-1 text-gray-400 text-sm md:text-base">
                     <p>Mon - Fri: 11:00 AM - 10:00 PM</p>
                     <p>Saturday: 10:00 AM - 11:00 PM</p>
                     <p>Sunday: 10:00 AM - 10:00 PM</p>
@@ -147,7 +147,7 @@ export default function ContactPage() {
 
             <div className="animate-fade-in-up animation-delay-200">
               <Card glowing className="p-8">
-                <h2 className="text-3xl font-bold font-serif text-white mb-8">Send us a Message</h2>
+                <h2 className="text-2xl md:text-3xl font-bold font-serif text-white mb-6 md:mb-8">Send us a Message</h2>
 
                 {submitted && (
                   <Alert

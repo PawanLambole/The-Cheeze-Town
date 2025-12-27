@@ -130,8 +130,11 @@ function AppContent() {
     return 'home';
   };
 
-  // Hide navigation/footer only on splash, table selection, and payment screens
-  const showNavAndFooter = currentPage !== 'splash' && currentPage !== 'table-selection' && currentPage !== 'payment';
+  // Hide navigation/footer when:
+  // - On splash screen
+  // - On table selection or payment screens
+  // - User came from QR code (focused ordering mode)
+  const showNavAndFooter = currentPage !== 'splash' && currentPage !== 'table-selection' && currentPage !== 'payment' && !hasTableFromUrl;
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
