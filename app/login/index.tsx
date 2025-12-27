@@ -43,7 +43,7 @@ export default function LoginScreen() {
     useEffect(() => {
         // Auto-redirect if already authenticated and NOT currently processing a manual login
         if (isAuthenticated && userData && !loading) {
-            navigateToDashboard(userData.role);
+            navigateToDashboard(userData.role || 'manager');
         }
     }, [isAuthenticated, userData, loading]);
 
@@ -101,7 +101,7 @@ export default function LoginScreen() {
                         // Use UPSERT to handle case where record exists but couldn't be read due to RLS
                         const { data: upsertedData, error: createError } = await supabase
                             .from('users')
-                            .upsert([newUser], {
+                            .upsert([newUser] as any, {
                                 onConflict: 'id',
                                 ignoreDuplicates: false
                             })

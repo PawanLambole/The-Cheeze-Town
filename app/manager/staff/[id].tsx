@@ -73,12 +73,12 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                 if (data) {
                     setStaff({
                         id: data.id,
-                        name: data.full_name || 'Unknown',
+                        name: data.name || 'Unknown',
                         email: data.email || '',
                         phone: data.phone || 'Not provided',
                         role: data.role || 'staff',
-                        status: data.status || 'pending',
-                        joinDate: new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                        status: (data as any).status || 'pending',
+                        joinDate: new Date(data.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
                         salary: 'Not set', // These would likely come from a separate 'staff_profiles' table
                         address: 'Not provided',
                         emergencyContact: 'Not provided',

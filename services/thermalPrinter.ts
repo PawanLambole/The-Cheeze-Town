@@ -40,7 +40,7 @@ interface PaymentReceipt {
  * Creates a text-based receipt suitable for 58mm thermal printers
  */
 export function formatThermalReceipt(order: PrintableOrder): string {
-    const width = 32; // Characters width for 58mm printer
+    const width = 30; // Reduced to 30 for better safety on mobile printers
     const timestamp = order.timestamp || new Date();
 
     // Helper functions
@@ -56,12 +56,21 @@ export function formatThermalReceipt(order: PrintableOrder): string {
         return left + ' '.repeat(spaces) + right;
     };
 
+    // Date formatting
+    const dateStr = timestamp.toLocaleDateString('en-IN', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+    const timeStr = timestamp.toLocaleTimeString('en-IN', {
+        hour: '2-digit', minute: '2-digit', hour12: true
+    });
+
     // Build receipt
     let receipt = '\n';
 
     // Header
     receipt += center('*** KITCHEN ORDER ***') + '\n';
     receipt += center('The Cheeze Town') + '\n';
+    receipt += center(`${dateStr}  ${timeStr}`) + '\n'; // Date/Time at top
     receipt += line('=') + '\n';
 
     // Order Info
@@ -71,43 +80,30 @@ export function formatThermalReceipt(order: PrintableOrder): string {
         const tableText = typeof order.tableNo === 'number'
             ? `Table ${order.tableNo}`
             : order.tableNo;
+        // Ensure table text fits
         receipt += leftRight('Table:', tableText.toString()) + '\n';
     }
 
     if (order.customerName) {
-        receipt += leftRight('Customer:', order.customerName) + '\n';
+        receipt += leftRight('Customer:', order.customerName.substring(0, 15)) + '\n';
     }
-
-    // Date and Time
-    const dateStr = timestamp.toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    });
-    const timeStr = timestamp.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
-    receipt += leftRight('Date:', dateStr) + '\n';
-    receipt += leftRight('Time:', timeStr) + '\n';
 
     receipt += line('=') + '\n';
 
     // Items Header
-    receipt += leftRight('ITEMS', 'QTY') + '\n';
+    receipt += leftRight('ITEM', 'QTY') + '\n';
     receipt += line('-') + '\n';
 
     // Items List
     order.items.forEach(item => {
-        const itemName = item.name.length > 24
-            ? item.name.substring(0, 21) + '...'
-            : item.name;
-        receipt += leftRight(itemName, `x${item.quantity}`) + '\n';
+        // Item name on its own line if long, or left-aligned
+        receipt += item.name + '\n';
 
-        // Add item price on next line (indented)
-        const priceStr = `₹${item.price.toFixed(2)}`;
-        receipt += `  ${priceStr}` + '\n';
+        // Quantity and variant details indented
+        receipt += leftRight(`  Price: ₹${item.price}`, `x${item.quantity}`) + '\n';
+
+        // Optional: formatting for very distinct spacing
+        // receipt += leftRight(item.name.substring(0, 20), `x${item.quantity}`) + '\n';
     });
 
     receipt += line('-') + '\n';
@@ -118,16 +114,14 @@ export function formatThermalReceipt(order: PrintableOrder): string {
 
     // Order Type
     if (order.orderType) {
-        const orderTypeText = order.orderType.toUpperCase();
-        receipt += center(`[${orderTypeText}]`) + '\n';
+        receipt += '\n';
+        receipt += center(`[ ${order.orderType.toUpperCase()} ]`) + '\n';
     }
 
     // Footer
     receipt += '\n';
     receipt += center('*** PREPARE ASAP ***') + '\n';
-    receipt += '\n';
-    receipt += '\n'; // Extra lines for tear-off
-    receipt += '\n';
+    receipt += '\n\n\n';
 
     return receipt;
 }
@@ -141,7 +135,7 @@ export function formatAddedItemsReceipt(
     tableNo: number | string,
     addedItems: OrderItem[]
 ): string {
-    const width = 32;
+    const width = 30; // Reduced to 30 for consistency
     const timestamp = new Date();
 
     const center = (text: string): string => {
@@ -156,25 +150,26 @@ export function formatAddedItemsReceipt(
         return left + ' '.repeat(spaces) + right;
     };
 
+    // Date/Time formatting
+    const timeStr = timestamp.toLocaleTimeString('en-IN', {
+        hour: '2-digit', minute: '2-digit', hour12: true
+    });
+    const dateStr = timestamp.toLocaleDateString('en-IN', {
+        day: '2-digit', month: '2-digit'
+    });
+
     let receipt = '\n';
 
     // Header
     receipt += center('*** ADDED ITEMS ***') + '\n';
     receipt += center('The Cheeze Town') + '\n';
+    receipt += center(`${dateStr}  ${timeStr}`) + '\n';
     receipt += line('=') + '\n';
 
     // Order Info
     receipt += leftRight('Order #:', orderId) + '\n';
     const tableText = typeof tableNo === 'number' ? `Table ${tableNo}` : tableNo;
     receipt += leftRight('Table:', tableText.toString()) + '\n';
-
-    // Time
-    const timeStr = timestamp.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
-    receipt += leftRight('Time:', timeStr) + '\n';
 
     receipt += line('=') + '\n';
 
@@ -184,17 +179,16 @@ export function formatAddedItemsReceipt(
 
     // Items List
     addedItems.forEach(item => {
-        const itemName = item.name.length > 24
-            ? item.name.substring(0, 21) + '...'
-            : item.name;
-        receipt += leftRight(itemName, `x${item.quantity}`) + '\n';
+        // Item Name
+        receipt += item.name + '\n';
+        // Qty
+        receipt += leftRight('', `x${item.quantity}`) + '\n';
     });
 
     receipt += line('=') + '\n';
     receipt += '\n';
     receipt += center('*** PREPARE ASAP ***') + '\n';
-    receipt += '\n';
-    receipt += '\n';
+    receipt += '\n\n\n';
 
     return receipt;
 }
@@ -311,7 +305,7 @@ export function previewAddedItemsReceipt(
  * Creates a text-based receipt suitable for 58mm thermal printers
  */
 export function formatPaymentReceipt(payment: PaymentReceipt): string {
-    const width = 32; // Characters width for 58mm printer
+    const width = 30; // Reduced to 30 for consistency
     const timestamp = payment.timestamp || new Date();
 
     // Helper functions
@@ -327,12 +321,21 @@ export function formatPaymentReceipt(payment: PaymentReceipt): string {
         return left + ' '.repeat(spaces) + right;
     };
 
+    // Date formatting
+    const dateStr = timestamp.toLocaleDateString('en-IN', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+    const timeStr = timestamp.toLocaleTimeString('en-IN', {
+        hour: '2-digit', minute: '2-digit', hour12: true
+    });
+
     // Build receipt
     let receipt = '\n';
 
     // Header
     receipt += center('THE CHEEZE TOWN') + '\n';
     receipt += center('Payment Receipt') + '\n';
+    receipt += center(`${dateStr}  ${timeStr}`) + '\n';
     receipt += line('=') + '\n';
 
     // Order Info
@@ -346,37 +349,23 @@ export function formatPaymentReceipt(payment: PaymentReceipt): string {
     }
 
     if (payment.customerName) {
-        receipt += leftRight('Customer:', payment.customerName) + '\n';
+        receipt += leftRight('Customer:', payment.customerName.substring(0, 15)) + '\n';
     }
-
-    // Date and Time
-    const dateStr = timestamp.toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    });
-    const timeStr = timestamp.toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
-    receipt += leftRight('Date:', dateStr) + '\n';
-    receipt += leftRight('Time:', timeStr) + '\n';
 
     receipt += line('=') + '\n';
 
     // Items Header
-    receipt += leftRight('ITEMS', 'AMOUNT') + '\n';
+    receipt += leftRight('ITEM', 'AMOUNT') + '\n';
     receipt += line('-') + '\n';
 
     // Items List
     payment.items.forEach(item => {
-        const itemName = item.name.length > 24
-            ? item.name.substring(0, 21) + '...'
-            : item.name;
+        // Item Name
+        receipt += item.name + '\n';
+
+        // Qty and Total Price
         const itemTotal = item.price * item.quantity;
-        receipt += `${item.quantity}x ${itemName}` + '\n';
-        receipt += leftRight('', `₹${itemTotal.toFixed(2)}`) + '\n';
+        receipt += leftRight(`  ${item.quantity} x ₹${item.price}`, `₹${itemTotal.toFixed(2)}`) + '\n';
     });
 
     receipt += line('-') + '\n';
@@ -405,7 +394,17 @@ export function formatPaymentReceipt(payment: PaymentReceipt): string {
     receipt += center('PAYMENT DETAILS') + '\n';
     receipt += line('-') + '\n';
     receipt += leftRight('Method:', payment.paymentMethod) + '\n';
-    receipt += leftRight('Trans ID:', payment.transactionId) + '\n';
+
+    // Smart handling for Trans ID
+    // 1. If short enough, one line
+    // 2. If long, split or show last chars
+    if (payment.transactionId.length <= (width - 10)) {
+        receipt += leftRight('Trans ID:', payment.transactionId) + '\n';
+    } else {
+        receipt += 'Trans ID:' + '\n';
+        receipt += payment.transactionId + '\n';
+    }
+
     receipt += leftRight('Status:', 'PAID') + '\n';
     receipt += line('-') + '\n';
 
@@ -417,13 +416,12 @@ export function formatPaymentReceipt(payment: PaymentReceipt): string {
 
     // Order Type
     if (payment.orderType) {
-        const orderTypeText = payment.orderType.toUpperCase();
-        receipt += center(`[${orderTypeText}]`) + '\n';
+        receipt += center(`[ ${payment.orderType.toUpperCase()} ]`) + '\n';
     }
 
     receipt += '\n';
     receipt += '.\n'; // Printer cut mark
-    receipt += '\n';
+    receipt += '\n\n';
 
     return receipt;
 }

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/i18n';
 import { Colors } from '@/constants/Theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { UpdateChecker } from '@/components/UpdateChecker';
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -202,13 +203,12 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
               icon={<Info size={20} color={Colors.dark.primary} />}
               title="Privacy Policy"
               onPress={() => Alert.alert('Privacy', 'Privacy Policy will be displayed here.')}
-            />
-            <SettingItem
-              icon={<Info size={20} color={Colors.dark.primary} />}
-              title={t('manager.settings.version')}
-              value="1.0.0"
               showArrow={false}
             />
+          </View>
+
+          <View style={{ marginTop: 16, paddingHorizontal: 20 }}>
+            <UpdateChecker />
           </View>
         </View>
 

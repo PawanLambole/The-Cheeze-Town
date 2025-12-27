@@ -25,7 +25,7 @@ export function useSupabaseQuery<T = any>(
             setError(fetchError);
             setData([]);
         } else {
-            setData(fetchedData || []);
+            setData((fetchedData as unknown as T[]) || []);
         }
 
         setLoading(false);
@@ -67,7 +67,7 @@ export function useSupabaseQueryById<T = any>(
             setError(fetchError);
             setData(null);
         } else {
-            setData(fetchedData);
+            setData(fetchedData as T);
         }
 
         setLoading(false);
@@ -150,7 +150,7 @@ export function useSupabaseRealtimeQuery<T = any>(tableName: string) {
             setError(fetchError);
             setData([]);
         } else {
-            setData(fetchedData || []);
+            setData((fetchedData as unknown as T[]) || []);
         }
 
         setLoading(false);
