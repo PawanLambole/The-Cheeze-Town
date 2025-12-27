@@ -46,10 +46,10 @@ export default function MenuPage({ onPlaceOrder, readOnly = false }: MenuPagePro
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker pb-24 md:pb-10 pt-16 md:pt-20">
+    <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker pb-24 md:pb-10">
       {/* Sticky Header */}
       {/* Sticky Header */}
-      <div className="sticky top-16 md:top-20 z-30 bg-brand-dark/95 backdrop-blur-xl border-b border-white/5 shadow-2xl transition-all duration-300">
+      <div className="sticky top-0 z-30 bg-brand-dark/95 backdrop-blur-xl border-b border-white/5 shadow-2xl transition-all duration-300">
         <div className="container mx-auto px-4 py-3 md:py-6">
           <div className="flex flex-col gap-3 md:gap-6">
 

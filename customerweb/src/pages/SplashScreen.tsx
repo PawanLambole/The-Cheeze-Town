@@ -26,16 +26,16 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center">
         {/* Logo Container */}
-        <div className="mb-8 animate-fade-in-up">
+        <div className="mb-6 md:mb-8 animate-fade-in-up">
           <div className="relative group">
             {/* Glow effect */}
             <div className="absolute inset-0 bg-brand-yellow/20 rounded-full blur-2xl group-hover:blur-3xl transition-all duration-500 animate-pulse-glow"></div>
             {/* Logo */}
-            <div className="relative bg-gradient-to-br from-brand-dark to-brand-darker p-6 rounded-full shadow-2xl border-2 border-brand-yellow/30 animate-float">
+            <div className="relative bg-gradient-to-br from-brand-dark to-brand-darker p-4 md:p-6 rounded-full shadow-2xl border-2 border-brand-yellow/30 animate-float">
               <img
                 src="/logo.jpeg"
                 alt="The Cheeze Town Logo"
-                className="w-32 h-32 md:w-48 md:h-48 object-cover rounded-full shadow-lg"
+                className="w-24 h-24 md:w-48 md:h-48 object-cover rounded-full shadow-lg"
               />
             </div>
           </div>
@@ -43,10 +43,10 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
 
         {/* Text Content */}
         <div className="text-center animate-fade-in-up animation-delay-200">
-          <h1 className="text-4xl md:text-6xl font-bold font-serif text-transparent bg-clip-text bg-gradient-to-r from-white via-brand-yellow to-brand-yellow mb-3 tracking-wider">
+          <h1 className="text-3xl md:text-6xl font-bold font-serif text-transparent bg-clip-text bg-gradient-to-r from-white via-brand-yellow to-brand-yellow mb-2 md:mb-3 tracking-wider">
             The Cheeze Town
           </h1>
-          <p className="text-gray-400 text-sm md:text-lg tracking-widest uppercase font-medium">
+          <p className="text-gray-400 text-xs md:text-lg tracking-widest uppercase font-medium">
             Where Every Bite is <span className="text-brand-yellow italic">Cheesy Delight</span>
           </p>
         </div>
