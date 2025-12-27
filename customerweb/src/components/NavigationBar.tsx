@@ -23,15 +23,15 @@ export default function NavigationBar({ activePage, onNavigate, cartCount = 0 }:
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo/Brand */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 md:gap-3">
               <img
                 src="/logo.jpeg"
                 alt="The Cheeze Town"
-                className="w-8 h-8 md:w-10 md:h-10 object-cover rounded-full border-2 border-brand-yellow/50"
+                className="w-10 h-10 md:w-11 md:h-11 object-cover rounded-full border-2 border-brand-yellow/50"
               />
               <div className="flex flex-col">
-                <p className="text-white font-bold text-base md:text-lg leading-none">The Cheeze</p>
-                <p className="text-brand-yellow text-[10px] md:text-xs font-semibold">Town</p>
+                <p className="text-white font-bold text-lg md:text-xl leading-none">The Cheeze</p>
+                <p className="text-brand-yellow text-xs md:text-sm font-semibold">Town</p>
               </div>
             </div>
 

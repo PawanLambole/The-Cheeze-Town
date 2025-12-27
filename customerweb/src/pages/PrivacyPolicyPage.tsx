@@ -2,7 +2,7 @@ import { Card } from '../components';
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="pt-20 pb-20">
+    <div className="min-h-screen overflow-x-hidden">
       {/* Hero */}
       <div className="bg-gradient-to-b from-brand-dark to-brand-darker py-20">
         <div className="container mx-auto px-4 text-center max-w-4xl">
