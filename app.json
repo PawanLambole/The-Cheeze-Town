@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#121212"
     },
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",

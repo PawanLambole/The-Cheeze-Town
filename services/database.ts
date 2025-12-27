@@ -4,13 +4,13 @@ type WhereOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte';
 
 export const database = {
 	async getAll(table: string) {
-		const { data, error } = await supabase.from(table).select('*');
+		const { data, error } = await supabase.from(table as any).select('*');
 		return { data, error };
 	},
 
 	async getById(table: string, id: string | number) {
 		const { data, error } = await supabase
-			.from(table)
+			.from(table as any)
 			.select('*')
 			.eq('id', id)
 			.maybeSingle();
@@ -19,7 +19,7 @@ export const database = {
 
 	async insert(table: string, payload: any) {
 		const { data, error } = await supabase
-			.from(table)
+			.from(table as any)
 			.insert(payload)
 			.select()
 			.maybeSingle();
@@ -28,7 +28,7 @@ export const database = {
 
 	async update(table: string, id: string | number, updates: any) {
 		const { data, error } = await supabase
-			.from(table)
+			.from(table as any)
 			.update(updates)
 			.eq('id', id)
 			.select()
@@ -38,7 +38,7 @@ export const database = {
 
 	async delete(table: string, id: string | number) {
 		const { data, error } = await supabase
-			.from(table)
+			.from(table as any)
 			.delete()
 			.eq('id', id)
 			.select()
@@ -47,7 +47,7 @@ export const database = {
 	},
 
 	async query(table: string, column: string, operator: WhereOperator, value: any) {
-		let q = supabase.from(table).select('*');
+		let q = supabase.from(table as any).select('*');
 		switch (operator) {
 			case 'eq':
 				q = q.eq(column, value);
