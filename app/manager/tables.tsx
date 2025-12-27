@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { ArrowLeft, Users, Clock, Plus, X, ShoppingBag, User, Edit2, Trash2, MoreVertical, QrCode } from 'lucide-react-native';
 import PaymentModal from '../../components/PaymentModal';
 import { printPaymentReceipt } from '../../services/thermalPrinter';
@@ -47,6 +47,7 @@ interface Table {
 
 export default function TablesScreen() {
   const router = useRouter();
+  const segments = useSegments();
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -388,7 +389,10 @@ export default function TablesScreen() {
               {filteredTables.map(table => (
                 <TouchableOpacity
                   key={table.id}
-                  onPress={() => handleTableClick(table)}
+                  onPress={() => {
+                    const basePath = segments[0] === 'owner' ? '/owner' : '/manager';
+                    router.push(`${basePath}/tables/${table.id}` as any);
+                  }}
                   style={styles.tableWrapper}
                 >
                   {/* Top Chair */}
@@ -401,14 +405,30 @@ export default function TablesScreen() {
                   ]}>
 
                     <View style={styles.tableHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[
-                          styles.tableNumberText,
-                          table.status === 'occupied' && { color: Colors.dark.text }
-                        ]}>Table {table.table_number}</Text>
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative' }}>
+                          <Text style={[
+                            styles.tableNumberText,
+                            table.status === 'occupied' && { color: Colors.dark.text }
+                          ]}>Table {table.table_number}</Text>
+
+                          <TouchableOpacity
+                            style={{ position: 'absolute', right: 0, padding: 4 }}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleEditClick(table);
+                            }}
+                          >
+                            <Edit2 size={16} color={Colors.dark.textSecondary} />
+                          </TouchableOpacity>
+                        </View>
+
                         <View style={[
                           styles.statusBadge,
-                          { backgroundColor: table.status === 'available' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }
+                          {
+                            marginTop: 8,
+                            backgroundColor: table.status === 'available' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'
+                          }
                         ]}>
                           <Text style={[
                             styles.statusBadgeText,
@@ -416,95 +436,12 @@ export default function TablesScreen() {
                           ]}>{table.status}</Text>
                         </View>
                       </View>
-
-                      {/* Action Menu for Available Tables */}
-                      {table.status === 'available' && (
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            setShowTableActions(showTableActions === table.id ? null : table.id);
-                          }}
-                          style={styles.actionMenuButton}
-                        >
-                          <MoreVertical size={16} color={Colors.dark.textSecondary} />
-                        </TouchableOpacity>
-                      )}
-
-                      {/* Actions Dropdown */}
-                      {showTableActions === table.id && (
-                        <View style={styles.actionsDropdown}>
-                          <TouchableOpacity
-                            style={styles.actionItem}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              router.push(`/manager/tables/${table.id}` as any);
-                              setShowTableActions(null);
-                            }}
-                          >
-                            <QrCode size={14} color={Colors.dark.primary} />
-                            <Text style={styles.actionText}>View QR Code</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.actionItem}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleEditClick(table);
-                            }}
-                          >
-                            <Edit2 size={14} color={Colors.dark.primary} />
-                            <Text style={styles.actionText}>Edit</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.actionItem, { borderTopWidth: 1, borderTopColor: Colors.dark.border }]}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleDeleteClick(table);
-                            }}
-                          >
-                            <Trash2 size={14} color="#EF4444" />
-                            <Text style={[styles.actionText, { color: '#EF4444' }]}>Delete</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
                     </View>
 
                     <View style={styles.tableInfoRow}>
                       <Users size={14} color={Colors.dark.textSecondary} />
                       <Text style={styles.tableInfoText}>{table.capacity} Seats</Text>
                     </View>
-
-                    {table.status === 'occupied' && (
-                      <View style={styles.activeOrderInfo}>
-                        <View style={styles.tableInfoRow}>
-                          <Clock size={14} color={Colors.dark.textSecondary} />
-                          <Text style={styles.tableInfoText}>{table.duration}</Text>
-                        </View>
-                        <Text style={styles.tableAmount}>₹{table.orderAmount}</Text>
-
-                        <TouchableOpacity
-                          style={[styles.servedToggle, table.isServed && styles.servedToggleActive]}
-                          onPress={async (e) => {
-                            e.stopPropagation();
-                            if (table.order?.id) {
-                              try {
-                                const newStatus = table.isServed ? 'preparing' : 'ready';
-                                await database.update('orders', table.order.id, { status: newStatus });
-                                // Will refresh via subscription
-                              } catch (error) {
-                                console.error('Error updating order:', error);
-                              }
-                            }
-                          }}
-                        >
-                          <Text style={[
-                            styles.servedToggleText,
-                            table.isServed && styles.servedToggleTextActive
-                          ]}>
-                            {table.isServed ? '✓ Served' : 'Pending'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
                   </View>
 
                   {/* Bottom Chair */}

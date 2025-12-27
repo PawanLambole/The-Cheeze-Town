@@ -69,10 +69,27 @@ export const customerDB = {
                 0
             );
 
-            // Generate simple sequential order number with WEB prefix
-            const timestamp = Date.now();
-            const counter = timestamp % 10000; // Last 4 digits for uniqueness
-            const orderNumber = `WEB${counter.toString().padStart(4, '0')}`;
+            // Generate sequential order number with WEB prefix
+            let nextNum = 1;
+
+            // Get the last order that starts with WEB
+            const { data: lastOrders } = await supabase
+                .from('orders')
+                .select('order_number')
+                .like('order_number', 'WEB%')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (lastOrders && lastOrders.length > 0) {
+                const lastId = lastOrders[0].order_number;
+                // Extract number part
+                const numPart = parseInt(lastId.replace('WEB', ''), 10);
+                if (!isNaN(numPart)) {
+                    nextNum = numPart + 1;
+                }
+            }
+
+            const orderNumber = `WEB${nextNum}`;
 
             // 1. Insert the order
             const { data: order, error: orderError } = await supabase

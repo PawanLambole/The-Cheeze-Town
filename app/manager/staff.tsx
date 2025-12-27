@@ -14,7 +14,7 @@ interface StaffMember {
   email: string;
   phone: string;
   role: string;
-  status: 'approved' | 'pending';
+  status?: 'approved' | 'pending';
   joinDate: string;
 }
 
@@ -55,7 +55,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
           email: u.email || '',
           phone: u.phone || '',
           role: u.role,
-          status: (u.status === 'approved') ? 'approved' : 'pending',
+          // status: (u.status === 'approved') ? 'approved' : 'pending',
           joinDate: u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'
         })));
       }
@@ -108,7 +108,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
         email: formEmail.trim(),
         phone: formPhone.trim(),
         role: selectedDesignation,
-        status: isOwnerView ? 'approved' : 'pending',
+        // status removed
         // Default auth_id might be needed if required, but Supabase usually generates it on auth signup.
         // If this is just a 'users' record:
         created_at: new Date().toISOString()
@@ -173,12 +173,10 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
     if (!selectedStaffForApproval) return;
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ status: 'approved' })
-        .eq('id', selectedStaffForApproval);
+      // Status update removed as column doesn't exist
+      // const { error } = await supabase...
 
-      if (error) throw error;
+      // Check if we need to do anything else for approval
       fetchStaff();
     } catch (e) {
       console.error("Error approving staff", e);

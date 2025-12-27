@@ -11,6 +11,8 @@ export default function ContactPage() {
     message: '',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -19,14 +21,47 @@ export default function ContactPage() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    setSubmitted(true);
-    setTimeout(() => {
-      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-      setSubmitted(false);
-    }, 3000);
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Using Web3Forms API (free service)
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          access_key: '0111fc32-5045-4d50-91ad-881408cc7193',
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          subject: `Contact Form: ${formData.subject}`,
+          message: formData.message,
+          to: 'pavanlambole578@gmail.com',
+          from_name: 'The Cheeze Town Website',
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSubmitted(true);
+        setTimeout(() => {
+          setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+          setSubmitted(false);
+        }, 5000);
+      } else {
+        setError('Failed to send message. Please try again or email us directly.');
+      }
+    } catch (err) {
+      console.error('Form submission error:', err);
+      setError('Failed to send message. Please try again or email us directly.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -57,8 +92,8 @@ export default function ContactPage() {
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold text-white mb-2">Phone</h3>
                   <p className="text-gray-400 mb-1">Call us for immediate assistance</p>
-                  <a href="tel:+919876543210" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors">
-                    +91 98765 43210
+                  <a href="tel:+919766573966" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-lg">
+                    +91 97665 73966
                   </a>
                 </div>
               </Card>
@@ -69,10 +104,15 @@ export default function ContactPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold text-white mb-2">Email</h3>
-                  <p className="text-gray-400 mb-1">Send us an email anytime</p>
-                  <a href="mailto:info@cheezetown.com" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors">
-                    info@cheezetown.com
-                  </a>
+                  <p className="text-gray-400 mb-2">Send us an email anytime</p>
+                  <div className="space-y-1">
+                    <a href="mailto:thecheesetown@gmail.com" className="text-brand-yellow font-semibold hover:text-yellow-300 transition-colors block">
+                      thecheesetown@gmail.com
+                    </a>
+                    <a href="mailto:pavanlambole578@gmail.com" className="text-brand-yellow/80 font-medium hover:text-yellow-300 transition-colors block text-sm">
+                      pavanlambole578@gmail.com
+                    </a>
+                  </div>
                 </div>
               </Card>
 
@@ -82,7 +122,11 @@ export default function ContactPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold text-white mb-2">Location</h3>
-                  <p className="text-gray-400">Dhule, Maharashtra, India</p>
+                  <p className="text-gray-400 leading-relaxed">
+                    45, Prashant Nagar, Biladi Road,<br />
+                    Near 12 Feet Hanuman Mandir,<br />
+                    Deopur, Dhule, Maharashtra
+                  </p>
                 </div>
               </Card>
 
@@ -111,6 +155,17 @@ export default function ContactPage() {
                     title="Message Sent!"
                     message="Thank you for reaching out. We will get back to you soon!"
                     dismissible
+                    className="mb-6"
+                  />
+                )}
+
+                {error && (
+                  <Alert
+                    type="error"
+                    title="Sending Failed"
+                    message={error}
+                    dismissible
+                    onClose={() => setError(null)}
                     className="mb-6"
                   />
                 )}
@@ -175,8 +230,9 @@ export default function ContactPage() {
                     icon={<Send className="w-5 h-5" />}
                     iconPosition="right"
                     className="shadow-lg shadow-brand-yellow/20"
+                    disabled={isSubmitting}
                   >
-                    Send Message
+                    {isSubmitting ? 'Sending...' : 'Send Message'}
                   </Button>
                 </form>
               </Card>

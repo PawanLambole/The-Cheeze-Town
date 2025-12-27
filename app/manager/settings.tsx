@@ -62,7 +62,7 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
   const { signOut } = useAuth();
 
 
-  const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
+
   const insets = useSafeAreaInsets();
 
 
@@ -143,15 +143,7 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
                 onPress={() => Alert.alert('Coming Soon', 'Tax Settings will be available in the next update.')}
               />
             )}
-            <SettingItem
-              icon={<Printer size={20} color={Colors.dark.primary} />}
-              title="Auto Print Bills"
-              subtitle="Automatically print bills after payment"
-              hasSwitch
-              switchValue={autoPrintEnabled}
-              onSwitchChange={setAutoPrintEnabled}
-              showArrow={false}
-            />
+
           </View>
         </View>
 

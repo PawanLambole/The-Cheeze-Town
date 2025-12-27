@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, X, Camera, User, Package, IndianRupee, Calendar, Image
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/Theme';
 import { database, supabase } from '@/services/database';
+import { uploadImage } from '@/services/imageUpload';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
 
@@ -17,8 +18,7 @@ interface Purchase {
     quantity: number;
     unit: string;
     totalPrice: number;
-    supplier: string;
-    assignedTo: string;
+
     purchaseDate: string;
     receiptPhoto?: string;
     notes?: string;
@@ -37,7 +37,7 @@ export default function PurchasesScreen() {
     const [formUnit, setFormUnit] = useState('kg');
     const [formPrice, setFormPrice] = useState('');
     const [formSupplier, setFormSupplier] = useState('');
-    const [formAssignedTo, setFormAssignedTo] = useState('');
+
     const [formNotes, setFormNotes] = useState('');
     const [formReceiptPhoto, setFormReceiptPhoto] = useState<string | undefined>(undefined);
     const [formMinStock, setFormMinStock] = useState('');
@@ -83,8 +83,7 @@ export default function PurchasesScreen() {
                 quantity: Number(p.quantity),
                 unit: p.unit,
                 totalPrice: Number(p.total_price),
-                supplier: p.supplier || 'N/A',
-                assignedTo: p.assigned_to,
+
                 purchaseDate: p.purchase_date,
                 receiptPhoto: p.receipt_photo,
                 notes: p.notes,
@@ -103,9 +102,7 @@ export default function PurchasesScreen() {
     );
 
     const filteredPurchases = purchases.filter(purchase =>
-        purchase.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        purchase.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        purchase.assignedTo.toLowerCase().includes(searchQuery.toLowerCase())
+        purchase.category.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const totalSpent = purchases.reduce((sum, purchase) => sum + purchase.totalPrice, 0);
@@ -118,7 +115,7 @@ export default function PurchasesScreen() {
         setFormUnit('kg');
         setFormPrice('');
         setFormSupplier('');
-        setFormAssignedTo('');
+
         setFormNotes('');
         setFormReceiptPhoto(undefined);
         setFormMinStock('');
@@ -136,9 +133,8 @@ export default function PurchasesScreen() {
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
+            allowsEditing: false,
+            quality: 1,
         });
 
         if (!result.canceled) {
@@ -148,9 +144,8 @@ export default function PurchasesScreen() {
 
     const takePhoto = async () => {
         const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
+            allowsEditing: false,
+            quality: 1,
         });
 
         if (!result.canceled) {
@@ -159,7 +154,7 @@ export default function PurchasesScreen() {
     };
 
     const handleAddPurchase = async () => {
-        if (!formItemName.trim() || !formQuantity || !formPrice || !formAssignedTo.trim()) {
+        if (!formItemName.trim() || !formQuantity || !formPrice) {
             return;
         }
 
@@ -170,17 +165,24 @@ export default function PurchasesScreen() {
         }
 
         try {
+            let receiptUrl = formReceiptPhoto;
+            if (formReceiptPhoto && formReceiptPhoto.startsWith('file://')) {
+                receiptUrl = await uploadImage(formReceiptPhoto, 'purchase') || undefined;
+            }
+
+            const unitPrice = parseFloat(formPrice);
+            const quantity = parseFloat(formQuantity);
+            const totalAmount = unitPrice * quantity;
+
             const newPurchase = {
-                purchase_type: formPurchaseType,
                 item_name: formItemName.trim(),
                 category: formCategory || 'Other',
-                quantity: parseFloat(formQuantity),
+                quantity: quantity,
                 unit: formUnit,
-                total_price: parseFloat(formPrice),
-                supplier: formSupplier.trim() || 'N/A',
-                assigned_to: formAssignedTo.trim(),
-                purchase_date: new Date().toISOString().split('T')[0],
-                receipt_photo: formReceiptPhoto,
+                unit_price: unitPrice,
+                total_amount: totalAmount,
+                created_at: new Date().toISOString(),
+                receipt_url: receiptUrl,
                 notes: formNotes.trim() || null,
             };
 
@@ -195,21 +197,22 @@ export default function PurchasesScreen() {
             if (formPurchaseType === 'inventory') {
                 // Check if item exists in inventory_items to update stock
                 const { data: existingItems } = await supabase
-                    .from('inventory_items')
+                    .from('inventory')
                     .select('*')
-                    .ilike('name', formItemName.trim());
+                    .ilike('item_name', formItemName.trim());
 
                 if (existingItems && existingItems.length > 0) {
-                    const item = existingItems[0];
-                    await supabase.from('inventory_items').update({
-                        current_stock: (Number(item.current_stock) + parseFloat(formQuantity))
+                    const item: any = existingItems[0];
+                    await supabase.from('inventory').update({
+                        // Checking types via linter
+                        quantity: (Number(item.quantity) + parseFloat(formQuantity))
                     }).eq('id', item.id);
                 } else {
-                    await supabase.from('inventory_items').insert([{
-                        name: formItemName.trim(),
+                    await supabase.from('inventory').insert([{
+                        item_name: formItemName.trim(),
                         category: formCategory || 'Other',
                         unit: formUnit,
-                        current_stock: parseFloat(formQuantity),
+                        quantity: parseFloat(formQuantity),
                         min_stock: parseFloat(formMinStock) || 0
                     }]);
                 }
@@ -295,20 +298,12 @@ export default function PurchasesScreen() {
                                     {purchase.quantity} {purchase.unit}
                                 </Text>
                             </View>
-                            <View style={styles.detailRow}>
-                                <User size={14} color={Colors.dark.textSecondary} />
-                                <Text style={styles.detailText}>{purchase.assignedTo}</Text>
-                            </View>
+
                             <View style={styles.detailRow}>
                                 <Calendar size={14} color={Colors.dark.textSecondary} />
                                 <Text style={styles.detailText}>{purchase.purchaseDate}</Text>
                             </View>
-                            {purchase.supplier !== 'N/A' && (
-                                <View style={styles.detailRow}>
-                                    <User size={14} color={Colors.dark.textSecondary} />
-                                    <Text style={styles.detailText}>{purchase.supplier}</Text>
-                                </View>
-                            )}
+
                         </View>
 
                         {purchase.notes && (
@@ -481,12 +476,21 @@ export default function PurchasesScreen() {
 
                             <TextInput
                                 style={styles.input}
-                                placeholder="Total Price (₹) *"
+                                placeholder="Unit Price (₹ per unit) *"
                                 placeholderTextColor={Colors.dark.textSecondary}
                                 keyboardType="numeric"
                                 value={formPrice}
                                 onChangeText={setFormPrice}
                             />
+
+                            {formPrice && formQuantity && (
+                                <View style={styles.totalAmountDisplay}>
+                                    <Text style={styles.totalAmountLabel}>Total Amount:</Text>
+                                    <Text style={styles.totalAmountValue}>
+                                        ₹{(parseFloat(formPrice) * parseFloat(formQuantity)).toFixed(2)}
+                                    </Text>
+                                </View>
+                            )}
 
                             {formPurchaseType === 'inventory' && (
                                 <TextInput
@@ -507,13 +511,7 @@ export default function PurchasesScreen() {
                                 onChangeText={setFormSupplier}
                             />
 
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Assigned To (Person's Name) *"
-                                placeholderTextColor={Colors.dark.textSecondary}
-                                value={formAssignedTo}
-                                onChangeText={setFormAssignedTo}
-                            />
+
 
                             <TextInput
                                 style={[styles.input, styles.textArea]}
@@ -975,5 +973,26 @@ const styles = StyleSheet.create({
     autocompleteItemUnit: {
         fontSize: 11,
         color: Colors.dark.text,
+    },
+    totalAmountDisplay: {
+        backgroundColor: Colors.dark.secondary,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    totalAmountLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: Colors.dark.textSecondary,
+    },
+    totalAmountValue: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: Colors.dark.primary,
     },
 });

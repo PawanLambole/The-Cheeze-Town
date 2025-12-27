@@ -75,15 +75,19 @@ export default function OwnerDashboardScreen() {
   const fetchDashboardData = async () => {
     if (!refreshing) setRefreshing(true);
     try {
-      // 1. Get ALL orders for total revenue
-      // We explicitly select orders that are completed or served to calculate actual revenue
-      const { data: allOrders, error: ordersError } = await supabase
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayISO = todayStart.toISOString();
+
+      // 1. Get TODAY'S orders for revenue
+      const { data: todaysOrders, error: ordersError } = await supabase
         .from('orders')
-        .select('total_amount, status');
+        .select('total_amount, status')
+        .gte('created_at', todayISO);
 
       if (ordersError) throw ordersError;
 
-      const validOrders = (allOrders || []).filter((o: any) =>
+      const validOrders = (todaysOrders || []).filter((o: any) =>
         o.status === 'completed' || o.status === 'served'
       );
 
@@ -92,17 +96,18 @@ export default function OwnerDashboardScreen() {
       // Calculate Total Revenue
       const revenue = validOrders.reduce((sum: number, order: any) => sum + (Number(order.total_amount) || 0), 0);
 
-      // 2. Get pending orders count (Real-time status)
+      // 2. Get pending orders count (Real-time status) - This remains "Active Right Now"
       const { data: pendingData } = await database.query('orders', 'status', 'eq', 'pending');
       const { data: preparingData } = await database.query('orders', 'status', 'eq', 'preparing');
       const pendingCount = (pendingData?.length || 0) + (preparingData?.length || 0);
 
-      // 3. Get TOTAL expenses from purchases table
-      const { data: allPurchases } = await supabase
+      // 3. Get TODAY'S expenses from purchases table
+      const { data: todaysPurchases } = await supabase
         .from('purchases')
-        .select('total_price');
+        .select('total_price')
+        .gte('created_at', todayISO);
 
-      const expenses = (allPurchases || []).reduce((sum: number, p: any) => sum + (Number(p.total_price) || 0), 0);
+      const expenses = (todaysPurchases || []).reduce((sum: number, p: any) => sum + (Number(p.total_price) || 0), 0);
 
       setStats({
         totalRevenue: revenue,
@@ -174,16 +179,16 @@ export default function OwnerDashboardScreen() {
           <View style={styles.overviewRow}>
             <OwnerCard
               icon={<IndianRupee size={22} color="#16A34A" />}
-              title="Total Revenue"
+              title="Today's Revenue"
               value={`₹${stats.totalRevenue.toLocaleString()}`}
-              subtitle="Lifetime earnings"
+              subtitle="Today's earnings"
               onPress={() => router.push('/owner/revenue')}
             />
             <OwnerCard
               icon={<ClipboardList size={22} color="#2563EB" />}
-              title="Total Orders"
+              title="Today's Orders"
               value={stats.totalOrders.toString()}
-              subtitle="Completed orders"
+              subtitle="Completed today"
               onPress={() => router.push('/owner/orders')}
             />
           </View>
@@ -191,9 +196,9 @@ export default function OwnerDashboardScreen() {
           <View style={styles.overviewRow}>
             <OwnerCard
               icon={<TrendingDown size={22} color="#EF4444" />}
-              title="Total Expense"
+              title="Today's Expense"
               value={`₹${stats.totalExpense.toLocaleString()}`}
-              subtitle="Lifetime costs"
+              subtitle="Today's costs"
               onPress={() => router.push('/owner/expenses')}
             />
             <OwnerCard
@@ -206,7 +211,7 @@ export default function OwnerDashboardScreen() {
           </View>
 
           <View style={styles.reportCard}>
-            <Text style={styles.reportTitle}>Financial Overview (Lifetime)</Text>
+            <Text style={styles.reportTitle}>Financial Overview (Today)</Text>
             <View style={styles.reportRow}>
               <View style={styles.reportItem}>
                 <Text style={styles.reportLabel}>Total Sales</Text>

@@ -22,6 +22,7 @@ import { Platform } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { NotificationSettingsProvider } from '@/contexts/NotificationSettingsContext';
+import { UpdateProvider } from '@/contexts/UpdateContext';
 import '@/i18n'; // Initialize i18n
 
 function RootLayoutNav() {
@@ -75,7 +76,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <NotificationSettingsProvider>
-        <RootLayoutNav />
+        <UpdateProvider checkOnMount={true} checkOnResume={true} checkInterval={24}>
+          <RootLayoutNav />
+        </UpdateProvider>
       </NotificationSettingsProvider>
     </AuthProvider>
   );

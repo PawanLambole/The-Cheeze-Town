@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Search, Edit2, Trash2, X, Camera, Image as ImageIcon }
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/Theme';
 import { database, supabase } from '@/services/database';
+import { uploadImage } from '@/services/imageUpload';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
 
@@ -14,7 +15,6 @@ interface MenuItem {
   name: string;
   category: string;
   price: number;
-  status: 'approved' | 'pending';
   image?: string;
 }
 
@@ -34,10 +34,42 @@ export default function MenuScreen() {
   const [formImage, setFormImage] = useState<string | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const categories = ['All', 'Starters', 'Main Course', 'Beverages', 'Desserts'];
-
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Category Autocomplete State
+  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
+  const [categorySuggestions, setCategorySuggestions] = useState<string[]>([]);
+
+  // Derived unique categories for suggestions (combining defaults and existing items)
+  const uniqueCategories = Array.from(new Set([
+    'Starters', 'Main Course', 'Beverages', 'Desserts',
+    ...menuItems.map(item => item.category)
+  ])).sort();
+
+  // Dynamic categories for filter chips (includes "All" + unique categories from menu)
+  const categories = ['All', ...uniqueCategories];
+
+  const handleCategoryChange = (text: string) => {
+    setFormCategory(text);
+    if (text.trim().length > 0) {
+      const filtered = uniqueCategories.filter(c =>
+        c.toLowerCase().includes(text.toLowerCase()) && c.toLowerCase() !== text.toLowerCase()
+      );
+      setCategorySuggestions(filtered);
+      setShowCategorySuggestions(filtered.length > 0);
+    } else {
+      setShowCategorySuggestions(false);
+    }
+  };
+
+  const handleSelectCategory = (category: string) => {
+    setFormCategory(category);
+    setShowCategorySuggestions(false);
+  };
+
+
+
 
   const fetchMenuItems = async () => {
     if (!refreshing) setRefreshing(true);
@@ -54,7 +86,6 @@ export default function MenuScreen() {
         name: i.name,
         category: i.category,
         price: Number(i.price),
-        status: i.status as 'approved' | 'pending',
         image: i.image_url
       }));
 
@@ -122,12 +153,16 @@ export default function MenuScreen() {
     }
 
     try {
+      let imageUrl = formImage;
+      if (formImage && formImage.startsWith('file://')) {
+        imageUrl = await uploadImage(formImage, 'menu') || undefined;
+      }
+
       const newItem = {
         name: formName.trim(),
         category: formCategory.trim(),
         price: priceNum,
-        status: isOwnerView ? 'approved' : 'pending',
-        image_url: formImage
+        image_url: imageUrl
       };
 
       const { error } = await supabase.from('menu_items').insert([newItem]);
@@ -159,17 +194,23 @@ export default function MenuScreen() {
     }
 
     try {
+      let imageUrl = formImage;
+      if (formImage && formImage.startsWith('file://')) {
+        const uploaded = await uploadImage(formImage, 'menu');
+        if (uploaded) imageUrl = uploaded;
+      }
+
       const updates = {
         name: formName.trim(),
         category: formCategory.trim(),
         price: priceNum,
-        image_url: formImage
+        image_url: imageUrl
       };
 
       const { error } = await supabase
         .from('menu_items')
         .update(updates)
-        .eq('id', editItem.id);
+        .eq('id', editItem.id as any);
 
       if (error) throw error;
 
@@ -194,7 +235,7 @@ export default function MenuScreen() {
         const { error } = await supabase
           .from('menu_items')
           .delete()
-          .eq('id', deleteItem.id);
+          .eq('id', deleteItem.id as any);
 
         if (error) throw error;
 
@@ -213,21 +254,7 @@ export default function MenuScreen() {
     setDeleteItem(null);
   };
 
-  const handleApproveItem = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('menu_items')
-        .update({ status: 'approved' })
-        .eq('id', id);
 
-      if (error) throw error;
-
-      fetchMenuItems();
-    } catch (e) {
-      console.error("Error approving item", e);
-      alert("Failed to approve");
-    }
-  };
 
   /* ... existing code ... */
   const insets = useSafeAreaInsets();
@@ -299,46 +326,20 @@ export default function MenuScreen() {
                   <Text style={styles.cardCategory} numberOfLines={1}>{item.category}</Text>
                   <View style={styles.cardFooter}>
                     <Text style={styles.cardPrice}>₹{item.price}</Text>
-                    <View
-                      style={[
-                        styles.cardStatus,
-                        item.status === 'approved' ? styles.cardStatusApproved : styles.cardStatusPending,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.cardStatusText,
-                          item.status === 'approved' ? styles.cardStatusTextApproved : styles.cardStatusTextPending,
-                        ]}
-                      >
-                        {item.status === 'approved' ? 'Approved' : 'Pending'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.cardActions}>
-                    <TouchableOpacity
-                      style={styles.cardActionButton}
-                      onPress={() => handleOpenEdit(item)}
-                      disabled={!isOwnerView && item.status === 'approved'}
-                    >
-                      <Edit2
-                        size={16}
-                        color={!isOwnerView && item.status === 'approved' ? Colors.dark.textSecondary : Colors.dark.text}
-                      />
-                    </TouchableOpacity>
-                    {isOwnerView && item.status === 'pending' && (
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
                       <TouchableOpacity
-                        style={styles.cardActionButton}
-                        onPress={() => handleApproveItem(item.id)}
+                        style={{ padding: 6, backgroundColor: Colors.dark.secondary, borderRadius: 6 }}
+                        onPress={() => handleOpenEdit(item)}
                       >
-                        <Text style={styles.cardApproveText}>Approve</Text>
+                        <Edit2 size={16} color={Colors.dark.text} />
                       </TouchableOpacity>
-                    )}
-                    {(isOwnerView || item.status === 'pending') && (
-                      <TouchableOpacity style={styles.cardActionButton} onPress={() => handleDelete(item)}>
-                        <Trash2 size={16} color="#EF4444" />
+                      <TouchableOpacity
+                        style={{ padding: 6, backgroundColor: '#EF4444', borderRadius: 6 }}
+                        onPress={() => handleDelete(item)}
+                      >
+                        <Trash2 size={16} color="#FFFFFF" />
                       </TouchableOpacity>
-                    )}
+                    </View>
                   </View>
                 </View>
               </View>
@@ -358,7 +359,34 @@ export default function MenuScreen() {
             </View>
             <ScrollView>
               <TextInput style={styles.input} placeholder="Item Name" placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
-              <TextInput style={styles.input} placeholder="Category" placeholderTextColor={Colors.dark.textSecondary} value={formCategory} onChangeText={setFormCategory} />
+              <View style={styles.categoryInputContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Category"
+                  placeholderTextColor={Colors.dark.textSecondary}
+                  value={formCategory}
+                  onChangeText={handleCategoryChange}
+                  onFocus={() => {
+                    const filtered = uniqueCategories.filter(c => c.toLowerCase().includes(formCategory.toLowerCase()));
+                    setCategorySuggestions(filtered);
+                    setShowCategorySuggestions(true);
+                  }}
+                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
+                />
+                {showCategorySuggestions && categorySuggestions.length > 0 && (
+                  <ScrollView style={styles.suggestionList} nestedScrollEnabled>
+                    {categorySuggestions.map((item, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.suggestionItem}
+                        onPress={() => handleSelectCategory(item)}
+                      >
+                        <Text style={styles.suggestionText}>{item}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
               <TextInput style={styles.input} placeholder="Price" placeholderTextColor={Colors.dark.textSecondary} keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
 
               <Text style={styles.photoLabel}>Item Photo (Optional)</Text>
@@ -400,7 +428,34 @@ export default function MenuScreen() {
             </View>
             <ScrollView>
               <TextInput style={styles.input} placeholder="Item Name" placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
-              <TextInput style={styles.input} placeholder="Category" placeholderTextColor={Colors.dark.textSecondary} value={formCategory} onChangeText={setFormCategory} />
+              <View style={styles.categoryInputContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Category"
+                  placeholderTextColor={Colors.dark.textSecondary}
+                  value={formCategory}
+                  onChangeText={handleCategoryChange}
+                  onFocus={() => {
+                    const filtered = uniqueCategories.filter(c => c.toLowerCase().includes(formCategory.toLowerCase()));
+                    setCategorySuggestions(filtered);
+                    setShowCategorySuggestions(true);
+                  }}
+                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
+                />
+                {showCategorySuggestions && categorySuggestions.length > 0 && (
+                  <ScrollView style={styles.suggestionList} nestedScrollEnabled>
+                    {categorySuggestions.map((item, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.suggestionItem}
+                        onPress={() => handleSelectCategory(item)}
+                      >
+                        <Text style={styles.suggestionText}>{item}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
               <TextInput style={styles.input} placeholder="Price" placeholderTextColor={Colors.dark.textSecondary} keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
 
               <Text style={styles.photoLabel}>Item Photo (Optional)</Text>
@@ -772,5 +827,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  suggestionList: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    maxHeight: 150,
+    backgroundColor: Colors.dark.card,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 8,
+    marginTop: 4,
+    zIndex: 1000,
+    elevation: 5,
+  },
+  categoryInputContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  suggestionItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border,
+  },
+  suggestionText: {
+    color: Colors.dark.text,
+    fontSize: 14,
   },
 });
