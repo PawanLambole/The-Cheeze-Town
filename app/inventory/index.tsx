@@ -42,13 +42,13 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
   const fetchInventory = async () => {
     if (!refreshing) setRefreshing(true);
     try {
-      const { data } = await supabase.from('inventory_items').select('*').order('name');
+      const { data } = await supabase.from('inventory').select('*').order('item_name');
       if (data) {
         setInventory(data.map((i: any) => ({
           id: String(i.id),
-          name: i.name,
+          name: i.item_name,
           category: i.category,
-          currentStock: Number(i.current_stock),
+          currentStock: Number(i.quantity),
           minStock: Number(i.min_stock),
           unit: i.unit,
           lastRestocked: 'Recently'
@@ -82,14 +82,14 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
 
     try {
       const newItem = {
-        name: newItemName.trim(),
+        item_name: newItemName.trim(),
         category: newItemCategory.trim(),
-        current_stock: parseFloat(newItemStock),
+        quantity: parseFloat(newItemStock),
         min_stock: parseFloat(newItemMinStock),
         unit: newItemUnit
       };
 
-      const { error } = await supabase.from('inventory_items').insert([newItem]);
+      const { error } = await supabase.from('inventory').insert([newItem]);
       if (error) throw error;
 
       fetchInventory();
@@ -113,9 +113,9 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
 
     try {
       const { error } = await supabase
-        .from('inventory_items')
-        .update({ current_stock: newStock })
-        .eq('id', selectedItem.id);
+        .from('inventory')
+        .update({ quantity: newStock })
+        .eq('id', selectedItem.id as any);
 
       if (error) throw error;
 

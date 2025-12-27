@@ -1,10 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl, ActivityIndicator, Modal, FlatList, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { ArrowLeft, TrendingUp, IndianRupee, ShoppingBag, Clock, Users } from 'lucide-react-native';
+import { ArrowLeft, TrendingUp, IndianRupee, ShoppingBag, Clock, Users, X } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
 import { supabase } from '@/services/database';
+
+interface OrderItem {
+    name: string;
+    quantity: number;
+}
 
 interface RevenueItem {
     id: string;
@@ -13,6 +18,7 @@ interface RevenueItem {
     amount: number;
     time: string;
     items: number;
+    orderItems: OrderItem[];
 }
 
 interface CategoryStats {
@@ -29,6 +35,7 @@ export default function RevenueScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [hourlyData, setHourlyData] = useState<Array<{ hour: string; amount: number }>>([]);
+    const [selectedOrder, setSelectedOrder] = useState<RevenueItem | null>(null);
 
     const formatTime = (dateString: string) => {
         const date = new Date(dateString);
@@ -43,7 +50,12 @@ export default function RevenueScreen() {
     const fetchRevenueData = async () => {
         if (!loading && !refreshing) setRefreshing(true);
         try {
-            // Fetch ALL completed/served orders for LIFETIME revenue
+            // Get start and end of today
+            const now = new Date();
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
+            const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+
+            // Fetch COMPLETED/SERVED orders for TODAY
             const { data: ordersData, error } = await supabase
                 .from('orders')
                 .select(`
@@ -57,6 +69,8 @@ export default function RevenueScreen() {
                     )
                 `)
                 .in('status', ['completed', 'served'])
+                .gte('created_at', startOfDay)
+                .lte('created_at', endOfDay)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -70,13 +84,19 @@ export default function RevenueScreen() {
                         firstItem.includes('Drink') || firstItem.includes('Beverage') ? 'Beverages' :
                             firstItem.includes('Dessert') ? 'Desserts' : 'Main Course';
 
+                const orderItems = order.order_items?.map((item: any) => ({
+                    name: item.menu_item_name,
+                    quantity: item.quantity
+                })) || [];
+
                 return {
                     id: String(order.id),
                     orderId: order.order_number,
                     category: category,
                     amount: Number(order.total_amount),
                     time: formatTime(order.created_at),
-                    items: order.order_items?.length || 0
+                    items: order.order_items?.length || 0,
+                    orderItems: orderItems
                 };
             });
 
@@ -85,8 +105,16 @@ export default function RevenueScreen() {
             // Calculate hourly data
             const hourlyMap: Record<number, number> = {};
             items.forEach(item => {
-                const hour = getHourFromDate(item.time);
-                hourlyMap[hour] = (hourlyMap[hour] || 0) + item.amount;
+                const hour = getHourFromDate(new Date().toISOString().split('T')[0] + ' ' + item.time);
+
+                // Let's parse '8:30 PM' back to hour.
+                const [timePart, ampm] = item.time.split(' ');
+                const [hStr] = timePart.split(':');
+                let h = parseInt(hStr);
+                if (ampm === 'PM' && h !== 12) h += 12;
+                if (ampm === 'AM' && h === 12) h = 0;
+
+                hourlyMap[h] = (hourlyMap[h] || 0) + item.amount;
             });
 
             // Create hourly data array for the chart
@@ -184,7 +212,7 @@ export default function RevenueScreen() {
                                 <TrendingUp size={32} color={Colors.dark.primary} />
                             </View>
                             <View>
-                                <Text style={styles.totalLabel}>Total Lifetime Revenue</Text>
+                                <Text style={styles.totalLabel}>Today's Revenue</Text>
                                 <Text style={styles.totalAmount}>₹{totalRevenue.toLocaleString()}</Text>
                                 <Text style={styles.totalOrders}>{totalOrders} completed orders</Text>
                             </View>
@@ -261,15 +289,19 @@ export default function RevenueScreen() {
                             </View>
                         )}
 
-                        {/* Recent Orders */}
+                        {/* Today's Orders */}
                         {revenueItems.length > 0 && (
                             <>
                                 <View style={styles.sectionHeader}>
-                                    <Text style={styles.sectionTitle}>Recent Orders</Text>
+                                    <Text style={styles.sectionTitle}>Today's Orders</Text>
                                 </View>
 
                                 {revenueItems.map(item => (
-                                    <View key={item.id} style={styles.orderCard}>
+                                    <TouchableOpacity
+                                        key={item.id}
+                                        style={styles.orderCard}
+                                        onPress={() => setSelectedOrder(item)}
+                                    >
                                         <View style={styles.orderIcon}>
                                             <ShoppingBag size={20} color={Colors.dark.primary} />
                                         </View>
@@ -284,7 +316,7 @@ export default function RevenueScreen() {
                                             </View>
                                         </View>
                                         <Text style={styles.orderAmount}>₹{item.amount}</Text>
-                                    </View>
+                                    </TouchableOpacity>
                                 ))}
                             </>
                         )}
@@ -301,6 +333,61 @@ export default function RevenueScreen() {
                     </>
                 )}
             </ScrollView>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={!!selectedOrder}
+                onRequestClose={() => setSelectedOrder(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Order Details</Text>
+                            <TouchableOpacity onPress={() => setSelectedOrder(null)}>
+                                <X size={24} color={Colors.dark.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {selectedOrder && (
+                            <ScrollView style={styles.modalBody}>
+                                <View style={styles.modalOrderHeader}>
+                                    <Text style={styles.modalOrderId}>Order #{selectedOrder.orderId}</Text>
+                                    <Text style={styles.modalOrderTime}>{selectedOrder.time}</Text>
+                                </View>
+
+                                <View style={styles.divider} />
+
+                                <Text style={styles.itemsLabel}>Items</Text>
+                                {selectedOrder.orderItems.map((item, index) => (
+                                    <View key={index} style={styles.itemRow}>
+                                        <View style={styles.itemInfo}>
+                                            <Text style={styles.itemQuantity}>{item.quantity}x</Text>
+                                            <Text style={styles.itemName}>{item.name}</Text>
+                                        </View>
+                                    </View>
+                                ))}
+
+                                <View style={styles.divider} />
+
+                                <View style={styles.totalRow}>
+                                    <Text style={styles.totalRowLabel}>Total Amount</Text>
+                                    <Text style={styles.totalRowValue}>₹{selectedOrder.amount}</Text>
+                                </View>
+                            </ScrollView>
+                        )}
+
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setSelectedOrder(null)}
+                            >
+                                <Text style={styles.closeButtonText}>Close</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -576,5 +663,110 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: Colors.dark.textSecondary,
         textAlign: 'center',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: Colors.dark.card,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        maxHeight: '80%',
+        paddingBottom: 40,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.dark.border,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: Colors.dark.text,
+    },
+    modalBody: {
+        padding: 20,
+    },
+    modalOrderHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    modalOrderId: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: Colors.dark.text,
+    },
+    modalOrderTime: {
+        fontSize: 14,
+        color: Colors.dark.textSecondary,
+    },
+    itemsLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.dark.textSecondary,
+        marginBottom: 12,
+    },
+    itemRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    itemInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    itemQuantity: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: Colors.dark.primary,
+        width: 30,
+    },
+    itemName: {
+        fontSize: 16,
+        color: Colors.dark.text,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: Colors.dark.border,
+        marginVertical: 16,
+    },
+    totalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    totalRowLabel: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: Colors.dark.text,
+    },
+    totalRowValue: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: Colors.dark.primary,
+    },
+    modalFooter: {
+        paddingHorizontal: 20,
+        paddingTop: 10,
+    },
+    closeButton: {
+        backgroundColor: Colors.dark.primary,
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    closeButtonText: {
+        color: '#000',
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

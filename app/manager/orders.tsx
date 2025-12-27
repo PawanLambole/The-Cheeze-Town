@@ -297,13 +297,22 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                             onPress={() => handleOrderClick(order)}
                         >
                             <View style={styles.orderHeader}>
-                                <View style={styles.orderHeaderLeft}>
-                                    <Text style={styles.orderId}>#{order.orderId}</Text>
-                                    <View style={styles.tableTag}>
-                                        <Table size={12} color="#000000" />
-                                        <Text style={styles.tableNo}>{t('common.table')} {order.tableNo}</Text>
+                                <View>
+                                    <View style={styles.orderHeaderTop}>
+                                        <Text style={styles.orderId}>#{order.orderId}</Text>
+                                        <View style={styles.tableTag}>
+                                            <Table size={12} color="#000000" />
+                                            <Text style={styles.tableNo}>{t('common.table')} {order.tableNo}</Text>
+                                        </View>
                                     </View>
+                                    {order.customerName && (
+                                        <View style={styles.customerInfo}>
+                                            <User size={12} color={Colors.dark.textSecondary} />
+                                            <Text style={styles.customerName}>{order.customerName}</Text>
+                                        </View>
+                                    )}
                                 </View>
+
                                 <TouchableOpacity
                                     style={[styles.statusToggleCompact, order.isServed && styles.statusToggleCompactServed]}
                                     onPress={(e) => {
@@ -324,15 +333,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                 </TouchableOpacity>
                             </View>
 
-                            {order.customerName && (
-                                <View style={styles.customerInfo}>
-                                    <User size={14} color={Colors.dark.textSecondary} />
-                                    <Text style={styles.customerName}>{order.customerName}</Text>
-                                </View>
-                            )}
-
                             <View style={styles.itemsContainer}>
-                                <Text style={styles.itemsLabel}>{t('common.items')}:</Text>
                                 <Text style={styles.itemsList} numberOfLines={2}>
                                     {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
                                 </Text>
@@ -340,20 +341,24 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
 
                             <View style={styles.orderFooter}>
                                 <View style={styles.timeContainer}>
-                                    <Clock size={12} color={Colors.dark.textSecondary} />
+                                    <Clock size={14} color={Colors.dark.textSecondary} />
                                     <Text style={styles.timeText}>{order.time}</Text>
                                 </View>
-                                <TouchableOpacity
-                                    style={styles.addItemButtonCard}
-                                    onPress={(e) => {
-                                        e.stopPropagation();
-                                        setOrderForAddItem(order);
-                                        setShowAddItemModal(true);
-                                    }}
-                                >
-                                    <Text style={styles.addItemButtonCardText}>Add Item</Text>
-                                </TouchableOpacity>
-                                <Text style={styles.totalAmount}>₹{order.totalAmount.toFixed(2)}</Text>
+
+                                <View style={styles.footerRight}>
+                                    <TouchableOpacity
+                                        style={styles.addItemButtonCard}
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            setOrderForAddItem(order);
+                                            setShowAddItemModal(true);
+                                        }}
+                                    >
+                                        <Plus size={14} color="#000000" />
+                                        <Text style={styles.addItemButtonCardText}>Add</Text>
+                                    </TouchableOpacity>
+                                    <Text style={styles.totalAmount}>₹{order.totalAmount.toFixed(2)}</Text>
+                                </View>
                             </View>
                         </TouchableOpacity>
                     ))}
@@ -894,10 +899,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 8,
     },
-    orderHeaderLeft: {
+    orderHeaderTop: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 8,
+        marginBottom: 4,
     },
     orderId: {
         fontSize: 16,
@@ -956,7 +962,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        marginBottom: 8,
+        marginBottom: 0,
     },
     customerName: {
         fontSize: 14,
@@ -964,10 +970,8 @@ const styles = StyleSheet.create({
         color: Colors.dark.textSecondary,
     },
     itemsContainer: {
-        marginBottom: 8,
-        padding: 8,
-        backgroundColor: Colors.dark.secondary,
-        borderRadius: 8,
+        marginVertical: 12,
+        paddingHorizontal: 0,
     },
     itemsLabel: {
         fontSize: 12,
@@ -976,7 +980,7 @@ const styles = StyleSheet.create({
     },
     itemsList: {
         fontSize: 14,
-        color: Colors.dark.text,
+        color: Colors.dark.textSecondary,
         lineHeight: 20,
     },
     orderFooter: {
@@ -997,10 +1001,18 @@ const styles = StyleSheet.create({
         color: Colors.dark.textSecondary,
     },
     addItemButtonCard: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         backgroundColor: Colors.dark.primary,
-        borderRadius: 6,
+        borderRadius: 100,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    footerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
     },
     addItemButtonCardText: {
         fontSize: 12,

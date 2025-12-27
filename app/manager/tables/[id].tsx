@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Share } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Share2, Download, QrCode } from 'lucide-react-native';
+import { ArrowLeft, Share2, Download, QrCode, Trash2, RefreshCcw } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import AES from 'crypto-js/aes';
 import { Colors } from '@/constants/Theme';
-import { supabase } from '@/services/database';
+import { supabase, database } from '@/services/database';
 
 // Configuration
 const SECRET_KEY = "CHEEZETOWN_SECRET";
@@ -17,10 +17,10 @@ const BASE_URL = "https://the-cheeze-town.vercel.app";
 
 export default function TableDetailsScreen() {
     const router = useRouter();
+    const segments = useSegments();
     const insets = useSafeAreaInsets();
     const { id } = useLocalSearchParams();
     const viewShotRef = useRef(null);
-
     const [table, setTable] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [qrValue, setQrValue] = useState('');
@@ -76,16 +76,47 @@ export default function TableDetailsScreen() {
         }
     };
 
+    const handleDelete = async () => {
+        if (!table) return;
+
+        if (table.status === 'occupied') {
+            Alert.alert('Cannot Delete', 'Table is currently occupied. Please complete the order first.');
+            return;
+        }
+
+        Alert.alert(
+            'Delete Table',
+            `Are you sure you want to delete Table ${table.table_number}? This action cannot be undone.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            const { error } = await database.delete('restaurant_tables', table.id);
+                            if (error) throw error;
+                            router.back();
+                        } catch (error) {
+                            console.error('Error deleting table:', error);
+                            Alert.alert('Error', 'Failed to delete table');
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handleDownload = async () => {
         try {
-            const { status } = await MediaLibrary.getPermissionsAsync();
+            // Request write-only permissions to avoid unnecessary AUDIO request on Android 13+
+            const { status } = await MediaLibrary.requestPermissionsAsync(true);
 
             if (status !== 'granted') {
-                const { status: newStatus } = await MediaLibrary.requestPermissionsAsync();
-                if (newStatus !== 'granted') {
-                    Alert.alert('Permission needed', 'Please grant permission to save the QR code.');
-                    return;
-                }
+                Alert.alert('Permission needed', 'Please grant permission to save the QR code.');
+                return;
             }
 
             // @ts-ignore
@@ -109,7 +140,14 @@ export default function TableDetailsScreen() {
     return (
         <View style={styles.container}>
             <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-                <TouchableOpacity onPress={() => router.back()}>
+                <TouchableOpacity onPress={() => {
+                    if (router.canGoBack()) {
+                        router.back();
+                    } else {
+                        const basePath = segments[0] === 'owner' ? '/owner' : '/manager';
+                        router.replace(`${basePath}/tables` as any);
+                    }
+                }}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Table {table.table_number}</Text>
@@ -154,7 +192,15 @@ export default function TableDetailsScreen() {
                 <View style={styles.actionsContainer}>
                     <TouchableOpacity style={styles.actionButton} onPress={handleDownload}>
                         <Download size={20} color="white" />
-                        <Text style={styles.actionButtonText} numberOfLines={1} adjustsFontSizeToFit>Save to Gallery</Text>
+                        <Text style={styles.actionButtonText} numberOfLines={1} adjustsFontSizeToFit>Save</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.secondaryButton]}
+                        onPress={() => generateQrCode(table.id)}
+                    >
+                        <RefreshCcw size={20} color={Colors.dark.text} />
+                        <Text style={styles.secondaryButtonText}>Regenerate</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -173,6 +219,14 @@ export default function TableDetailsScreen() {
                         <Text style={[styles.infoValue, { textTransform: 'capitalize' }]}>{table.location || 'Indoor'}</Text>
                     </View>
                 </View>
+
+                <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={handleDelete}
+                >
+                    <Trash2 size={20} color="#EF4444" />
+                    <Text style={styles.deleteButtonText}>Delete Table</Text>
+                </TouchableOpacity>
 
             </ScrollView>
         </View>
@@ -286,9 +340,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: Colors.dark.border,
     },
-    secondaryButtonText: {
-        color: Colors.dark.text,
-    },
+
     infoCard: {
         width: '100%',
         backgroundColor: Colors.dark.card,
@@ -318,5 +370,28 @@ const styles = StyleSheet.create({
         color: Colors.dark.text,
         fontSize: 16,
         fontWeight: '500',
+    },
+    secondaryButtonText: {
+        color: Colors.dark.text,
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    deleteButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        marginTop: 20,
+        gap: 8,
+        borderRadius: 12,
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.2)',
+        width: '100%',
+    },
+    deleteButtonText: {
+        color: '#EF4444',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

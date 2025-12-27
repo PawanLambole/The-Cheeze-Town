@@ -99,6 +99,12 @@ export default function OwnerTabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="tables/[id]"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
                 name="staff/[id]"
                 options={{
                     href: null,

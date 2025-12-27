@@ -56,7 +56,6 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
             const { data, error } = await supabase
                 .from('menu_items')
                 .select('*')
-                .eq('status', 'approved')
                 .order('name');
 
             if (error) throw error;
@@ -105,17 +104,50 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
 
     const totalAmount = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    const handleCreateOrder = async () => {
+    const [tempOrderData, setTempOrderData] = useState<any>(null);
+
+    const handlePreviewOrder = async () => {
         if (orderItems.length === 0) {
             Alert.alert('No Items', 'Please add at least one item to the order');
             return;
         }
 
-        // Generate order ID
-        const orderId = `ORD${Date.now().toString().slice(-6)}`;
+        // Generate temporary order details for preview
+        const tempOrderId = `ORD${Date.now().toString().slice(-6)}`;
+
+        const orderForPrint = {
+            orderId: tempOrderId,
+            tableNo: selectedTable ? tables.find(t => t.id === selectedTable)?.number : 'Takeaway',
+            items: orderItems,
+            totalAmount,
+            timestamp: new Date(),
+            orderType: selectedTable ? 'dine-in' as const : 'takeaway' as const
+        };
+
+        // Generate receipt preview
+        // effectively doing what printKitchenReceipt does but without the console logs/printer calls for now
+        // We use the same service function but we can also expose the formatter directly if needed
+        // For now, let's use the printKitchenReceipt with silent option to get the string
+        const printResult = await printKitchenReceipt(orderForPrint, { silent: true });
+
+        if (printResult.receipt) {
+            setCurrentReceipt(printResult.receipt);
+            setTempOrderData(orderForPrint); // Save data needed for submission
+            setShowReceipt(true);
+        } else {
+            Alert.alert('Error', 'Failed to generate receipt preview');
+        }
+    };
+
+    const submitOrder = async () => {
+        if (!tempOrderData) return;
 
         try {
             // Create order in database
+            // Use the ID from preview or generate new one? ideally match preview
+            // But we need to handle potential conflicts if time passed, though unlikely with timestamp ID
+            const orderId = tempOrderData.orderId;
+
             const { data: orderData, error: orderError } = await supabase
                 .from('orders')
                 .insert([{
@@ -156,30 +188,14 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                     .eq('id', parseInt(selectedTable));
             }
 
-            // Prepare order for printing
-            const orderForPrint = {
-                orderId,
-                tableNo: selectedTable ? tables.find(t => t.id === selectedTable)?.number : 'Takeaway',
-                items: orderItems,
-                totalAmount,
-                timestamp: new Date(),
-                orderType: selectedTable ? 'dine-in' as const : 'takeaway' as const
-            };
+            // Success
+            setShowReceipt(false);
+            Alert.alert('Success', 'Order confirmed and sent to kitchen!');
+            router.push(redirectPath as any);
 
-            // Generate kitchen receipt
-            const printResult = await printKitchenReceipt(orderForPrint);
-
-            if (printResult.success && printResult.receipt) {
-                // Show receipt in app
-                setCurrentReceipt(printResult.receipt);
-                setShowReceipt(true);
-            } else {
-                Alert.alert('Success', 'Order created successfully!');
-                router.push(redirectPath as any);
-            }
         } catch (error) {
-            console.error('Error creating order:', error);
-            Alert.alert('Error', 'Failed to create order. Please try again.');
+            console.error('Error submitting order:', error);
+            Alert.alert('Error', 'Failed to submit order. Please try again.');
         }
     };
 
@@ -329,7 +345,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                             </View>
                         )}
 
-                        <TouchableOpacity style={styles.createButton} onPress={handleCreateOrder}>
+                        <TouchableOpacity style={styles.createButton} onPress={handlePreviewOrder}>
                             <Text style={styles.createButtonText}>Create Order</Text>
                         </TouchableOpacity>
                     </>
@@ -339,9 +355,10 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
             {/* Receipt Viewer */}
             <ReceiptViewer
                 visible={showReceipt}
-                onClose={handleReceiptClose}
+                onClose={() => setShowReceipt(false)}
                 receipt={currentReceipt}
-                title="Kitchen Order Receipt"
+                title="Preview Kitchen Receipt"
+                onConfirm={submitOrder}
             />
         </View>
     );

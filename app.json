@@ -12,6 +12,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#121212"
     },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/808bb10b-d6b6-48d9-8758-d36844df2c4c"
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -28,7 +35,12 @@
         "backgroundColor": "#121212"
       },
       "permissions": [
-        "VIBRATE"
+        "VIBRATE",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_AUDIO",
+        "READ_MEDIA_VIDEO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ],
       "statusBar": {
         "backgroundColor": "transparent",
@@ -45,7 +57,15 @@
       "expo-router",
       "expo-font",
       "expo-web-browser",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow The Cheese Town to access your photos to save QR codes.",
+          "savePhotosPermission": "Allow The Cheese Town to save QR codes to your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

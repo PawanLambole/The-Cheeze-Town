@@ -4,6 +4,7 @@ import { NavigationBar, Footer } from './components';
 import SplashScreen from './pages/SplashScreen';
 import HomePage from './pages/HomePage';
 import MenuPage from './pages/MenuPage';
+import TableSelectionPage from './pages/TableSelectionPage';
 import PaymentPage from './pages/PaymentPage';
 import SuccessPage from './pages/SuccessPage';
 import AboutPage from './pages/AboutPage';
@@ -81,7 +82,17 @@ function AppContent() {
   };
 
   const handlePlaceOrder = () => {
-    // Navigate directly to payment, bypassing table selection
+    // If table was already selected via QR code, go directly to payment
+    // Otherwise, show table selection page
+    if (selectedTableId) {
+      setCurrentPage('payment');
+    } else {
+      setCurrentPage('table-selection');
+    }
+  };
+
+  const handleTableSelected = (tableId: number) => {
+    setSelectedTableId(tableId);
     setCurrentPage('payment');
   };
 
@@ -112,15 +123,15 @@ function AppContent() {
 
   const getActivePage = (): NavPage => {
     if (currentPage === 'menu') return 'menu';
+    if (currentPage === 'table-selection') return 'menu'; // Keep menu active during table selection
     if (currentPage === 'payment') return 'menu'; // Keep menu active during payment
     if (currentPage === 'about') return 'about';
     if (currentPage === 'contact') return 'contact';
     return 'home';
   };
 
-  // Hide navigation/footer only on splash screen; show them during booking and success
-  // ALSO Hide navigation/footer if a table is selected (ordering mode) to focus user on the menu
-  const showNavAndFooter = currentPage !== 'splash' && !selectedTableId;
+  // Hide navigation/footer only on splash, table selection, and payment screens
+  const showNavAndFooter = currentPage !== 'splash' && currentPage !== 'table-selection' && currentPage !== 'payment';
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
@@ -133,13 +144,19 @@ function AppContent() {
         />
       )}
 
-      <main className={showNavAndFooter ? 'flex-1 pt-24 pb-16' : 'flex-1'}>
+      <main className={showNavAndFooter ? 'flex-1' : 'flex-1'}>
         {currentPage === 'splash' && <SplashScreen onComplete={handleSplashComplete} />}
         {currentPage === 'home' && <HomePage onNavigate={handleNavigateToMenu} />}
         {currentPage === 'menu' && (
           <MenuPage
             onPlaceOrder={handlePlaceOrder}
-            readOnly={!selectedTableId}
+            readOnly={false}
+          />
+        )}
+        {currentPage === 'table-selection' && (
+          <TableSelectionPage
+            onTableSelected={handleTableSelected}
+            onBack={handleBackToMenu}
           />
         )}
         {currentPage === 'payment' && (
