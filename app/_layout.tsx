@@ -18,7 +18,7 @@ polyfillCrypto();
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
+import { Platform, View, ActivityIndicator } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { NotificationSettingsProvider } from '@/contexts/NotificationSettingsContext';
@@ -42,6 +42,14 @@ function RootLayoutNav() {
       // to allow for role verification before redirecting.
     }
   }, [isAuthenticated, loading, segments, userData]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#121212', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#FDB813" />
+      </View>
+    );
+  }
 
   return (
     <>

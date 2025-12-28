@@ -122,7 +122,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
 
     const fetchMenu = async () => {
         try {
-            const { data } = await supabase.from('menu_items').select('name, price').eq('status', 'approved');
+            const { data } = await supabase.from('menu_items').select('name, price');
             if (data) setMenuItems(data);
         } catch (e) {
             console.error("Error fetching menu for orders", e);

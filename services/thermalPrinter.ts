@@ -420,7 +420,6 @@ export function formatPaymentReceipt(payment: PaymentReceipt): string {
     }
 
     receipt += '\n';
-    receipt += '.\n'; // Printer cut mark
     receipt += '\n\n';
 
     return receipt;

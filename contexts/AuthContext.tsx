@@ -25,21 +25,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         const checkSession = async () => {
-            const { data: userResult } = await supabase.auth.getUser();
+            try {
+                const { data: userResult } = await supabase.auth.getUser();
 
-            if (userResult.user) {
-                const { data: profile } = await supabase
-                    .from('users')
-                    .select('id, email, name, role, phone')
-                    .eq('id', userResult.user.id)
-                    .maybeSingle();
+                if (userResult.user) {
+                    const { data: profile, error } = await supabase
+                        .from('users')
+                        .select('id, email, name, role, phone')
+                        .eq('id', userResult.user.id)
+                        .maybeSingle();
 
-                if (profile) {
-                    setUserData(profile as AppUser);
+                    if (error) {
+                        console.error('Error fetching user profile:', error);
+                    }
+
+                    if (profile) {
+                        setUserData(profile as AppUser);
+                    }
                 }
+            } catch (error) {
+                console.error('Unexpected error during session check:', error);
+            } finally {
+                setLoading(false);
             }
-
-            setLoading(false);
         };
 
         checkSession();

@@ -12,16 +12,14 @@
       "resizeMode": "contain",
       "backgroundColor": "#121212"
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "enabled": true,
-      "checkAutomatically": "ON_LOAD",
+      "checkAutomatically": "ON_ERROR",
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/808bb10b-d6b6-48d9-8758-d36844df2c4c"
     },
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
