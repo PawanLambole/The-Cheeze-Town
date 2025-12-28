@@ -41,54 +41,61 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
     const currentVersion = updateService.getCurrentVersion();
 
     const checkForUpdate = useCallback(async (force: boolean = false) => {
-        // Don't check in development mode
-        if (updateService.isDevelopmentMode() && !force) {
-            console.log('⚠️ Skipping update check in development mode');
-            return;
-        }
-
-        // Check if enough time has passed since last check
-        if (!force) {
-            const shouldCheck = await updateService.shouldCheckForUpdate(checkInterval);
-            if (!shouldCheck) {
-                console.log('⏭️ Skipping update check - too soon since last check');
+        try {
+            // Don't check in development mode
+            if (updateService.isDevelopmentMode() && !force) {
+                console.log('⚠️ Skipping update check in development mode');
                 return;
             }
-        }
 
-        setIsCheckingUpdate(true);
-
-        try {
-            console.log('🔍 Checking for updates...');
-            const result = await updateService.checkForUpdate();
-
-            console.log('Update check result:', {
-                updateRequired: result.updateRequired,
-                isMandatory: result.isMandatory,
-                currentVersion: result.currentVersion,
-                latestVersion: result.latestVersion?.version_name,
-            });
-
-            setUpdateResult(result);
-
-            if (result.updateRequired && result.latestVersion) {
-                // Check if user has dismissed this version (only for non-mandatory updates)
-                if (!result.isMandatory) {
-                    const hasDismissed = await updateService.hasUserDismissedUpdate(
-                        result.latestVersion.version_code
-                    );
-                    if (hasDismissed) {
-                        console.log('⏭️ User has dismissed this update');
-                        return;
-                    }
+            // Check if enough time has passed since last check
+            if (!force) {
+                const shouldCheck = await updateService.shouldCheckForUpdate(checkInterval);
+                if (!shouldCheck) {
+                    console.log('⏭️ Skipping update check - too soon since last check');
+                    return;
                 }
+            }
 
-                // Show update dialog
-                setShowUpdateDialog(true);
+            setIsCheckingUpdate(true);
+
+            try {
+                console.log('🔍 Checking for updates...');
+                const result = await updateService.checkForUpdate();
+
+                console.log('Update check result:', {
+                    updateRequired: result.updateRequired,
+                    isMandatory: result.isMandatory,
+                    currentVersion: result.currentVersion,
+                    latestVersion: result.latestVersion?.version_name,
+                });
+
+                setUpdateResult(result);
+
+                if (result.updateRequired && result.latestVersion) {
+                    // Check if user has dismissed this version (only for non-mandatory updates)
+                    if (!result.isMandatory) {
+                        const hasDismissed = await updateService.hasUserDismissedUpdate(
+                            result.latestVersion.version_code
+                        );
+                        if (hasDismissed) {
+                            console.log('⏭️ User has dismissed this update');
+                            return;
+                        }
+                    }
+
+                    // Show update dialog
+                    setShowUpdateDialog(true);
+                }
+            } catch (error) {
+                console.error('❌ Error checking for updates:', error);
+                // Don't throw - just log and continue
+            } finally {
+                setIsCheckingUpdate(false);
             }
         } catch (error) {
-            console.error('Error checking for updates:', error);
-        } finally {
+            // Catch any errors from the outer try block (e.g., isDevelopmentMode)
+            console.error('❌ Fatal error in update check initialization:', error);
             setIsCheckingUpdate(false);
         }
     }, [checkInterval]);
