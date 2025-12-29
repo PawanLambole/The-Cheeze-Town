@@ -15,7 +15,7 @@ INSERT INTO app_versions (
   'android',
   'native',
   true,
-  'https://[YOUR_DOMAIN]/downloads/CheezeTown-v1.1.0.apk', -- REPLACE WITH ACTUAL DOMAIN
+  'https://expo.dev/artifacts/eas/mPj7pzQ7Jb1jBCwMh3S3GP.apk', -- download_url
   'Major update including native and OTA changes.',
   'A mandatory update is available. Please install the latest version.'
 );
