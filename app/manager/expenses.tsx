@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, TrendingDown, Package, Zap, Wrench, Users as UsersIcon, ShoppingBag } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import { database, supabase } from '@/services/database';
 import { useFocusEffect } from 'expo-router';
@@ -25,6 +26,7 @@ interface CategoryStats {
 }
 
 export default function ExpensesScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const screenWidth = Dimensions.get('window').width;
 
@@ -74,20 +76,21 @@ export default function ExpensesScreen() {
             let color = '#EF4444';
             let icon = <Package size={20} color="#FFFFFF" />;
 
-            switch (category) {
-                case 'Inventory':
+            // Use lowercase for switch to be safe/consistent if mixed casing exists
+            switch (category.toLowerCase()) {
+                case 'inventory':
                     color = '#EF4444';
                     icon = <ShoppingBag size={20} color="#FFFFFF" />;
                     break;
-                case 'Utilities':
+                case 'utilities':
                     color = '#F59E0B';
                     icon = <Zap size={20} color="#FFFFFF" />;
                     break;
-                case 'Maintenance':
+                case 'maintenance':
                     color = '#10B981';
                     icon = <Wrench size={20} color="#FFFFFF" />;
                     break;
-                case 'Salaries':
+                case 'salaries':
                     color = '#3B82F6';
                     icon = <UsersIcon size={20} color="#FFFFFF" />;
                     break;
@@ -127,7 +130,7 @@ export default function ExpensesScreen() {
                 <TouchableOpacity onPress={() => router.back()}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Expense Analytics</Text>
+                <Text style={styles.headerTitle}>{t('manager.expenses.title')}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
@@ -138,14 +141,14 @@ export default function ExpensesScreen() {
                         <TrendingDown size={32} color="#EF4444" />
                     </View>
                     <View>
-                        <Text style={styles.totalLabel}>Total Lifetime Expense</Text>
+                        <Text style={styles.totalLabel}>{t('manager.expenses.totalLifetime')}</Text>
                         <Text style={styles.totalAmount}>₹{totalLifetime.toLocaleString()}</Text>
                     </View>
                 </View>
 
                 {/* Category Breakdown */}
                 <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>Expense by Category (Lifetime)</Text>
+                    <Text style={styles.chartTitle}>{t('manager.expenses.byCategory')}</Text>
                     <View style={styles.categoriesContainer}>
                         {categoryStats.map((cat, index) => (
                             <View key={cat.name} style={styles.categoryItem}>
@@ -154,7 +157,7 @@ export default function ExpensesScreen() {
                                         {cat.icon}
                                     </View>
                                     <View style={styles.categoryInfo}>
-                                        <Text style={styles.categoryName}>{cat.name}</Text>
+                                        <Text style={styles.categoryName}>{t(`manager.categories.${cat.name.toLowerCase()}`) || cat.name}</Text>
                                         <Text style={styles.categoryAmount}>₹{cat.amount.toLocaleString()}</Text>
                                     </View>
                                     <Text style={styles.categoryPercentage}>{cat.percentage.toFixed(0)}%</Text>
@@ -169,7 +172,7 @@ export default function ExpensesScreen() {
 
                 {/* Weekly Trend */}
                 <View style={styles.chartCard}>
-                    <Text style={styles.chartTitle}>Weekly Expense Trend</Text>
+                    <Text style={styles.chartTitle}>{t('manager.expenses.weeklyTrend')}</Text>
                     <View style={styles.barChartContainer}>
                         {weeklyData.map((day, index) => (
                             <View key={day.day} style={styles.barColumn}>
@@ -193,7 +196,7 @@ export default function ExpensesScreen() {
 
                 {/* Recent Expenses List */}
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>All Expenses</Text>
+                    <Text style={styles.sectionTitle}>{t('manager.expenses.allExpenses')}</Text>
                 </View>
 
                 {expenses.map(expense => (
@@ -204,7 +207,7 @@ export default function ExpensesScreen() {
                         <View style={styles.expenseInfo}>
                             <Text style={styles.expenseName}>{expense.description}</Text>
                             <View style={styles.expenseMeta}>
-                                <Text style={styles.expenseCategory}>{expense.category}</Text>
+                                <Text style={styles.expenseCategory}>{t(`manager.categories.${expense.category.toLowerCase()}`) || expense.category}</Text>
                                 <Text style={styles.expenseDot}>•</Text>
                                 <Text style={styles.expenseDate}>{new Date(expense.date).toLocaleDateString()}</Text>
                             </View>

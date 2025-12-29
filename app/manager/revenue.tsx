@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Refre
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, TrendingUp, IndianRupee, ShoppingBag, Clock, Users, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import { supabase } from '@/services/database';
 
@@ -30,6 +31,7 @@ interface CategoryStats {
 }
 
 export default function RevenueScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const [revenueItems, setRevenueItems] = useState<RevenueItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -77,12 +79,12 @@ export default function RevenueScreen() {
 
             // Transform data for revenue items
             const items: RevenueItem[] = (ordersData || []).map((order: any) => {
-                // Get the first item's category or use 'General' as fallback
-                const firstItem = order.order_items?.[0]?.menu_item_name || 'General';
-                const category = firstItem.includes('Pizza') ? 'Pizza' :
-                    firstItem.includes('Burger') ? 'Burgers' :
-                        firstItem.includes('Drink') || firstItem.includes('Beverage') ? 'Beverages' :
-                            firstItem.includes('Dessert') ? 'Desserts' : 'Main Course';
+                // Get the first item's category or use 'other' as fallback
+                const firstItem = order.order_items?.[0]?.menu_item_name || 'Other';
+                const category = firstItem.includes('Pizza') ? 'pizza' :
+                    firstItem.includes('Burger') ? 'burgers' :
+                        firstItem.includes('Drink') || firstItem.includes('Beverage') ? 'beverages' :
+                            firstItem.includes('Dessert') ? 'desserts' : 'mainCourse';
 
                 const orderItems = order.order_items?.map((item: any) => ({
                     name: item.menu_item_name,
@@ -183,7 +185,7 @@ export default function RevenueScreen() {
                 <TouchableOpacity onPress={() => router.back()}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Revenue Analytics</Text>
+                <Text style={styles.headerTitle}>{t('manager.revenue.title')}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
@@ -202,7 +204,7 @@ export default function RevenueScreen() {
                 {loading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color={Colors.dark.primary} />
-                        <Text style={styles.loadingText}>Loading revenue data...</Text>
+                        <Text style={styles.loadingText}>{t('manager.revenue.loading')}</Text>
                     </View>
                 ) : (
                     <>
@@ -212,9 +214,9 @@ export default function RevenueScreen() {
                                 <TrendingUp size={32} color={Colors.dark.primary} />
                             </View>
                             <View>
-                                <Text style={styles.totalLabel}>Today's Revenue</Text>
+                                <Text style={styles.totalLabel}>{t('manager.revenue.todayRevenue')}</Text>
                                 <Text style={styles.totalAmount}>₹{totalRevenue.toLocaleString()}</Text>
-                                <Text style={styles.totalOrders}>{totalOrders} completed orders</Text>
+                                <Text style={styles.totalOrders}>{totalOrders} {t('manager.revenue.completedOrders')}</Text>
                             </View>
                         </View>
 
@@ -223,31 +225,31 @@ export default function RevenueScreen() {
                             <View style={styles.quickStatCard}>
                                 <ShoppingBag size={20} color={Colors.dark.primary} />
                                 <Text style={styles.quickStatValue}>{totalOrders}</Text>
-                                <Text style={styles.quickStatLabel}>Total Orders</Text>
+                                <Text style={styles.quickStatLabel}>{t('manager.revenue.totalOrders')}</Text>
                             </View>
                             <View style={styles.quickStatCard}>
                                 <IndianRupee size={20} color="#3B82F6" />
                                 <Text style={styles.quickStatValue}>₹{totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0}</Text>
-                                <Text style={styles.quickStatLabel}>Avg Order</Text>
+                                <Text style={styles.quickStatLabel}>{t('manager.revenue.avgOrder')}</Text>
                             </View>
                             <View style={styles.quickStatCard}>
                                 <Users size={20} color="#10B981" />
                                 <Text style={styles.quickStatValue}>{totalOrders}</Text>
-                                <Text style={styles.quickStatLabel}>Customers</Text>
+                                <Text style={styles.quickStatLabel}>{t('manager.revenue.customers')}</Text>
                             </View>
                         </View>
 
                         {/* Category Breakdown */}
                         {categoryStats.length > 0 && (
                             <View style={styles.chartCard}>
-                                <Text style={styles.chartTitle}>Revenue by Category</Text>
+                                <Text style={styles.chartTitle}>{t('manager.revenue.byCategory')}</Text>
                                 <View style={styles.categoriesContainer}>
                                     {categoryStats.map((cat) => (
                                         <View key={cat.name} style={styles.categoryItem}>
                                             <View style={styles.categoryHeader}>
                                                 <View style={[styles.categoryDot, { backgroundColor: cat.color }]} />
                                                 <View style={styles.categoryInfo}>
-                                                    <Text style={styles.categoryName}>{cat.name}</Text>
+                                                    <Text style={styles.categoryName}>{t(`manager.categories.${cat.name}`)}</Text>
                                                     <Text style={styles.categoryOrders}>{cat.orders} orders</Text>
                                                 </View>
                                                 <View style={styles.categoryRight}>
@@ -267,7 +269,7 @@ export default function RevenueScreen() {
                         {/* Hourly Trend */}
                         {hourlyData.length > 0 && (
                             <View style={styles.chartCard}>
-                                <Text style={styles.chartTitle}>Peak Business Hours (Revenue)</Text>
+                                <Text style={styles.chartTitle}>{t('manager.revenue.peakHours')}</Text>
                                 <View style={styles.barChartContainer}>
                                     {hourlyData.map((hour, index) => (
                                         <View key={hour.hour} style={styles.barColumn}>
@@ -293,7 +295,7 @@ export default function RevenueScreen() {
                         {revenueItems.length > 0 && (
                             <>
                                 <View style={styles.sectionHeader}>
-                                    <Text style={styles.sectionTitle}>Today's Orders</Text>
+                                    <Text style={styles.sectionTitle}>{t('manager.revenue.todayOrders')}</Text>
                                 </View>
 
                                 {revenueItems.map(item => (
@@ -308,11 +310,11 @@ export default function RevenueScreen() {
                                         <View style={styles.orderInfo}>
                                             <Text style={styles.orderName}>#{item.orderId}</Text>
                                             <View style={styles.orderMeta}>
-                                                <Text style={styles.orderCategory}>{item.category}</Text>
+                                                <Text style={styles.orderCategory}>{t(`manager.categories.${item.category}`)}</Text>
                                                 <Text style={styles.orderDot}>•</Text>
                                                 <Text style={styles.orderTime}>{item.time}</Text>
                                                 <Text style={styles.orderDot}>•</Text>
-                                                <Text style={styles.orderItems}>{item.items} items</Text>
+                                                <Text style={styles.orderItems}>{item.items} {t('common.items').toLowerCase()}</Text>
                                             </View>
                                         </View>
                                         <Text style={styles.orderAmount}>₹{item.amount}</Text>
@@ -324,8 +326,8 @@ export default function RevenueScreen() {
                         {revenueItems.length === 0 && (
                             <View style={styles.emptyContainer}>
                                 <ShoppingBag size={64} color={Colors.dark.textSecondary} />
-                                <Text style={styles.emptyText}>No revenue data for today</Text>
-                                <Text style={styles.emptySubtext}>Complete some orders to see revenue analytics</Text>
+                                <Text style={styles.emptyText}>{t('manager.revenue.empty')}</Text>
+                                <Text style={styles.emptySubtext}>{t('manager.revenue.emptySubtext')}</Text>
                             </View>
                         )}
 
@@ -343,7 +345,7 @@ export default function RevenueScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Order Details</Text>
+                            <Text style={styles.modalTitle}>{t('manager.revenue.orderDetails')}</Text>
                             <TouchableOpacity onPress={() => setSelectedOrder(null)}>
                                 <X size={24} color={Colors.dark.text} />
                             </TouchableOpacity>
@@ -358,7 +360,7 @@ export default function RevenueScreen() {
 
                                 <View style={styles.divider} />
 
-                                <Text style={styles.itemsLabel}>Items</Text>
+                                <Text style={styles.itemsLabel}>{t('common.items')}</Text>
                                 {selectedOrder.orderItems.map((item, index) => (
                                     <View key={index} style={styles.itemRow}>
                                         <View style={styles.itemInfo}>
@@ -371,7 +373,7 @@ export default function RevenueScreen() {
                                 <View style={styles.divider} />
 
                                 <View style={styles.totalRow}>
-                                    <Text style={styles.totalRowLabel}>Total Amount</Text>
+                                    <Text style={styles.totalRowLabel}>{t('common.total')}</Text>
                                     <Text style={styles.totalRowValue}>₹{selectedOrder.amount}</Text>
                                 </View>
                             </ScrollView>
@@ -382,7 +384,7 @@ export default function RevenueScreen() {
                                 style={styles.closeButton}
                                 onPress={() => setSelectedOrder(null)}
                             >
-                                <Text style={styles.closeButtonText}>Close</Text>
+                                <Text style={styles.closeButtonText}>{t('manager.revenue.close')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>

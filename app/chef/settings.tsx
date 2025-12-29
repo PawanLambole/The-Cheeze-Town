@@ -6,6 +6,7 @@ import { Colors } from '@/constants/Theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNotificationSettings } from '@/contexts/NotificationSettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 interface SettingItemProps {
     icon: React.ReactNode;
@@ -54,6 +55,7 @@ export default function ChefSettings() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { signOut } = useAuth();
+    const { t } = useTranslation();
     const {
         soundEnabled, setSoundEnabled,
         popupEnabled, setPopupEnabled,
@@ -62,7 +64,7 @@ export default function ChefSettings() {
     } = useNotificationSettings();
     const handleLogout = async () => {
         if (Platform.OS === 'web') {
-            const confirmed = window.confirm('Are you sure you want to logout?');
+            const confirmed = window.confirm(t('chef.settings.logoutConfirm'));
             if (confirmed) {
                 try {
                     await signOut();
@@ -73,12 +75,12 @@ export default function ChefSettings() {
             }
         } else {
             Alert.alert(
-                'Logout',
-                'Are you sure you want to logout?',
+                t('chef.settings.logout'),
+                t('chef.settings.logoutConfirm'),
                 [
-                    { text: 'Cancel', style: 'cancel' },
+                    { text: t('chef.settings.cancel'), style: 'cancel' },
                     {
-                        text: 'Logout',
+                        text: t('chef.settings.logout'),
                         style: 'destructive',
                         onPress: async () => {
                             try {
@@ -100,18 +102,18 @@ export default function ChefSettings() {
                 <TouchableOpacity onPress={() => router.back()}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Settings</Text>
+                <Text style={styles.headerTitle}>{t('chef.settings.title')}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Notifications</Text>
+                    <Text style={styles.sectionTitle}>{t('chef.settings.notifications')}</Text>
                     <View style={styles.settingsList}>
                         <SettingItem
                             icon={<Volume2 size={20} color={Colors.dark.primary} />}
-                            title="Sound Alerts"
-                            subtitle="Play sound on new order"
+                            title={t('chef.settings.soundAlerts')}
+                            subtitle={t('chef.settings.soundAlertsSubtitle')}
                             hasSwitch
                             switchValue={soundEnabled}
                             onSwitchChange={(val) => toggleSetting('chef_sound_enabled', val, setSoundEnabled)}
@@ -119,8 +121,8 @@ export default function ChefSettings() {
                         />
                         <SettingItem
                             icon={<MessageSquare size={20} color={Colors.dark.primary} />}
-                            title="In-App Popup"
-                            subtitle="Show modal while app is open"
+                            title={t('chef.settings.inAppPopup')}
+                            subtitle={t('chef.settings.inAppPopupSubtitle')}
                             hasSwitch
                             switchValue={popupEnabled}
                             onSwitchChange={(val) => toggleSetting('chef_popup_enabled', val, setPopupEnabled)}
@@ -128,8 +130,8 @@ export default function ChefSettings() {
                         />
                         <SettingItem
                             icon={<Smartphone size={20} color={Colors.dark.primary} />}
-                            title="System Notifications"
-                            subtitle="Show in notification drawer"
+                            title={t('chef.settings.systemNotifications')}
+                            subtitle={t('chef.settings.systemNotificationsSubtitle')}
                             hasSwitch
                             switchValue={systemEnabled}
                             onSwitchChange={(val) => toggleSetting('chef_system_enabled', val, setSystemEnabled)}
@@ -141,7 +143,7 @@ export default function ChefSettings() {
                 <View style={styles.logoutSection}>
                     <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                         <LogOut size={20} color="#EF4444" />
-                        <Text style={styles.logoutText}>Logout</Text>
+                        <Text style={styles.logoutText}>{t('chef.settings.logout')}</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>

@@ -9,6 +9,7 @@ import { database, supabase } from '@/services/database';
 import { uploadImage } from '@/services/imageUpload';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface MenuItem {
   id: string;
@@ -22,6 +23,7 @@ export default function MenuScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ role?: string }>();
   const isOwnerView = params.role !== 'manager';
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -173,7 +175,7 @@ export default function MenuScreen() {
       resetForm();
     } catch (e) {
       console.error("Error adding menu item", e);
-      alert("Failed to add item");
+      alert(t('menu.management.addFailed'));
     }
   };
 
@@ -220,7 +222,7 @@ export default function MenuScreen() {
       resetForm();
     } catch (e) {
       console.error("Error updating menu item", e);
-      alert("Failed to update item");
+      alert(t('menu.management.updateFailed'));
     }
   };
 
@@ -244,7 +246,7 @@ export default function MenuScreen() {
         setDeleteItem(null);
       } catch (e) {
         console.error("Error deleting item", e);
-        alert("Failed to delete");
+        alert(t('menu.management.deleteFailed'));
       }
     }
   };
@@ -266,7 +268,7 @@ export default function MenuScreen() {
           <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isOwnerView ? 'Menu Management' : 'Menu (Manager)'}
+          {isOwnerView ? t('menu.management.title') : t('menu.management.titleManager')}
         </Text>
         <TouchableOpacity onPress={handleOpenAdd} style={styles.addButtonHeader}>
           <Plus size={24} color="#000" />
@@ -278,7 +280,7 @@ export default function MenuScreen() {
           <Search size={20} color={Colors.dark.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search menu items..."
+            placeholder={t('menu.management.searchPlaceholder')}
             placeholderTextColor={Colors.dark.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -352,13 +354,13 @@ export default function MenuScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Menu Item</Text>
+              <Text style={styles.modalTitle}>{t('menu.management.addMenuItem')}</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView>
-              <TextInput style={styles.input} placeholder="Item Name" placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
+              <TextInput style={styles.input} placeholder={t('menu.management.itemName')} placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
               <View style={styles.categoryInputContainer}>
                 <TextInput
                   style={styles.input}
@@ -387,9 +389,9 @@ export default function MenuScreen() {
                   </ScrollView>
                 )}
               </View>
-              <TextInput style={styles.input} placeholder="Price" placeholderTextColor={Colors.dark.textSecondary} keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
+              <TextInput style={styles.input} placeholder={t('menu.management.price')} placeholderTextColor={Colors.dark.textSecondary} keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
 
-              <Text style={styles.photoLabel}>Item Photo (Optional)</Text>
+              <Text style={styles.photoLabel}>{t('menu.management.itemPhoto')}</Text>
               <View style={styles.photoButtons}>
                 <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
                   <Camera size={20} color="#000" />
@@ -411,7 +413,7 @@ export default function MenuScreen() {
               )}
 
               <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
-                <Text style={styles.addButtonText}>Add Item</Text>
+                <Text style={styles.addButtonText}>{t('menu.management.addItem')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -421,13 +423,13 @@ export default function MenuScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Menu Item</Text>
+              <Text style={styles.modalTitle}>{t('menu.management.editMenuItem')}</Text>
               <TouchableOpacity onPress={() => { setShowEditModal(false); setEditItem(null); }}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
             <ScrollView>
-              <TextInput style={styles.input} placeholder="Item Name" placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
+              <TextInput style={styles.input} placeholder={t('menu.management.itemName')} placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
               <View style={styles.categoryInputContainer}>
                 <TextInput
                   style={styles.input}
@@ -456,9 +458,9 @@ export default function MenuScreen() {
                   </ScrollView>
                 )}
               </View>
-              <TextInput style={styles.input} placeholder="Price" placeholderTextColor={Colors.dark.textSecondary} keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
+              <TextInput style={styles.input} placeholder={t('menu.management.price')} placeholderTextColor={Colors.dark.textSecondary} keyboardType="numeric" value={formPrice} onChangeText={setFormPrice} />
 
-              <Text style={styles.photoLabel}>Item Photo (Optional)</Text>
+              <Text style={styles.photoLabel}>{t('menu.management.itemPhoto')}</Text>
               <View style={styles.photoButtons}>
                 <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
                   <Camera size={20} color="#000" />
@@ -480,7 +482,7 @@ export default function MenuScreen() {
               )}
 
               <TouchableOpacity style={styles.addButton} onPress={handleSaveEdit}>
-                <Text style={styles.addButtonText}>Save Changes</Text>
+                <Text style={styles.addButtonText}>{t('menu.management.saveChanges')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -491,16 +493,16 @@ export default function MenuScreen() {
       <Modal visible={showDeleteModal} animationType="fade" transparent>
         <View style={styles.deleteModalOverlay}>
           <View style={styles.deleteModalContent}>
-            <Text style={styles.deleteModalTitle}>Delete Menu Item</Text>
+            <Text style={styles.deleteModalTitle}>{t('menu.management.deleteConfirm')}</Text>
             <Text style={styles.deleteModalMessage}>
-              Are you sure you want to delete "{deleteItem?.name}"? This action cannot be undone.
+              {t('menu.management.deleteMessage', { name: deleteItem?.name })}
             </Text>
             <View style={styles.deleteModalButtons}>
               <TouchableOpacity style={styles.cancelButton} onPress={cancelDelete}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('menu.management.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.deleteButton} onPress={confirmDelete}>
-                <Text style={styles.deleteButtonText}>Delete</Text>
+                <Text style={styles.deleteButtonText}>{t('menu.management.delete')}</Text>
               </TouchableOpacity>
             </View>
           </View>

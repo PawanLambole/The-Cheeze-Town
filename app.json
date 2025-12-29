@@ -4,22 +4,22 @@
     "slug": "the-cheese-town",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.jpeg",
+    "icon": "./assets/images/logo.png",
     "scheme": "myapp",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/images/logo.jpeg",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#121212"
     },
     "runtimeVersion": "1.0.0",
     "updates": {
       "enabled": true,
-      "checkAutomatically": "ON_ERROR",
+      "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/808bb10b-d6b6-48d9-8758-d36844df2c4c"
     },
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -31,7 +31,7 @@
       "package": "com.cheesetown.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo.jpeg",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#121212"
       },
       "permissions": [
@@ -41,12 +41,7 @@
         "READ_MEDIA_VIDEO",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
-      ],
-      "statusBar": {
-        "backgroundColor": "transparent",
-        "barStyle": "light-content",
-        "translucent": true
-      }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -65,7 +60,8 @@
           "savePhotosPermission": "Allow The Cheese Town to save QR codes to your gallery.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

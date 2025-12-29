@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LogOut, Clock, CheckCircle, Settings, Bell, X, Volume2 } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import { useSupabaseRealtimeQuery } from '@/hooks/useSupabase';
 import { database, supabase } from '@/services/database';
@@ -34,6 +35,7 @@ interface Order {
 
 export default function ChefDashboard() {
     const router = useRouter();
+    const { t } = useTranslation();
     const { userData } = useAuth();
     const { soundEnabled, popupEnabled, systemEnabled } = useNotificationSettings();
     const [orders, setOrders] = useState<Order[]>([]);
@@ -359,7 +361,7 @@ export default function ChefDashboard() {
         const orderDate = new Date(orderTime);
         const diffMs = now.getTime() - orderDate.getTime();
         const diffMins = Math.floor(diffMs / 60000);
-        if (diffMins < 1) return 'Just now';
+        if (diffMins < 1) return t('chef.justNow');
         return `${diffMins}m`;
     };
 
@@ -367,8 +369,8 @@ export default function ChefDashboard() {
         <View style={styles.container}>
             <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                 <View>
-                    <Text style={styles.headerTitle}>Kitchen Display</Text>
-                    <Text style={styles.headerSubtitle}>Today's Orders</Text>
+                    <Text style={styles.headerTitle}>{t('chef.title')}</Text>
+                    <Text style={styles.headerSubtitle}>{t('chef.subtitle')}</Text>
                 </View>
                 <View style={styles.headerButtons}>
                     {/* Test Notification Button */}
@@ -395,7 +397,7 @@ export default function ChefDashboard() {
                     onPress={() => setActiveTab('active')}
                 >
                     <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>
-                        Active ({orders.length})
+                        {t('chef.active')} ({orders.length})
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -403,7 +405,7 @@ export default function ChefDashboard() {
                     onPress={() => setActiveTab('completed')}
                 >
                     <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>
-                        Completed ({completedOrders.length})
+                        {t('chef.completed')} ({completedOrders.length})
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -440,7 +442,7 @@ export default function ChefDashboard() {
                                 <View style={styles.orderHeader}>
                                     <View>
                                         <Text style={styles.tableNumber}>
-                                            {order.table_id ? `Table ${order.table_id}` : 'Takeaway'}
+                                            {order.table_id ? `${t('chef.table')} ${order.table_id}` : t('chef.takeaway')}
                                         </Text>
                                         <Text style={styles.orderId}>#{order.order_number || 'N/A'}</Text>
                                     </View>
@@ -519,7 +521,7 @@ export default function ChefDashboard() {
                                 <View style={styles.orderHeader}>
                                     <View>
                                         <Text style={styles.tableNumber}>
-                                            {order.table_id ? `Table ${order.table_id}` : 'Takeaway'}
+                                            {order.table_id ? `${t('chef.table')} ${order.table_id}` : t('chef.takeaway')}
                                         </Text>
                                         <Text style={styles.orderId}>#{order.order_number || 'N/A'}</Text>
                                     </View>
@@ -568,20 +570,20 @@ export default function ChefDashboard() {
             <Modal visible={showConfirmModal} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Mark as Ready</Text>
-                        <Text style={styles.modalMessage}>Are you sure this order is ready for service?</Text>
+                        <Text style={styles.modalTitle}>{t('chef.markAsReady')}</Text>
+                        <Text style={styles.modalMessage}>{t('chef.confirmReadyMessage')}</Text>
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.cancelButton]}
                                 onPress={() => setShowConfirmModal(false)}
                             >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.confirmButton]}
                                 onPress={confirmMarkServed}
                             >
-                                <Text style={styles.confirmButtonText}>Confirm</Text>
+                                <Text style={styles.confirmButtonText}>{t('common.confirm')}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -596,7 +598,7 @@ export default function ChefDashboard() {
                         <View style={styles.notificationHeader}>
                             <View style={styles.notificationHeaderLeft}>
                                 <Bell size={32} color={Colors.dark.primary} />
-                                <Text style={styles.notificationTitle}>New Order</Text>
+                                <Text style={styles.notificationTitle}>{t('chef.newOrder')}</Text>
                             </View>
                             <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
                                 <TouchableOpacity onPress={() => handleSpeakOrder(notificationOrder)}>
@@ -611,23 +613,23 @@ export default function ChefDashboard() {
                         {/* Order Info Section */}
                         <View style={styles.notificationSection}>
                             <View style={styles.notificationRow}>
-                                <Text style={styles.notificationLabel}>Order #</Text>
+                                <Text style={styles.notificationLabel}>{t('chef.orderNumber')}</Text>
                                 <Text style={styles.notificationValue} numberOfLines={1}>
                                     {notificationOrder?.order_number || 'N/A'}
                                 </Text>
                             </View>
                             <View style={styles.notificationDivider} />
                             <View style={styles.notificationRow}>
-                                <Text style={styles.notificationLabel}>Table</Text>
+                                <Text style={styles.notificationLabel}>{t('chef.table')}</Text>
                                 <Text style={styles.notificationValue}>
-                                    {notificationOrder?.table_id ? `Table ${notificationOrder.table_id}` : 'Takeaway'}
+                                    {notificationOrder?.table_id ? `${t('chef.table')} ${notificationOrder.table_id}` : t('chef.takeaway')}
                                 </Text>
                             </View>
                             {notificationOrder?.total_amount && (
                                 <>
                                     <View style={styles.notificationDivider} />
                                     <View style={styles.notificationRow}>
-                                        <Text style={styles.notificationLabel}>Total</Text>
+                                        <Text style={styles.notificationLabel}>{t('common.total')}</Text>
                                         <Text style={styles.notificationValueHighlight}>₹{notificationOrder.total_amount}</Text>
                                     </View>
                                 </>

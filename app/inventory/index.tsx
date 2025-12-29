@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Plus, Minus, X } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
 import { database, supabase } from '@/services/database';
+import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
 
@@ -24,6 +25,7 @@ interface InventoryScreenProps {
 
 export default function InventoryScreen({ showBack = true }: InventoryScreenProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -141,7 +143,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
             </TouchableOpacity>
           )}
         </View>
-        <Text style={styles.headerTitle}>Inventory</Text>
+        <Text style={styles.headerTitle}>{t('inventory.title')}</Text>
         <View style={styles.headerRight}>
           <TouchableOpacity onPress={() => setShowAddModal(true)}>
             <Plus size={24} color={Colors.dark.primary} />
@@ -166,8 +168,8 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
           <View style={styles.alertCard}>
             <AlertCircle size={20} color="#EF4444" />
             <View style={styles.alertContent}>
-              <Text style={styles.alertTitle}>{lowStockItems.length} Low Stock Items</Text>
-              <Text style={styles.alertText}>Items need restocking</Text>
+              <Text style={styles.alertTitle}>{lowStockItems.length} {t('inventory.lowStockItems')}</Text>
+              <Text style={styles.alertText}>{t('inventory.itemsNeedRestocking')}</Text>
             </View>
           </View>
         )}
@@ -175,17 +177,17 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{inventory.length}</Text>
-            <Text style={styles.statLabel}>Total Items</Text>
+            <Text style={styles.statLabel}>{t('inventory.totalItems')}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{lowStockItems.length}</Text>
-            <Text style={styles.statLabel}>Low Stock</Text>
+            <Text style={styles.statLabel}>{t('inventory.lowStock')}</Text>
           </View>
         </View>
 
         {lowStockItems.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Low Stock Alert</Text>
+            <Text style={styles.sectionTitle}>{t('inventory.lowStockAlert')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.lowStockList}>
               {lowStockItems.map(item => (
                 <View key={item.id} style={styles.lowStockCard}>
@@ -198,7 +200,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
           </>
         )}
 
-        <Text style={styles.sectionTitle}>All Inventory</Text>
+        <Text style={styles.sectionTitle}>{t('inventory.allInventory')}</Text>
 
         {inventory.map(item => {
           const isLowStock = item.currentStock <= item.minStock;
@@ -229,13 +231,13 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                     ]}
                   />
                 </View>
-                <Text style={styles.lastRestocked}>Last restocked: {item.lastRestocked}</Text>
+                <Text style={styles.lastRestocked}>{t('inventory.lastUpdated')}: {item.lastRestocked}</Text>
               </View>
               <TouchableOpacity
                 style={styles.adjustButton}
                 onPress={() => handleAdjustStock(item)}
               >
-                <Text style={styles.adjustButtonText}>Adjust</Text>
+                <Text style={styles.adjustButtonText}>{t('inventory.adjust')}</Text>
               </TouchableOpacity>
             </View>
           );
@@ -249,7 +251,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Adjust Stock</Text>
+              <Text style={styles.modalTitle}>{t('inventory.adjustStock')}</Text>
               <TouchableOpacity onPress={() => setShowAdjustModal(false)}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
@@ -260,7 +262,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                 <View style={styles.modalItem}>
                   <Text style={styles.modalItemName}>{selectedItem.name}</Text>
                   <Text style={styles.modalItemStock}>
-                    Current Stock: {selectedItem.currentStock} {selectedItem.unit}
+                    {t('inventory.currentStock')}: {selectedItem.currentStock} {selectedItem.unit}
                   </Text>
                 </View>
 
@@ -270,7 +272,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                   </TouchableOpacity>
                   <TextInput
                     style={styles.adjustmentInput}
-                    placeholder="Enter amount"
+                    placeholder={t('inventory.enterAmount')}
                     placeholderTextColor={Colors.dark.textSecondary}
                     value={adjustmentAmount}
                     onChangeText={setAdjustmentAmount}
@@ -283,13 +285,13 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
 
                 <TextInput
                   style={styles.reasonInput}
-                  placeholder="Reason for adjustment (optional)"
+                  placeholder={t('inventory.reasonForAdjustment')}
                   placeholderTextColor={Colors.dark.textSecondary}
                   multiline
                 />
 
                 <TouchableOpacity style={styles.saveButton} onPress={handleSaveAdjustment}>
-                  <Text style={styles.saveButtonText}>Save Adjustment</Text>
+                  <Text style={styles.saveButtonText}>{t('inventory.saveAdjustment')}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -302,7 +304,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Item</Text>
+              <Text style={styles.modalTitle}>{t('inventory.addNewItem')}</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
@@ -311,7 +313,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
             <ScrollView>
               <TextInput
                 style={styles.input}
-                placeholder="Item Name"
+                placeholder={t('inventory.itemName')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 value={newItemName}
                 onChangeText={setNewItemName}
@@ -319,7 +321,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
 
               <TextInput
                 style={styles.input}
-                placeholder="Category"
+                placeholder={t('inventory.category')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 value={newItemCategory}
                 onChangeText={setNewItemCategory}
@@ -328,7 +330,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
               <View style={styles.row}>
                 <TextInput
                   style={[styles.input, styles.halfInput]}
-                  placeholder="Current Stock"
+                  placeholder={t('inventory.currentStock')}
                   placeholderTextColor={Colors.dark.textSecondary}
                   keyboardType="numeric"
                   value={newItemStock}
@@ -337,7 +339,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
 
                 <TextInput
                   style={[styles.input, styles.halfInput]}
-                  placeholder="Min Stock"
+                  placeholder={t('inventory.minStock')}
                   placeholderTextColor={Colors.dark.textSecondary}
                   keyboardType="numeric"
                   value={newItemMinStock}
@@ -345,7 +347,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                 />
               </View>
 
-              <Text style={styles.inputLabel}>Unit:</Text>
+              <Text style={styles.inputLabel}>{t('inventory.unit')}:</Text>
               <View style={styles.unitSelector}>
                 {['kg', 'g', 'L', 'ml', 'pcs'].map((unit) => (
                   <TouchableOpacity
@@ -367,7 +369,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
               </View>
 
               <TouchableOpacity style={styles.saveButton} onPress={handleAddItem}>
-                <Text style={styles.saveButtonText}>Add Item</Text>
+                <Text style={styles.saveButtonText}>{t('inventory.addItem')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>

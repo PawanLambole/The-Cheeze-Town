@@ -6,6 +6,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Search, Plus } from 'lucide-react-native';
 import { printKitchenReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import { supabase } from '@/services/database';
 
@@ -15,6 +16,7 @@ interface CreateOrderScreenProps {
 }
 
 function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScreenProps) {
+    const { t } = useTranslation();
     const router = useRouter();
 
     const [step, setStep] = useState(1); // 1: Select Table, 2: Add Items
@@ -46,7 +48,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
             setTables(transformedTables);
         } catch (error) {
             console.error('Error fetching tables:', error);
-            Alert.alert('Error', 'Failed to load tables');
+            Alert.alert(t('common.error'), t('manager.createOrder.errors.loadTables'));
         }
     };
 
@@ -71,7 +73,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
             setMenuOptions(transformedMenu);
         } catch (error) {
             console.error('Error fetching menu:', error);
-            Alert.alert('Error', 'Failed to load menu');
+            Alert.alert(t('common.error'), t('manager.createOrder.errors.loadMenu'));
         }
     };
 
@@ -108,7 +110,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
 
     const handlePreviewOrder = async () => {
         if (orderItems.length === 0) {
-            Alert.alert('No Items', 'Please add at least one item to the order');
+            Alert.alert(t('manager.createOrder.errors.noItems'), t('manager.createOrder.errors.addOneItem'));
             return;
         }
 
@@ -135,7 +137,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
             setTempOrderData(orderForPrint); // Save data needed for submission
             setShowReceipt(true);
         } else {
-            Alert.alert('Error', 'Failed to generate receipt preview');
+            Alert.alert(t('common.error'), t('manager.createOrder.errors.genReceipt'));
         }
     };
 
@@ -190,12 +192,12 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
 
             // Success
             setShowReceipt(false);
-            Alert.alert('Success', 'Order confirmed and sent to kitchen!');
+            Alert.alert(t('common.success'), t('manager.createOrder.success'));
             router.push(redirectPath as any);
 
         } catch (error) {
             console.error('Error submitting order:', error);
-            Alert.alert('Error', 'Failed to submit order. Please try again.');
+            Alert.alert(t('common.error'), t('manager.createOrder.errors.submit'));
         }
     };
 
@@ -225,7 +227,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                 <TouchableOpacity onPress={handleBack}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>New Order</Text>
+                <Text style={styles.headerTitle}>{t('manager.createOrder.title')}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
@@ -233,7 +235,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                 {step === 1 && (
                     <>
                         <View style={styles.stepHeader}>
-                            <Text style={styles.stepTitle}>Select Table</Text>
+                            <Text style={styles.stepTitle}>{t('manager.createOrder.selectTable')}</Text>
                             <TouchableOpacity
                                 style={styles.skipButton}
                                 onPress={() => {
@@ -241,10 +243,10 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                                     setStep(2);
                                 }}
                             >
-                                <Text style={styles.skipButtonText}>Skip</Text>
+                                <Text style={styles.skipButtonText}>{t('manager.createOrder.skip')}</Text>
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.stepSubtitle}>Or skip to create a takeaway/delivery order</Text>
+                        <Text style={styles.stepSubtitle}>{t('manager.createOrder.skipSubtitle')}</Text>
                         <ScrollView style={styles.tablesGrid}>
                             <View style={styles.tablesRow}>
                                 {tables.map(table => (
@@ -279,7 +281,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                     <>
                         <View style={styles.orderSummary}>
                             <Text style={styles.summaryTitle}>
-                                {selectedTable ? `Table ${tables.find(t => t.id === selectedTable)?.number}` : 'Takeaway/Delivery'}
+                                {selectedTable ? `${t('manager.createOrder.table')} ${tables.find(t => t.id === selectedTable)?.number}` : t('manager.createOrder.takeawayDelivery')}
                             </Text>
                             <Text style={styles.totalAmount}>₹{totalAmount}</Text>
                         </View>
@@ -288,7 +290,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                             <Search size={20} color={Colors.dark.textSecondary} />
                             <TextInput
                                 style={styles.searchInput}
-                                placeholder="Search menu..."
+                                placeholder={t('manager.createOrder.searchPlaceholder')}
                                 placeholderTextColor={Colors.dark.textSecondary}
                                 value={menuSearch}
                                 onChangeText={setMenuSearch}
@@ -303,7 +305,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                                         <Text style={styles.menuItemPrice}>₹{item.price}</Text>
                                     </View>
                                     <TouchableOpacity style={styles.addButton} onPress={() => addItem(item)}>
-                                        <Text style={styles.addButtonText}>Add</Text>
+                                        <Text style={styles.addButtonText}>{t('manager.createOrder.add')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             ))}
@@ -311,7 +313,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
 
                         {orderItems.length > 0 && (
                             <View style={styles.cartPreview}>
-                                <Text style={styles.cartTitle}>Items ({orderItems.length})</Text>
+                                <Text style={styles.cartTitle}>{t('common.items')} ({orderItems.length})</Text>
                                 <ScrollView style={{ maxHeight: 100 }}>
                                     {orderItems.map(item => (
                                         <View key={item.id} style={styles.cartItem}>
@@ -346,7 +348,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                         )}
 
                         <TouchableOpacity style={styles.createButton} onPress={handlePreviewOrder}>
-                            <Text style={styles.createButtonText}>Create Order</Text>
+                            <Text style={styles.createButtonText}>{t('manager.createOrder.createOrder')}</Text>
                         </TouchableOpacity>
                     </>
                 )}
@@ -357,7 +359,7 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                 visible={showReceipt}
                 onClose={() => setShowReceipt(false)}
                 receipt={currentReceipt}
-                title="Preview Kitchen Receipt"
+                title={t('manager.createOrder.previewReceipt')}
                 onConfirm={submitOrder}
             />
         </View>

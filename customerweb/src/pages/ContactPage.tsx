@@ -109,9 +109,12 @@ export default function ContactPage() {
                     <a href="mailto:thecheesetown@gmail.com" className="text-brand-yellow font-semibold hover:text-yellow-300 transition-colors block text-sm md:text-base">
                       thecheesetown@gmail.com
                     </a>
-                    <a href="mailto:pavanlambole578@gmail.com" className="text-brand-yellow/80 font-medium hover:text-yellow-300 transition-colors block text-xs md:text-sm">
-                      pavanlambole578@gmail.com
-                    </a>
+                    <div className="pt-1">
+                      <p className="text-gray-400 text-xs font-medium">Pavan Vitthal Lambole</p>
+                      <a href="mailto:pavanlambole578@gmail.com" className="text-brand-yellow/80 font-medium hover:text-yellow-300 transition-colors block text-xs md:text-sm">
+                        pavanlambole578@gmail.com
+                      </a>
+                    </div>
                   </div>
                 </div>
               </Card>
