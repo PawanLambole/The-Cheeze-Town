@@ -29,6 +29,8 @@ export default function Footer({ onNavigate }: FooterProps) {
               </div>
               <p className="text-gray-400 text-sm leading-relaxed">
                 Where every bite is a cheesy delight. Crafted with passion, served with love.
+                <br />
+                <span className="text-xs text-brand-yellow/80 mt-2 block">Managed by Pavan Vitthal Lambole</span>
               </p>
             </div>
 
