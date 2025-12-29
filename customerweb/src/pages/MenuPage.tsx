@@ -7,9 +7,10 @@ import { useState } from 'react';
 interface MenuPageProps {
   onPlaceOrder: () => void;
   readOnly?: boolean;
+  showNavbar?: boolean;
 }
 
-export default function MenuPage({ onPlaceOrder, readOnly = false }: MenuPageProps) {
+export default function MenuPage({ onPlaceOrder, readOnly = false, showNavbar = true }: MenuPageProps) {
   const { cart, addToCart, removeFromCart, getTotalPrice } = useCart();
   const { menuItems, loading, error } = useMenuItems();
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,16 +47,16 @@ export default function MenuPage({ onPlaceOrder, readOnly = false }: MenuPagePro
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker pb-24 md:pb-10 pt-16 md:pt-20">
+    <div className={`min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker pb-24 md:pb-10 ${showNavbar ? 'pt-16 md:pt-20' : 'pt-0'}`}>
       {/* Sticky Header */}
-      <div className="sticky top-16 md:top-20 z-30 bg-brand-dark/95 backdrop-blur-xl border-b border-white/5 shadow-2xl transition-all duration-300">
+      <div className={`sticky ${showNavbar ? 'top-16 md:top-20' : 'top-0'} z-30 bg-brand-dark/95 backdrop-blur-xl border-b border-white/5 shadow-2xl transition-all duration-300`}>
         <div className="container mx-auto px-4 py-2 md:py-3">
           <div className="flex flex-col gap-2 md:gap-3">
 
             {/* Top Row: Title & Search */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4">
               {/* Title */}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 flex items-center justify-between md:block">
                 <h1 className="text-xl md:text-3xl font-bold font-serif text-white tracking-tight">
                   {readOnly ? 'Our' : 'Order Your'} <span className="text-brand-yellow">Favorites</span>
                 </h1>

@@ -62,7 +62,7 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
     <div className="min-h-screen bg-gradient-to-b from-brand-darker via-brand-dark to-brand-darker py-8 pb-24">
       <div className="container mx-auto px-4 max-w-2xl">
         {/* Header */}
-        <div className="mb-12 animate-fade-in-down">
+        <div className="mb-8 md:mb-12 animate-fade-in-down">
           <button
             onClick={onBack}
             className="inline-flex items-center gap-2 text-gray-400 hover:text-brand-yellow transition-colors mb-6 font-medium"
@@ -70,19 +70,19 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
-          <h1 className="text-5xl md:text-6xl font-bold font-serif text-white mb-3">
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-serif text-white mb-3 leading-tight">
             Complete Your <span className="text-brand-yellow">Order</span>
-          </h1>
-          <div className="flex items-center gap-2 text-gray-400 font-medium">
-            <Shield className="w-5 h-5" />
+          </h1 >
+          <div className="flex items-center gap-2 text-gray-400 font-medium text-sm md:text-base">
+            <Shield className="w-4 h-4 md:w-5 md:h-5" />
             Secure & Encrypted Transaction
           </div>
-        </div>
+        </div >
 
         {/* Main Card */}
-        <Card glowing className="p-8 md:p-12 animate-fade-in-up space-y-8">
+        <Card glowing className="p-4 md:p-12 animate-fade-in-up space-y-6 md:space-y-8">
           {/* Order Summary */}
-          <div className="bg-brand-gray/30 rounded-2xl p-6 border border-brand-yellow/20">
+          <div className="bg-brand-gray/30 rounded-2xl p-4 md:p-6 border border-brand-yellow/20">
             {tableId > 0 && (
               <>
                 <p className="text-gray-400 text-sm uppercase tracking-widest font-medium mb-2">Table Number</p>
