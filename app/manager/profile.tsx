@@ -49,6 +49,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { signOut, userData, loading } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -105,8 +106,6 @@ export default function ProfileScreen() {
       console.error('Error signing out:', error);
     }
   };
-
-  const insets = useSafeAreaInsets();
 
   const displayName = userData?.name || 'User';
   const displayRole = userData?.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : 'Staff';

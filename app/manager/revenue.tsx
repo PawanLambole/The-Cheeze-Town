@@ -18,6 +18,7 @@ interface RevenueItem {
     category: string;
     amount: number;
     time: string;
+    createdAt: string;
     items: number;
     orderItems: OrderItem[];
 }
@@ -57,47 +58,58 @@ export default function RevenueScreen() {
             const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
             const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
 
-            // Fetch COMPLETED/SERVED orders for TODAY
-            const { data: ordersData, error } = await supabase
-                .from('orders')
+            // Revenue should reflect actual payments collected.
+            // Query `payments` table for completed payments within today and join the related order and order_items for context.
+            const { data: paymentsData, error } = await supabase
+                .from('payments')
                 .select(`
                     id,
-                    order_number,
-                    total_amount,
-                    created_at,
-                    order_items (
-                        menu_item_name,
-                        quantity
+                    amount,
+                    payment_date,
+                    payment_method,
+                    transaction_id,
+                    order_id,
+                    orders (
+                       id,
+                       order_number,
+                       total_amount,
+                       created_at,
+                       order_items (
+                           menu_item_name,
+                           quantity
+                       )
                     )
                 `)
                 .eq('status', 'completed')
-                .gte('created_at', startOfDay)
-                .lte('created_at', endOfDay)
-                .order('created_at', { ascending: false });
+                .gte('payment_date', startOfDay)
+                .lte('payment_date', endOfDay)
+                .order('payment_date', { ascending: false });
 
             if (error) throw error;
 
             // Transform data for revenue items
-            const items: RevenueItem[] = (ordersData || []).map((order: any) => {
+            const items: RevenueItem[] = (paymentsData || []).map((payment: any) => {
+                const order = payment.orders?.[0];
                 // Get the first item's category or use 'other' as fallback
-                const firstItem = order.order_items?.[0]?.menu_item_name || 'Other';
+                const firstItem = order?.order_items?.[0]?.menu_item_name || 'Other';
                 const category = firstItem.includes('Pizza') ? 'pizza' :
                     firstItem.includes('Burger') ? 'burgers' :
                         firstItem.includes('Drink') || firstItem.includes('Beverage') ? 'beverages' :
                             firstItem.includes('Dessert') ? 'desserts' : 'mainCourse';
 
-                const orderItems = order.order_items?.map((item: any) => ({
+                const orderItems = order?.order_items?.map((item: any) => ({
                     name: item.menu_item_name,
                     quantity: item.quantity
                 })) || [];
 
                 return {
-                    id: String(order.id),
-                    orderId: order.order_number,
+                    id: String(payment.id),
+                    orderId: order?.order_number || String(payment.order_id),
                     category: category,
-                    amount: Number(order.total_amount),
-                    time: formatTime(order.created_at),
-                    items: order.order_items?.length || 0,
+                    amount: Number(payment.amount),
+                    time: formatTime(payment.payment_date || payment.created_at || new Date().toISOString()),
+                    createdAt: payment.payment_date || order?.created_at || new Date().toISOString(),
+                    items: order?.order_items?.length || 0,
                     orderItems: orderItems
                 };
             });
@@ -107,16 +119,8 @@ export default function RevenueScreen() {
             // Calculate hourly data
             const hourlyMap: Record<number, number> = {};
             items.forEach(item => {
-                const hour = getHourFromDate(new Date().toISOString().split('T')[0] + ' ' + item.time);
-
-                // Let's parse '8:30 PM' back to hour.
-                const [timePart, ampm] = item.time.split(' ');
-                const [hStr] = timePart.split(':');
-                let h = parseInt(hStr);
-                if (ampm === 'PM' && h !== 12) h += 12;
-                if (ampm === 'AM' && h === 12) h = 0;
-
-                hourlyMap[h] = (hourlyMap[h] || 0) + item.amount;
+                const hour = getHourFromDate(item.createdAt);
+                hourlyMap[hour] = (hourlyMap[hour] || 0) + item.amount;
             });
 
             // Create hourly data array for the chart

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNotificationSettings } from '@/contexts/NotificationSettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '@/i18n';
 
 interface SettingItemProps {
     icon: React.ReactNode;
@@ -55,7 +56,7 @@ export default function ChefSettings() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { signOut } = useAuth();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const {
         soundEnabled, setSoundEnabled,
         popupEnabled, setPopupEnabled,
@@ -96,9 +97,17 @@ export default function ChefSettings() {
         }
     };
 
+    // Language selector state
+    const [selectedLanguage, setSelectedLanguage] = React.useState(i18n.language);
+
+    const handleLanguageChange = async (lang: string) => {
+        setSelectedLanguage(lang);
+        await changeLanguage(lang);
+    };
+
     return (
         <View style={styles.container}>
-            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}> 
                 <TouchableOpacity onPress={() => router.back()}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
@@ -107,6 +116,47 @@ export default function ChefSettings() {
             </View>
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                {/* Language Selector Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>{t('chef.settings.language')}</Text>
+                    <View style={styles.settingsList}>
+                        <SettingItem
+                            icon={<Text style={{fontSize: 20}}>🌐</Text>}
+                            title={t('chef.settings.languageOption')}
+                            subtitle={t('chef.settings.languageSubtitle')}
+                            showArrow={false}
+                            value={selectedLanguage === 'en' ? 'English' : 'मराठी'}
+                            onPress={() => {}}
+                        />
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-around', padding: 16 }}>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: selectedLanguage === 'en' ? Colors.dark.primary : Colors.dark.card,
+                                    paddingVertical: 8,
+                                    paddingHorizontal: 24,
+                                    borderRadius: 8,
+                                    marginRight: 8,
+                                }}
+                                onPress={() => handleLanguageChange('en')}
+                            >
+                                <Text style={{ color: selectedLanguage === 'en' ? '#fff' : Colors.dark.text }}>English</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: selectedLanguage === 'mr' ? Colors.dark.primary : Colors.dark.card,
+                                    paddingVertical: 8,
+                                    paddingHorizontal: 24,
+                                    borderRadius: 8,
+                                }}
+                                onPress={() => handleLanguageChange('mr')}
+                            >
+                                <Text style={{ color: selectedLanguage === 'mr' ? '#fff' : Colors.dark.text }}>मराठी</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Notification Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>{t('chef.settings.notifications')}</Text>
                     <View style={styles.settingsList}>

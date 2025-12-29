@@ -5,7 +5,11 @@ import type { Database } from '@/types/database';
 // Supabase configuration (Expo)
 // Values are provided via EXPO_PUBLIC_* env vars
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://gnpdhisyxwqvnjleyola.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY ?? 'sb_publishable_l2p6m13fqhlAC4unPTnulg_gK69Qict';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+if (!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+	console.warn('⚠️ EXPO_PUBLIC_SUPABASE_ANON_KEY is not set; Supabase client will fail to authenticate.');
+}
 
 // Debug logging
 console.log('🔧 Supabase Config:');

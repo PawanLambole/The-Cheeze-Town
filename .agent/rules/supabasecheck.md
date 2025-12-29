@@ -6,7 +6,7 @@ You are authorized to perform Supabase-related operations directly from the term
 
 🔐 Authentication & Access
 
-Use Supabase Access Tokens provided in accesstokens.txt
+Use a Supabase access token provided via an environment variable (do NOT store tokens in the repo).
 
 Authenticate non-interactively using:
 
@@ -98,10 +98,10 @@ Do NOT claim Supabase access without CLI
 
 Do NOT fabricate command outputs
 
-Do NOT assume credentials beyond accesstokens.txt
+Do NOT assume credentials beyond the environment variables provided in the workspace.
 
 Do NOT bypass Supabase security or RLS rules
 
 ✅ Optional Short Version (If You Want Ultra-Strict)
 
-“When instructed to check or manage Supabase, immediately use the Supabase CLI (if installed) with access tokens from accesstokens.txt to authenticate and perform required database, migration, or status operations without asking for confirmation. Ask for user input only if mandatory parameters are missing. Report final results or errors only.”
+“When instructed to check or manage Supabase, immediately use the Supabase CLI (if installed) with `SUPABASE_ACCESS_TOKEN` provided via environment variable to authenticate and perform required database, migration, or status operations without asking for confirmation. Ask for user input only if mandatory parameters are missing. Report final results or errors only.”

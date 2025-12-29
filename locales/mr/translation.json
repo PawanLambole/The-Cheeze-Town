@@ -65,6 +65,9 @@
         "orderNumber": "ऑर्डर #",
         "settings": {
             "title": "सेटिंग्ज",
+            "language": "भाषा",
+            "english": "English",
+            "marathi": "मराठी",
             "notifications": "सूचना",
             "soundAlerts": "ध्वनी सूचना",
             "soundAlertsSubtitle": "नवीन ऑर्डरवर आवाज वाजवा",

@@ -113,6 +113,8 @@ export const clearDismissedUpdate = async (): Promise<void> => {
     }
 };
 
+const LANDING_PAGE_URL = 'https://the-cheeze-town-app.vercel.app/';
+
 /**
  * Check for available updates
  */
@@ -159,7 +161,7 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
                 version_code: updateInfo.latest_version_code,
                 update_type: updateInfo.update_type,
                 is_mandatory: updateInfo.is_mandatory,
-                download_url: updateInfo.download_url,
+                download_url: updateInfo.update_type === 'native' ? LANDING_PAGE_URL : updateInfo.download_url,
                 release_notes: null,
                 update_message: updateInfo.update_message,
             } : null,
@@ -204,33 +206,8 @@ export const performOTAUpdate = async (): Promise<boolean> => {
  * Get the download URL for native update (APK)
  */
 export const getDownloadUrl = async (versionCode?: number): Promise<string | null> => {
-    const platform = getPlatform();
-
-    try {
-        // @ts-ignore - Type will be available after database migration
-        let query = (supabase.from as any)('app_versions')
-            .select('download_url')
-            .eq('platform', platform)
-            .eq('is_active', true)
-            .eq('update_type', 'native')
-            .order('version_code', { ascending: false });
-
-        if (versionCode) {
-            query = query.eq('version_code', versionCode);
-        }
-
-        const { data, error } = await query.limit(1).single();
-
-        if (error || !data) {
-            console.error('Error getting download URL:', error);
-            return null;
-        }
-
-        return data.download_url;
-    } catch (error) {
-        console.error('Error in getDownloadUrl:', error);
-        return null;
-    }
+    // Always return the landing page URL for native updates
+    return LANDING_PAGE_URL;
 };
 
 /**

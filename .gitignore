@@ -31,5 +31,10 @@ yarn-error.*
 .env*.local
 .env
 
+# local supabase auth tokens (never commit)
+accesstoken.txt
+accesstokens.txt
+SUPABASE_ACCESS_TOKEN.txt
+
 # typescript
 *.tsbuildinfo

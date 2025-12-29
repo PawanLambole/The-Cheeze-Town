@@ -21,8 +21,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 42 hours in milliseconds
-const INACTIVITY_LIMIT = 42 * 60 * 60 * 1000;
+// 48 hours in milliseconds
+const INACTIVITY_LIMIT = 48 * 60 * 60 * 1000;
 const LAST_ACTIVITY_KEY = 'last_activity_timestamp';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const lastActivity = parseInt(lastActivityStr, 10);
                 const now = Date.now();
                 if (now - lastActivity > INACTIVITY_LIMIT) {
-                    console.log('⏳ Session expired due to inactivity (42h+). Logging out.');
+                    console.log('⏳ Session expired due to inactivity (48h+). Logging out.');
                     await signOut();
                     return true; // Expired
                 }
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         checkSession();
 
-        // Listen for app state changes (Background -> Foreground)
+        // Listen for app state changes (Background <-> Foreground)
         const subscription = AppState.addEventListener('change', (nextAppState) => {
             if (
                 appState.current.match(/inactive|background/) &&
@@ -105,6 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // App has come to the foreground
                 console.log('App active, checking inactivity...');
                 checkInactivity();
+            } else if (
+                appState.current === 'active' &&
+                nextAppState.match(/inactive|background/)
+            ) {
+                // App is leaving the foreground; mark last activity now.
+                updateLastActivity();
             }
             appState.current = nextAppState;
         });

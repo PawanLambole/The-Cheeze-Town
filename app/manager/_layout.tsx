@@ -1,4 +1,4 @@
-import { View, Platform } from 'react-native';
+import { View, Platform, Text } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Home, User, UtensilsCrossed, PlusCircle, Users } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -45,7 +45,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: t('manager.navigation.home'),
+          tabBarLabel: ({ color }) => <Text style={{ color, fontWeight: '600' }}>{t('manager.navigation.home')}</Text>,
           tabBarIcon: ({ size, color }) => (
             <Home size={size} color={color} />
           ),
@@ -54,7 +54,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="menu"
         options={{
-          title: t('manager.navigation.menu'),
+          tabBarLabel: ({ color }) => <Text style={{ color, fontWeight: '600' }}>{t('manager.navigation.menu')}</Text>,
           tabBarIcon: ({ size, color }) => (
             <UtensilsCrossed size={size} color={color} />
           ),
@@ -63,7 +63,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="create-order"
         options={{
-          title: t('manager.navigation.createOrder'),
           tabBarLabel: () => null,
           tabBarIcon: ({ focused }) => (
             <View
@@ -103,7 +102,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="staff"
         options={{
-          title: t('manager.navigation.staff'),
+          tabBarLabel: ({ color }) => <Text style={{ color, fontWeight: '600' }}>{t('manager.navigation.staff')}</Text>,
           tabBarIcon: ({ size, color }) => (
             <Users size={size} color={color} />
           ),
@@ -112,7 +111,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: t('manager.navigation.profile'),
+          tabBarLabel: ({ color }) => <Text style={{ color, fontWeight: '600' }}>{t('manager.navigation.profile')}</Text>,
           tabBarIcon: ({ size, color }) => (
             <User size={size} color={color} />
           ),
@@ -120,6 +119,12 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="tables"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="tables/[id]"
         options={{
           href: null,
         }}

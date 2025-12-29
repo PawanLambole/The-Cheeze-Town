@@ -156,9 +156,7 @@ export default function HomeScreen() {
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
 
-      // 1. Get today's orders count and revenue
-      // Note: Supabase JS client doesn't support complex aggregations directly in one simple call without RPC usually,
-      // but we can fetch today's orders and calculate length/sum client-side for small-medium scale.
+      // 1. Get today's orders count
       const { data: todaysOrdersData, error: ordersError } = await database.query(
         'orders',
         'created_at',
@@ -171,10 +169,20 @@ export default function HomeScreen() {
       const ordersList = ((todaysOrdersData as unknown) || []) as DatabaseOrder[];
       const orderCount = ordersList.length;
 
-      // Calculate Revenue: Sum of total_amount for orders that are not cancelled
-      const revenue = ordersList
-        .filter((o: DatabaseOrder) => o.status !== 'cancelled')
-        .reduce((sum: number, order: DatabaseOrder) => sum + (Number(order.total_amount) || 0), 0);
+      // Calculate Revenue from actual collected payments: sum of payments.amount for completed payments today
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).toISOString();
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
+
+      const { data: paymentsToday, error: paymentsError } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('status', 'completed')
+        .gte('payment_date', startOfDay)
+        .lte('payment_date', endOfDay);
+
+      if (paymentsError) throw paymentsError;
+
+      const revenue = (paymentsToday || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
 
       // 2. Get pending orders count (all time or just today/recent? Usually 'pending' status implies current)
       const { data: pendingData, error: pendingError } = await database.query(
@@ -224,12 +232,22 @@ export default function HomeScreen() {
       });
 
       // 4. Calculate today's expenses from purchases
-      const { data: expData } = await supabase
+      // Some Supabase/PostgREST setups return 400 when comparing date columns with full
+      // ISO timestamps. To avoid that, fetch the candidate rows and filter client-side
+      // by parsing `purchase_date` into a Date and checking the range.
+      const { data: expDataRaw, error: expError } = await supabase
         .from('purchases')
-        .select('total_price')
-        .eq('purchase_date', todayISO.split('T')[0]);
+        .select('total_amount, purchase_date');
 
-      const totalExpense = (expData || []).reduce((sum: number, p: any) => sum + (Number(p.total_price) || 0), 0);
+      if (expError) throw expError;
+
+      const totalExpense = (expDataRaw || [])
+        .filter((p: any) => {
+          if (!p.purchase_date) return false;
+          const pd = new Date(p.purchase_date);
+          return pd >= new Date(startOfDay) && pd <= new Date(endOfDay);
+        })
+        .reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
 
       // Update state
       setStats({
