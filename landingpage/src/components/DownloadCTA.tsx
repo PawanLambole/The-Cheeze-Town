@@ -22,7 +22,7 @@ export default function DownloadCTA() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6">
               <a
-                href="#download"
+                href="/downloads/CheezeTown-v1.1.0.apk"
                 className="inline-flex items-center gap-3 bg-gradient-to-r from-[#FFB800] to-[#FFD54A] text-black px-12 py-6 rounded-full text-xl font-bold hover:scale-110 transition-all duration-300 shadow-2xl hover:shadow-[#FFB800]/60 animate-pulse-glow"
               >
                 <Smartphone className="w-7 h-7" />
@@ -30,7 +30,7 @@ export default function DownloadCTA() {
               </a>
             </div>
 
-              <div className="flex flex-wrap justify-center gap-8 pt-8 text-gray-300">
+            <div className="flex flex-wrap justify-center gap-8 pt-8 text-gray-300">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-[#FFB800] rounded-full"></div>
                 <span>Free to Download</span>
