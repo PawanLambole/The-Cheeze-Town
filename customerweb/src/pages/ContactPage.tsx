@@ -92,9 +92,12 @@ export default function ContactPage() {
                 <div className="flex-1">
                   <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">Phone</h3>
                   <p className="text-gray-400 mb-1 text-sm md:text-base">Call us for immediate assistance</p>
-                  <a href="tel:+919766573966" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-base md:text-lg">
-                    +91 97665 73966
-                  </a>
+                  <div className="flex flex-col">
+                    <span className="text-gray-400 text-xs font-medium mb-0.5">Pavan Vitthal Lambole</span>
+                    <a href="tel:+919766573966" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-base md:text-lg">
+                      +91 97665 73966
+                    </a>
+                  </div>
                 </div>
               </Card>
 
