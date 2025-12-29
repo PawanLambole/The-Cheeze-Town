@@ -18,10 +18,12 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
+    "@shopify/react-native-skia": "2.2.12",
     "@supabase/supabase-js": "^2.89.0",
     "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
     "expo": "^54.0.10",
+    "expo-asset": "~12.0.12",
     "expo-audio": "^1.1.1",
     "expo-av": "^16.0.8",
     "expo-blur": "~15.0.7",
@@ -61,6 +63,7 @@
     "react-native-view-shot": "^4.0.3",
     "react-native-web": "^0.21.0",
     "react-native-webview": "13.15.0",
+    "react-native-worklets-core": "^1.6.2",
     "victory-native": "^41.20.2"
   },
   "devDependencies": {

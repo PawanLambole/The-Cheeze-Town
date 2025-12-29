@@ -78,16 +78,20 @@ function RootLayoutNav() {
   );
 }
 
+import AnimatedSplashScreen from '@/components/AnimatedSplashScreen';
+
 export default function RootLayout() {
   useFrameworkReady();
 
   return (
-    <AuthProvider>
-      <NotificationSettingsProvider>
-        <UpdateProvider checkOnMount={true} checkOnResume={true} checkInterval={24}>
-          <RootLayoutNav />
-        </UpdateProvider>
-      </NotificationSettingsProvider>
-    </AuthProvider>
+    <AnimatedSplashScreen>
+      <AuthProvider>
+        <NotificationSettingsProvider>
+          <UpdateProvider checkOnMount={true} checkOnResume={true} checkInterval={24}>
+            <RootLayoutNav />
+          </UpdateProvider>
+        </NotificationSettingsProvider>
+      </AuthProvider>
+    </AnimatedSplashScreen>
   );
 }

@@ -12,7 +12,21 @@ import {
     useSupabaseRealtimeQuery,
     useSupabaseSubscription
 } from '@/hooks/useSupabase';
-import { Order, MenuItem } from '@/types/database';
+// Local interfaces for examples
+interface Order {
+    id: number;
+    order_number: string;
+    status: string;
+    created_at: string;
+}
+
+interface MenuItem {
+    id: number;
+    name: string;
+    price: number;
+    category: string;
+    available: boolean;
+}
 
 /**
  * Example 1: Basic data fetching with useState and useEffect
@@ -29,7 +43,7 @@ export function Example1ManualFetch() {
         setLoading(true);
         const { data, error } = await database.getAll('orders');
         if (!error && data) {
-            setOrders(data);
+            setOrders(data as unknown as Order[]);
         }
         setLoading(false);
     };
@@ -144,7 +158,7 @@ export function Example5CRUD() {
 
         const { data, error } = await database.insert('menu_items', newItem);
         if (!error && data) {
-            setItems([...items, data]);
+            setItems([...items, data as unknown as MenuItem]);
         }
     };
 
@@ -152,7 +166,7 @@ export function Example5CRUD() {
     const fetchMenuItems = async () => {
         const { data, error } = await database.getAll('menu_items');
         if (!error && data) {
-            setItems(data);
+            setItems(data as unknown as MenuItem[]);
         }
     };
 
@@ -165,7 +179,7 @@ export function Example5CRUD() {
 
         const { data, error } = await database.update('menu_items', id, updates);
         if (!error && data) {
-            setItems(items.map(item => item.id === id ? data : item));
+            setItems(items.map(item => item.id === id ? (data as unknown as MenuItem) : item));
         }
     };
 
@@ -214,14 +228,14 @@ export function Example6Queries() {
         const { data: pending } = await database.query('orders', 'status', 'eq', 'pending');
         const { data: preparing } = await database.query('orders', 'status', 'eq', 'preparing');
 
-        setActiveOrders([...(pending || []), ...(preparing || [])]);
+        setActiveOrders([...((pending as unknown as Order[]) || []), ...((preparing as unknown as Order[]) || [])]);
     };
 
     const fetchExpensiveItems = async () => {
         // Get menu items with price greater than 500
         const { data } = await database.query('menu_items', 'price', 'gt', 500);
         if (data) {
-            setExpensiveItems(data);
+            setExpensiveItems(data as unknown as MenuItem[]);
         }
     };
 

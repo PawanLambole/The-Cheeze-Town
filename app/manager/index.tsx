@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -168,7 +168,7 @@ export default function HomeScreen() {
 
       if (ordersError) throw ordersError;
 
-      const ordersList = todaysOrdersData || [];
+      const ordersList = ((todaysOrdersData as unknown) || []) as DatabaseOrder[];
       const orderCount = ordersList.length;
 
       // Calculate Revenue: Sum of total_amount for orders that are not cancelled
@@ -205,7 +205,7 @@ export default function HomeScreen() {
       if (recentError) throw recentError;
 
       // Map recent orders to partial view format
-      const formattedRecentOrders = (recentData || []).map((order: DatabaseOrder) => {
+      const formattedRecentOrders = ((recentData as unknown) as DatabaseOrder[] || []).map((order: DatabaseOrder) => {
         // We need order items. Since we didn't join, let's just show a placeholder or fetch items if critical.
         // For dashboard list, maybe we just show generic info or do a second fetch?
         // Let's rely on a utility or just standard mapping. 
@@ -214,7 +214,7 @@ export default function HomeScreen() {
         return {
           orderId: order.order_number,
           tableNo: order.table_id,
-          customerName: order.customer_name || 'Guest',
+          customerName: order.customer_name || t('common.guest'),
           items: [], // We would need to fetch order_items. Leaving empty for performance for now or TODO.
           isServed: order.status === 'served' || order.status === 'completed',
           totalAmount: order.total_amount,
@@ -247,7 +247,7 @@ export default function HomeScreen() {
           const { data: items } = await supabase
             .from('order_items')
             .select('menu_item_name, quantity')
-            .eq('order_id', (recentData?.find((rd: DatabaseOrder) => rd.order_number === o.orderId)?.id));
+            .eq('order_id', ((recentData as unknown as DatabaseOrder[])?.find((rd: DatabaseOrder) => rd.order_number === o.orderId)?.id || 0));
 
           // map to "Qty x Name"
           const itemStrings = items?.map((i: any) => `${i.quantity}x ${i.menu_item_name}`) || [];
@@ -268,10 +268,10 @@ export default function HomeScreen() {
     const past = new Date(dateString);
     const diffMs = now.getTime() - past.getTime();
     const diffMins = Math.round(diffMs / 60000);
-    if (diffMins < 60) return `${diffMins} mins ago`;
+    if (diffMins < 60) return t('common.timeAgo.mins', { count: diffMins });
     const diffHours = Math.round(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    return `${Math.round(diffHours / 24)} days ago`;
+    if (diffHours < 24) return t('common.timeAgo.hours', { count: diffHours });
+    return t('common.timeAgo.days', { count: Math.round(diffHours / 24) });
   };
 
   useFocusEffect(
@@ -352,7 +352,7 @@ export default function HomeScreen() {
           />
           <StatCard
             value={`₹${stats.todayExpense.toLocaleString()}`}
-            label="Today's Expense"
+            label={t('manager.home.todaysExpense')}
             icon={<TrendingDown size={20} color="#EF4444" />}
             color="#EF4444"
             onPress={() => router.push('/manager/expenses')}
@@ -372,7 +372,7 @@ export default function HomeScreen() {
             <View style={[styles.quickAccessIcon, { backgroundColor: '#3B82F620' }]}>
               <Package size={24} color="#3B82F6" />
             </View>
-            <Text style={styles.quickAccessLabel}>Inventory</Text>
+            <Text style={styles.quickAccessLabel}>{t('manager.navigation.inventory')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -382,7 +382,7 @@ export default function HomeScreen() {
             <View style={[styles.quickAccessIcon, { backgroundColor: '#EF444420' }]}>
               <Package size={24} color="#EF4444" />
             </View>
-            <Text style={styles.quickAccessLabel}>Purchases</Text>
+            <Text style={styles.quickAccessLabel}>{t('manager.navigation.purchases')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -392,7 +392,7 @@ export default function HomeScreen() {
             <View style={[styles.quickAccessIcon, { backgroundColor: '#10B98120' }]}>
               <Table size={24} color="#10B981" />
             </View>
-            <Text style={styles.quickAccessLabel}>Tables</Text>
+            <Text style={styles.quickAccessLabel}>{t('manager.navigation.tables')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -402,7 +402,7 @@ export default function HomeScreen() {
             <View style={[styles.quickAccessIcon, { backgroundColor: '#F59E0B20' }]}>
               <Users size={24} color="#F59E0B" />
             </View>
-            <Text style={styles.quickAccessLabel}>Staff</Text>
+            <Text style={styles.quickAccessLabel}>{t('manager.navigation.staff')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -441,6 +441,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.dark.background,
+    paddingBottom: Platform.OS === 'web' ? 90 : 0,
   },
   header: {
     flexDirection: 'row',

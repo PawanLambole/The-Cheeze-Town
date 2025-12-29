@@ -197,10 +197,10 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
 
     const getStatusLabel = (status: 'all' | 'pending' | 'served' | 'completed') => {
         switch (status) {
-            case 'all': return 'All Orders';
-            case 'pending': return 'Pending';
-            case 'served': return 'Served';
-            case 'completed': return 'Completed';
+            case 'all': return t('manager.orders.filter.all');
+            case 'pending': return t('manager.orders.filter.pending');
+            case 'served': return t('manager.orders.filter.served');
+            case 'completed': return t('manager.orders.filter.completed');
             default: return status;
         }
     };
@@ -229,19 +229,19 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{orders.length}</Text>
-                        <Text style={styles.statLabel} numberOfLines={1}>Total</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>{t('manager.orders.stats.total')}</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statValue, { color: '#F59E0B' }]}>{pendingOrdersCount}</Text>
-                        <Text style={styles.statLabel} numberOfLines={1}>Pending</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>{t('manager.orders.stats.pending')}</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statValue, { color: '#3B82F6' }]}>{servedOrdersCount}</Text>
-                        <Text style={styles.statLabel} numberOfLines={1}>Served</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>{t('manager.orders.stats.served')}</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={[styles.statValue, { color: '#10B981' }]}>{completedOrdersCount}</Text>
-                        <Text style={styles.statLabel} numberOfLines={1}>Completed</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>{t('manager.orders.stats.completed')}</Text>
                     </View>
                 </View>
 
@@ -250,7 +250,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                     <Search size={20} color={Colors.dark.textSecondary} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder={t('manager.orders.searchOrders')}
+                        placeholder={t('manager.orders.searchPlaceholder')}
                         placeholderTextColor={Colors.dark.textSecondary}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -302,7 +302,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                         <Text style={styles.orderId}>#{order.orderId}</Text>
                                         <View style={styles.tableTag}>
                                             <Table size={12} color="#000000" />
-                                            <Text style={styles.tableNo}>{t('common.table')} {order.tableNo}</Text>
+                                            <Text style={styles.tableNo}>{t('manager.orders.table')} {order.tableNo}</Text>
                                         </View>
                                     </View>
                                     {order.customerName && (
@@ -328,7 +328,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                         )}
                                     </View>
                                     <Text style={[styles.statusToggleCompactText, order.isServed && styles.statusToggleCompactTextServed]}>
-                                        {order.isServed ? t('manager.home.served') : t('manager.home.pending')}
+                                        {order.isServed ? t('manager.orders.stats.served') : t('manager.orders.stats.pending')}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -355,7 +355,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                         }}
                                     >
                                         <Plus size={14} color="#000000" />
-                                        <Text style={styles.addItemButtonCardText}>Add</Text>
+                                        <Text style={styles.addItemButtonCardText}>{t('manager.orders.addItem')}</Text>
                                     </TouchableOpacity>
                                     <Text style={styles.totalAmount}>₹{order.totalAmount.toFixed(2)}</Text>
                                 </View>
@@ -366,9 +366,9 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                     {filteredOrders.length === 0 && (
                         <View style={styles.emptyContainer}>
                             <ShoppingBag size={48} color={Colors.dark.textSecondary} />
-                            <Text style={styles.emptyText}>No orders found</Text>
+                            <Text style={styles.emptyText}>{t('manager.orders.empty')}</Text>
                             {searchQuery && (
-                                <Text style={styles.emptySubtext}>Try a different search term</Text>
+                                <Text style={styles.emptySubtext}>{t('manager.orders.emptySubtext')}</Text>
                             )}
                         </View>
                     )}
@@ -399,14 +399,14 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                         </View>
                                         <View style={styles.summaryDivider} />
                                         <View>
-                                            <Text style={styles.summaryLabel}>Table</Text>
+                                            <Text style={styles.summaryLabel}>{t('manager.orders.table')}</Text>
                                             <Text style={styles.summaryValue}>{selectedOrder.tableNo}</Text>
                                         </View>
                                         <View style={styles.summaryDivider} />
                                         <View>
-                                            <Text style={styles.summaryLabel}>Status</Text>
+                                            <Text style={styles.summaryLabel}>{t('manager.orders.status')}</Text>
                                             <Text style={[styles.summaryValue, { color: selectedOrder.isServed ? '#10B981' : '#F59E0B' }]}>
-                                                {selectedOrder.isServed ? 'Served' : 'Pending'}
+                                                {selectedOrder.isServed ? t('manager.orders.stats.served') : t('manager.orders.stats.pending')}
                                             </Text>
                                         </View>
                                     </View>
@@ -416,23 +416,23 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                 <View style={styles.orderInfoCard}>
                                     {selectedOrder.customerName && (
                                         <View style={styles.orderInfoRow}>
-                                            <Text style={styles.orderInfoLabel}>Customer</Text>
+                                            <Text style={styles.orderInfoLabel}>{t('manager.orders.customer')}</Text>
                                             <Text style={styles.orderInfoValue}>{selectedOrder.customerName}</Text>
                                         </View>
                                     )}
                                     <View style={styles.orderInfoRow}>
-                                        <Text style={styles.orderInfoLabel}>Time Elapsed</Text>
+                                        <Text style={styles.orderInfoLabel}>{t('manager.orders.timeElapsed')}</Text>
                                         <Text style={styles.orderInfoValue}>{selectedOrder.time}</Text>
                                     </View>
                                     <View style={[styles.orderInfoRow, { borderBottomWidth: 0 }]}>
-                                        <Text style={styles.orderInfoLabel}>Duration</Text>
+                                        <Text style={styles.orderInfoLabel}>{t('manager.orders.duration')}</Text>
                                         <Text style={styles.orderInfoValue}>{selectedOrder.duration}</Text>
                                     </View>
                                 </View>
 
                                 {/* Order Items */}
                                 <View style={styles.orderItemsSection}>
-                                    <Text style={styles.sectionLabel}>Items ({selectedOrder.items.length})</Text>
+                                    <Text style={styles.sectionLabel}>{t('manager.orders.items')} ({selectedOrder.items.length})</Text>
                                     {selectedOrder.items.map((item, index) => (
                                         <View key={index} style={styles.orderItem}>
                                             <View style={styles.orderItemLeft}>
@@ -473,14 +473,14 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
 
                                     {/* Subtotal in items section */}
                                     <View style={styles.itemsFooter}>
-                                        <Text style={styles.subtotalLabel}>Subtotal</Text>
+                                        <Text style={styles.subtotalLabel}>{t('manager.orders.subtotal')}</Text>
                                         <Text style={styles.subtotalValue}>₹{selectedOrder.totalAmount.toFixed(2)}</Text>
                                     </View>
                                 </View>
 
                                 {/* Total Amount - Highlighted */}
                                 <View style={styles.orderTotal}>
-                                    <Text style={styles.orderTotalLabel}>Total Amount</Text>
+                                    <Text style={styles.orderTotalLabel}>{t('manager.orders.totalAmount')}</Text>
                                     <Text style={styles.orderTotalAmount}>₹{selectedOrder.totalAmount.toFixed(2)}</Text>
                                 </View>
 
@@ -496,7 +496,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                 >
                                     <CreditCard size={18} color="#FFFFFF" />
                                     <Text style={styles.paymentButtonText}>
-                                        {selectedOrder.isServed ? 'Process Payment' : 'Mark as Served First'}
+                                        {selectedOrder.isServed ? t('manager.orders.processPayment') : t('manager.orders.markServed')}
                                     </Text>
                                 </TouchableOpacity>
 
@@ -512,7 +512,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Add Item to Order</Text>
+                            <Text style={styles.modalTitle}>{t('manager.orders.addItemTitle')}</Text>
                             <TouchableOpacity onPress={() => setShowAddItemModal(false)}>
                                 <X size={24} color={Colors.dark.textSecondary} />
                             </TouchableOpacity>
@@ -539,11 +539,11 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
 
                                 {/* Quick Add Categories */}
                                 <View style={styles.categoriesSection}>
-                                    <Text style={styles.sectionLabel}>Categories</Text>
+                                    <Text style={styles.sectionLabel}>{t('manager.orders.categories')}</Text>
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
                                         {['Pizza', 'Pasta', 'Drinks', 'Sides', 'Desserts'].map((category) => (
                                             <TouchableOpacity key={category} style={styles.categoryChip}>
-                                                <Text style={styles.categoryChipText}>{category}</Text>
+                                                <Text style={styles.categoryChipText}>{t(`manager.categories.${category.toLowerCase()}`)}</Text>
                                             </TouchableOpacity>
                                         ))}
                                     </ScrollView>
@@ -552,7 +552,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                 {/* Selected Items */}
                                 {selectedItems.length > 0 && (
                                     <View style={styles.selectedItemsSection}>
-                                        <Text style={styles.sectionLabel}>Selected Items ({selectedItems.length})</Text>
+                                        <Text style={styles.sectionLabel}>{t('manager.orders.selectedItems')} ({selectedItems.length})</Text>
                                         {selectedItems.map((item, index) => (
                                             <View key={index} style={styles.selectedItem}>
                                                 <View style={styles.selectedItemInfo}>
@@ -601,7 +601,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
 
                                 {/* Menu Items List */}
                                 <View style={styles.menuItemsList}>
-                                    <Text style={styles.sectionLabel}>Menu Items</Text>
+                                    <Text style={styles.sectionLabel}>{t('manager.orders.menuItems')}</Text>
 
                                     {/* Menu Items from DB */}
                                     {menuItems.map((item, index) => {
@@ -684,11 +684,11 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                                         setCurrentReceipt(printResult.receipt);
                                                         setShowReceipt(true);
                                                     } else {
-                                                        Alert.alert('Error', printResult.message || 'Failed to generate receipt');
+                                                        Alert.alert('Error', printResult.message || t('manager.orders.receiptError'));
                                                     }
                                                 } catch (error) {
                                                     console.error('Error generating added items receipt:', error);
-                                                    Alert.alert('Error', 'Failed to generate receipt');
+                                                    Alert.alert('Error', t('manager.orders.receiptError'));
                                                 }
                                             }
 
@@ -697,7 +697,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                         }}
                                     >
                                         <Text style={styles.confirmButtonText}>
-                                            Confirm ({selectedItems.length} {selectedItems.length === 1 ? 'item' : 'items'})
+                                            {t('manager.orders.confirm')} ({selectedItems.length} {selectedItems.length === 1 ? 'item' : 'items'})
                                         </Text>
                                     </TouchableOpacity>
                                 )}
@@ -720,32 +720,61 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                     onPaymentSuccess={async (transactionId, method) => {
                         console.log('Payment successful:', { transactionId, method, orderId: selectedOrder.orderId });
 
-                        // Update order to mark as paid/completed
-                        setOrders(prev => prev.map(o =>
-                            o.id === selectedOrder.id
-                                ? {
-                                    ...o,
-                                    isPaid: true,
-                                    transactionId,
-                                    paymentMethod: method
-                                }
-                                : o
-                        ));
-
-                        // Update selected order state
-                        const updatedOrder = {
-                            ...selectedOrder,
-                            isPaid: true,
-                            transactionId,
-                            paymentMethod: method
-                        };
-                        setSelectedOrder(updatedOrder);
-
-                        setShowPaymentModal(false);
-                        setShowOrderModal(false);
-
-                        // Generate payment receipt
                         try {
+                            // 1. Update order status
+                            const { error: orderError } = await supabase
+                                .from('orders')
+                                .update({
+                                    status: 'completed',
+                                    updated_at: new Date().toISOString()
+                                })
+                                .eq('id', Number(selectedOrder.id));
+
+                            if (orderError) throw orderError;
+
+                            // 2. Insert payment record
+                            const { error: paymentError } = await supabase
+                                .from('payments')
+                                .insert([{
+                                    order_id: Number(selectedOrder.id),
+                                    amount: selectedOrder.totalAmount,
+                                    payment_method: method,
+                                    transaction_id: transactionId,
+                                    status: 'completed',
+                                    payment_date: new Date().toISOString()
+                                }]);
+
+                            if (paymentError) {
+                                console.error('Error recording payment:', paymentError);
+                                // Don't block completion, but log error
+                                Alert.alert('Warning', t('manager.orders.paymentError'));
+                            }
+
+                            // Update order to mark as paid/completed in local state
+                            setOrders(prev => prev.map(o =>
+                                o.id === selectedOrder.id
+                                    ? {
+                                        ...o,
+                                        isPaid: true,
+                                        transactionId,
+                                        paymentMethod: method
+                                    }
+                                    : o
+                            ));
+
+                            // Update selected order state
+                            const updatedOrder = {
+                                ...selectedOrder,
+                                isPaid: true,
+                                transactionId,
+                                paymentMethod: method
+                            };
+                            setSelectedOrder(updatedOrder);
+
+                            setShowPaymentModal(false);
+                            setShowOrderModal(false);
+
+                            // Generate payment receipt
                             const paymentData = {
                                 orderId: selectedOrder.orderId,
                                 tableNo: selectedOrder.tableNo,
@@ -768,7 +797,8 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                 setShowReceipt(true);
                             }
                         } catch (error) {
-                            console.error('Error generating payment receipt:', error);
+                            console.error('Error processing payment:', error);
+                            Alert.alert('Error', 'Failed to process payment');
                         }
                     }}
                 />

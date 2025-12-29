@@ -49,7 +49,7 @@ export default function LoginScreen() {
 
     const handleLogin = async () => {
         if (!email || !password) {
-            setErrorModalMessage('Please enter both your email and password to continue.');
+            setErrorModalMessage(t('errors.missingCredentials'));
             setErrorModalVisible(true);
             return;
         }
@@ -60,7 +60,7 @@ export default function LoginScreen() {
             const { data, error } = await signIn(email, password);
 
             if (error) {
-                setErrorModalMessage('The email or password you entered is incorrect. Please try again.');
+                setErrorModalMessage(t('errors.invalidCredentials'));
                 setErrorModalVisible(true);
                 setLoading(false);
                 return;
@@ -79,7 +79,7 @@ export default function LoginScreen() {
                     console.error('Database error during role fetch:', roleError);
                     await signOut();
                     setLoading(false);
-                    setErrorModalMessage('Could not verify user role.');
+                    setErrorModalMessage(t('errors.roleVerification'));
                     setErrorModalVisible(true);
                     return;
                 }
@@ -113,9 +113,9 @@ export default function LoginScreen() {
 
                             // Check if it's a duplicate key error on email (different ID)
                             if (createError.code === '23505' && createError.message.includes('email')) {
-                                setErrorModalMessage('This email is already registered with a different account. Please contact support.');
+                                setErrorModalMessage(t('errors.emailRegistered'));
                             } else {
-                                setErrorModalMessage('Could not create user profile. Please try again.');
+                                setErrorModalMessage(t('errors.createProfileFailed'));
                             }
 
                             await signOut();
@@ -137,7 +137,7 @@ export default function LoginScreen() {
                     console.error('Unexpected: userRoleData is null after creation attempt');
                     await signOut();
                     setLoading(false);
-                    setErrorModalMessage('Could not verify user role.');
+                    setErrorModalMessage(t('errors.roleVerification'));
                     setErrorModalVisible(true);
                     return;
                 }
@@ -152,7 +152,7 @@ export default function LoginScreen() {
                     await signOut();
                     setLoading(false);
                     setErrorModalMessage(
-                        `Access Denied\n\nYou are attempting to login as a "${role.toUpperCase()}" but your account is registered as "${String(dbRole).toUpperCase()}".\n\nPlease switch to the correct role.`
+                        t('errors.accessDeniedMessage', { uiRole: role.toUpperCase(), dbRole: String(dbRole).toUpperCase() })
                     );
                     setErrorModalVisible(true);
                     return;
@@ -165,10 +165,11 @@ export default function LoginScreen() {
             console.error('Login error:', error);
             await signOut();
             setLoading(false);
-            setErrorModalMessage('An unexpected error occurred during login.');
+            setErrorModalMessage(t('errors.unexpected'));
             setErrorModalVisible(true);
         }
     };
+
 
     if (authLoading) {
         return (
@@ -226,7 +227,7 @@ export default function LoginScreen() {
                             />
                         </View>
                         <Text style={styles.appTitle}>The Cheeze Town</Text>
-                        <Text style={styles.tagline}>Restaurant Management System</Text>
+                        <Text style={styles.tagline}>{t('login.tagline')}</Text>
                     </View>
 
                     {/* Login Form Card */}
@@ -265,7 +266,7 @@ export default function LoginScreen() {
                                 >
                                     <ChefHat size={18} color={role === 'chef' ? Colors.dark.primary : Colors.dark.textSecondary} />
                                     <Text style={[styles.roleButtonText, role === 'chef' && styles.roleButtonTextActive]}>
-                                        Chef
+                                        {t('login.chef')}
                                     </Text>
                                 </TouchableOpacity>
                             </View>

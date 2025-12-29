@@ -40,7 +40,7 @@ interface PaymentReceipt {
  * Creates a text-based receipt suitable for 58mm thermal printers
  */
 export function formatThermalReceipt(order: PrintableOrder): string {
-    const width = 30; // Reduced to 30 for better safety on mobile printers
+    const width = 28; // Optimized for 57mm thermal paper
     const timestamp = order.timestamp || new Date();
 
     // Helper functions
@@ -100,7 +100,7 @@ export function formatThermalReceipt(order: PrintableOrder): string {
         receipt += item.name + '\n';
 
         // Quantity and variant details indented
-        receipt += leftRight(`  Price: ₹${item.price}`, `x${item.quantity}`) + '\n';
+        receipt += leftRight(`  Price: Rs.${item.price}`, `x${item.quantity}`) + '\n';
 
         // Optional: formatting for very distinct spacing
         // receipt += leftRight(item.name.substring(0, 20), `x${item.quantity}`) + '\n';
@@ -109,7 +109,7 @@ export function formatThermalReceipt(order: PrintableOrder): string {
     receipt += line('-') + '\n';
 
     // Total
-    receipt += leftRight('TOTAL:', `₹${order.totalAmount.toFixed(2)}`) + '\n';
+    receipt += leftRight('TOTAL:', `Rs.${order.totalAmount.toFixed(2)}`) + '\n';
     receipt += line('=') + '\n';
 
     // Order Type
@@ -135,7 +135,7 @@ export function formatAddedItemsReceipt(
     tableNo: number | string,
     addedItems: OrderItem[]
 ): string {
-    const width = 30; // Reduced to 30 for consistency
+    const width = 28; // Optimized for 57mm thermal paper
     const timestamp = new Date();
 
     const center = (text: string): string => {
@@ -305,7 +305,7 @@ export function previewAddedItemsReceipt(
  * Creates a text-based receipt suitable for 58mm thermal printers
  */
 export function formatPaymentReceipt(payment: PaymentReceipt): string {
-    const width = 30; // Reduced to 30 for consistency
+    const width = 28; // Optimized for 57mm thermal paper
     const timestamp = payment.timestamp || new Date();
 
     // Helper functions
@@ -365,28 +365,28 @@ export function formatPaymentReceipt(payment: PaymentReceipt): string {
 
         // Qty and Total Price
         const itemTotal = item.price * item.quantity;
-        receipt += leftRight(`  ${item.quantity} x ₹${item.price}`, `₹${itemTotal.toFixed(2)}`) + '\n';
+        receipt += leftRight(`  ${item.quantity} x Rs.${item.price}`, `Rs.${itemTotal.toFixed(2)}`) + '\n';
     });
 
     receipt += line('-') + '\n';
 
     // Subtotal
-    receipt += leftRight('Subtotal:', `₹${payment.subtotal.toFixed(2)}`) + '\n';
+    receipt += leftRight('Subtotal:', `Rs.${payment.subtotal.toFixed(2)}`) + '\n';
 
     // Tax (if applicable)
     if (payment.tax && payment.tax > 0) {
-        receipt += leftRight('Tax:', `₹${payment.tax.toFixed(2)}`) + '\n';
+        receipt += leftRight('Tax:', `Rs.${payment.tax.toFixed(2)}`) + '\n';
     }
 
     // Discount (if applicable)
     if (payment.discount && payment.discount > 0) {
-        receipt += leftRight('Discount:', `-₹${payment.discount.toFixed(2)}`) + '\n';
+        receipt += leftRight('Discount:', `-Rs.${payment.discount.toFixed(2)}`) + '\n';
     }
 
     receipt += line('=') + '\n';
 
     // Total
-    receipt += leftRight('TOTAL:', `₹${payment.totalAmount.toFixed(2)}`) + '\n';
+    receipt += leftRight('TOTAL:', `Rs.${payment.totalAmount.toFixed(2)}`) + '\n';
     receipt += line('=') + '\n';
 
     // Payment Details
@@ -410,8 +410,7 @@ export function formatPaymentReceipt(payment: PaymentReceipt): string {
 
     // Footer
     receipt += '\n';
-    receipt += center('Thank you for dining!') + '\n';
-    receipt += center('Visit us again') + '\n';
+    receipt += center('Thank you! Visit again') + '\n';
     receipt += '\n';
 
     // Order Type

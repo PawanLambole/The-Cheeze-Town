@@ -25,6 +25,7 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('splash');
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [hasTableFromUrl, setHasTableFromUrl] = useState(false);
+  const [orderNumber, setOrderNumber] = useState<string>('');
 
   // Secret key for decryption - matching the one used for encryption
   const SECRET_KEY = "CHEEZETOWN_SECRET";
@@ -96,7 +97,8 @@ function AppContent() {
     setCurrentPage('payment');
   };
 
-  const handlePaymentComplete = () => {
+  const handlePaymentComplete = (orderNum: string) => {
+    setOrderNumber(orderNum);
     setCurrentPage('success');
   };
 
@@ -169,7 +171,7 @@ function AppContent() {
             onBack={handleBackToMenu}
           />
         )}
-        {currentPage === 'success' && <SuccessPage onBackToHome={handleBackToHome} />}
+        {currentPage === 'success' && <SuccessPage onBackToHome={handleBackToHome} orderNumber={orderNumber} />}
         {currentPage === 'about' && <AboutPage onNavigate={handleNavigateToMenu} />}
         {currentPage === 'contact' && <ContactPage />}
         {currentPage === 'terms' && <TermsOfServicePage />}

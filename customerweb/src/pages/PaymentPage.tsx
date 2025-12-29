@@ -6,7 +6,7 @@ import { Button, Card, Input, Alert } from '../components';
 
 interface PaymentPageProps {
   tableId: number;
-  onPaymentComplete: () => void;
+  onPaymentComplete: (orderNumber: string) => void;
   onBack: () => void;
 }
 
@@ -49,8 +49,8 @@ export default function PaymentPage({ tableId, onPaymentComplete, onBack }: Paym
       // Clear cart after successful order
       clearCart();
 
-      // Navigate to success page
-      onPaymentComplete();
+      // Navigate to success page with the actual order number
+      onPaymentComplete(data.order_number);
     } catch (err: any) {
       console.error('Payment error:', err);
       setError(err.message || 'An error occurred. Please try again.');

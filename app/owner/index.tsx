@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -14,6 +14,7 @@ import {
   TrendingDown,
 
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { database, supabase } from '@/services/database';
@@ -57,6 +58,7 @@ function OwnerCard({ icon, title, value, subtitle, onPress, variant = 'overview'
 
 export default function OwnerDashboardScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { userData } = useAuth();
 
@@ -144,9 +146,9 @@ export default function OwnerDashboardScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View>
-          <Text style={styles.appName}>The Cheeze Town</Text>
+          <Text style={styles.appName}>{t('common.appName')}</Text>
           <Text style={styles.greeting}>
-            {userData?.name || 'Owner'} Admin Dashboard
+            {t('owner.subtitle')}
           </Text>
         </View>
         <View style={styles.headerButtons}>
@@ -174,21 +176,21 @@ export default function OwnerDashboardScreen() {
             />
           }
         >
-          <Text style={styles.sectionTitle}>Business Overview</Text>
+          <Text style={styles.sectionTitle}>{t('owner.businessOverview')}</Text>
 
           <View style={styles.overviewRow}>
             <OwnerCard
               icon={<IndianRupee size={22} color="#16A34A" />}
-              title="Today's Revenue"
+              title={t('owner.todaysRevenue')}
               value={`₹${stats.totalRevenue.toLocaleString()}`}
-              subtitle="Today's earnings"
+              subtitle={t('owner.todaysEarnings')}
               onPress={() => router.push('/owner/revenue')}
             />
             <OwnerCard
               icon={<ClipboardList size={22} color="#2563EB" />}
-              title="Today's Orders"
+              title={t('owner.todaysOrders')}
               value={stats.totalOrders.toString()}
-              subtitle="Completed today"
+              subtitle={t('owner.completedToday')}
               onPress={() => router.push('/owner/orders')}
             />
           </View>
@@ -196,35 +198,35 @@ export default function OwnerDashboardScreen() {
           <View style={styles.overviewRow}>
             <OwnerCard
               icon={<TrendingDown size={22} color="#EF4444" />}
-              title="Today's Expense"
+              title={t('owner.todaysExpense')}
               value={`₹${stats.totalExpense.toLocaleString()}`}
-              subtitle="Today's costs"
+              subtitle={t('owner.todaysCosts')}
               onPress={() => router.push('/owner/expenses')}
             />
             <OwnerCard
               icon={<Clock size={22} color="#F59E0B" />}
-              title="Pending Orders"
+              title={t('owner.pendingOrders')}
               value={stats.pendingOrders.toString()}
-              subtitle="Active right now"
+              subtitle={t('owner.activeRightNow')}
               onPress={() => router.push('/owner/orders')}
             />
           </View>
 
           <View style={styles.reportCard}>
-            <Text style={styles.reportTitle}>Financial Overview (Today)</Text>
+            <Text style={styles.reportTitle}>{t('owner.financialOverview')}</Text>
             <View style={styles.reportRow}>
               <View style={styles.reportItem}>
-                <Text style={styles.reportLabel}>Total Sales</Text>
+                <Text style={styles.reportLabel}>{t('owner.totalSales')}</Text>
                 <Text style={[styles.reportValue, { color: '#16A34A' }]}>₹{stats.totalRevenue.toLocaleString()}</Text>
               </View>
               <View style={styles.reportDivider} />
               <View style={styles.reportItem}>
-                <Text style={styles.reportLabel}>Total Expense</Text>
+                <Text style={styles.reportLabel}>{t('owner.totalExpense')}</Text>
                 <Text style={[styles.reportValue, { color: '#EF4444' }]}>₹{stats.totalExpense.toLocaleString()}</Text>
               </View>
               <View style={styles.reportDivider} />
               <View style={styles.reportItem}>
-                <Text style={styles.reportLabel}>Net Profit</Text>
+                <Text style={styles.reportLabel}>{t('owner.netProfit')}</Text>
                 <Text style={[styles.reportValue, { color: Colors.dark.primary }]}>
                   ₹{(stats.totalRevenue - stats.totalExpense).toLocaleString()}
                 </Text>
@@ -232,48 +234,48 @@ export default function OwnerDashboardScreen() {
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>Management</Text>
+          <Text style={styles.sectionTitle}>{t('owner.management')}</Text>
 
           <View style={styles.grid}>
             <OwnerCard
               icon={<UtensilsCrossed size={24} color={Colors.dark.primary} />}
-              title="Menu"
-              subtitle="Configure & price items"
+              title={t('owner.menu')}
+              subtitle={t('owner.menuSubtitle')}
               variant="management"
               onPress={() => router.push('/owner/menu')}
             />
             <OwnerCard
               icon={<ClipboardList size={24} color={Colors.dark.primary} />}
-              title="Orders"
-              subtitle="Monitor live orders"
+              title={t('owner.orders')}
+              subtitle={t('owner.ordersSubtitle')}
               variant="management"
               onPress={() => router.push('/owner/orders')}
             />
             <OwnerCard
               icon={<Table size={24} color={Colors.dark.primary} />}
-              title="Tables"
-              subtitle="Seating & occupancy"
+              title={t('owner.tables')}
+              subtitle={t('owner.tablesSubtitle')}
               variant="management"
               onPress={() => router.push('/owner/tables')}
             />
             <OwnerCard
               icon={<Package size={24} color={Colors.dark.primary} />}
-              title="Inventory"
-              subtitle="Stock & purchasing"
+              title={t('owner.inventory')}
+              subtitle={t('owner.inventorySubtitle')}
               variant="management"
               onPress={() => router.push('/owner/inventory')}
             />
             <OwnerCard
               icon={<ShoppingCart size={24} color={Colors.dark.primary} />}
-              title="Purchases"
-              subtitle="Track all purchases"
+              title={t('owner.purchases')}
+              subtitle={t('owner.purchasesSubtitle')}
               variant="management"
               onPress={() => router.push('/owner/purchases')}
             />
             <OwnerCard
               icon={<Users size={24} color={Colors.dark.primary} />}
-              title="Staff"
-              subtitle="Roles & shifts"
+              title={t('owner.staff')}
+              subtitle={t('owner.staffSubtitle')}
               variant="management"
               onPress={() => router.push('/owner/staff')}
             />
@@ -289,6 +291,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.dark.background,
+    paddingBottom: Platform.OS === 'web' ? 90 : 0,
   },
   header: {
     flexDirection: 'row',

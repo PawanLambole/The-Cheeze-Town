@@ -127,21 +127,21 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
 
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Business Settings</Text>
+          <Text style={styles.sectionTitle}>{t('manager.settings.businessSettings')}</Text>
           <View style={styles.settingsList}>
             <SettingItem
               icon={<Globe size={20} color={Colors.dark.primary} />}
-              title="Restaurant Info"
-              subtitle="Name, address, and contact details"
-              onPress={() => Alert.alert('Coming Soon', 'Restaurant Info editing will be available in the next update.')}
+              title={t('manager.settings.restaurantInfo')}
+              subtitle={t('manager.settings.restaurantInfoSubtitle')}
+              onPress={() => Alert.alert(t('manager.settings.comingSoon'), t('manager.settings.featureComingSoon'))}
             />
             {!isOwner && (
               <SettingItem
                 icon={<IndianRupee size={20} color={Colors.dark.primary} />}
-                title="Tax Settings"
-                subtitle="Configure tax rates and types"
+                title={t('manager.settings.taxSettings')}
+                subtitle={t('manager.settings.taxSettingsSubtitle')}
                 value="5%"
-                onPress={() => Alert.alert('Coming Soon', 'Tax Settings will be available in the next update.')}
+                onPress={() => Alert.alert(t('manager.settings.comingSoon'), t('manager.settings.featureComingSoon'))}
               />
             )}
 
@@ -150,13 +150,13 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
 
         {!isOwner && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Security</Text>
+            <Text style={styles.sectionTitle}>{t('manager.settings.security')}</Text>
             <View style={styles.settingsList}>
               <SettingItem
                 icon={<Lock size={20} color={Colors.dark.primary} />}
-                title="Two-Factor Authentication"
-                subtitle="Add an extra layer of security"
-                onPress={() => Alert.alert('Coming Soon', '2FA implementation is in progress.')}
+                title={t('manager.settings.twoFactor')}
+                subtitle={t('manager.settings.twoFactorSubtitle')}
+                onPress={() => Alert.alert(t('manager.settings.comingSoon'), t('manager.settings.featureComingSoon'))}
               />
             </View>
           </View>
@@ -164,25 +164,25 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
 
         {!isOwner && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Data & Storage</Text>
+            <Text style={styles.sectionTitle}>{t('manager.settings.dataStorage')}</Text>
             <View style={styles.settingsList}>
               <SettingItem
                 icon={<Database size={20} color={Colors.dark.primary} />}
-                title="Backup Data"
-                subtitle="Create a backup of your data"
-                onPress={() => Alert.alert('Backup', 'Backup feature coming soon.')}
+                title={t('manager.settings.backupData')}
+                subtitle={t('manager.settings.backupSubtitle')}
+                onPress={() => Alert.alert(t('manager.settings.comingSoon'), t('manager.settings.featureComingSoon'))}
               />
               <SettingItem
                 icon={<Database size={20} color={Colors.dark.primary} />}
-                title="Clear Cache"
-                subtitle="Free up storage space"
+                title={t('manager.settings.clearCache')}
+                subtitle={t('manager.settings.clearCacheSubtitle')}
                 onPress={() => {
                   Alert.alert(
-                    'Clear Cache',
-                    'Are you sure you want to clear the app cache?',
+                    t('manager.settings.clearCache'),
+                    t('common.confirm'),
                     [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Clear', style: 'destructive', onPress: () => Alert.alert('Success', 'Cache cleared successfully') }
+                      { text: t('common.cancel'), style: 'cancel' },
+                      { text: t('common.submit'), style: 'destructive', onPress: () => Alert.alert(t('common.success'), t('manager.settings.clearCacheSubtitle')) } // Reusing subtitle/success for simplicity or adding specific success msg
                     ]
                   );
                 }}
@@ -192,17 +192,17 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
+          <Text style={styles.sectionTitle}>{t('manager.settings.about')}</Text>
           <View style={styles.settingsList}>
             <SettingItem
               icon={<Info size={20} color={Colors.dark.primary} />}
-              title="Terms of Service"
-              onPress={() => Alert.alert('Terms', 'Terms of Service will be displayed here.')}
+              title={t('manager.settings.termsOfService')}
+              onPress={() => Alert.alert(t('manager.settings.termsOfService'), t('manager.settings.featureComingSoon'))}
             />
             <SettingItem
               icon={<Info size={20} color={Colors.dark.primary} />}
-              title="Privacy Policy"
-              onPress={() => Alert.alert('Privacy', 'Privacy Policy will be displayed here.')}
+              title={t('manager.settings.privacyPolicy')}
+              onPress={() => Alert.alert(t('manager.settings.privacyPolicy'), t('manager.settings.featureComingSoon'))}
               showArrow={false}
             />
           </View>

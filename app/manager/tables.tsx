@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useSegments } from 'expo-router';
 import { ArrowLeft, Users, Clock, Plus, X, ShoppingBag, User, Edit2, Trash2, MoreVertical, QrCode } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import PaymentModal from '../../components/PaymentModal';
 import { printPaymentReceipt } from '../../services/thermalPrinter';
 import ReceiptViewer from '../../components/ReceiptViewer';
@@ -46,6 +47,7 @@ interface Table {
 }
 
 export default function TablesScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const segments = useSegments();
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -226,7 +228,7 @@ export default function TablesScreen() {
 
       if (error) {
         console.error('Error adding table:', error);
-        Alert.alert('Error', 'Failed to add table');
+        Alert.alert(t('common.error'), t('manager.tables.errorAddTable'));
       } else {
         setShowAddModal(false);
         setNewTableNumber('');
@@ -235,7 +237,7 @@ export default function TablesScreen() {
       }
     } catch (error) {
       console.error('Error:', error);
-      Alert.alert('Error', 'Failed to add table');
+      Alert.alert(t('common.error'), t('manager.tables.errorAddTable'));
     }
   };
 
@@ -458,7 +460,7 @@ export default function TablesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Table</Text>
+              <Text style={styles.modalTitle}>{t('manager.tables.addNewTable')}</Text>
               <TouchableOpacity onPress={() => { setShowAddModal(false); setNewTableNumber(''); setNewTableCapacity(''); }}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
@@ -466,34 +468,34 @@ export default function TablesScreen() {
 
             {/* Table Number Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Table Number *</Text>
+              <Text style={styles.inputLabel}>{t('manager.tables.tableNumber')} *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter table number"
+                placeholder={t('manager.tables.enterTableNumber')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="numeric"
                 value={newTableNumber}
                 onChangeText={setNewTableNumber}
               />
-              <Text style={styles.inputHint}>Unique identifier for this table</Text>
+              <Text style={styles.inputHint}>{t('manager.tables.uniqueIdentifier')}</Text>
             </View>
 
             {/* Capacity Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Seating Capacity *</Text>
+              <Text style={styles.inputLabel}>{t('manager.tables.seatingCapacity')} *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter number of seats"
+                placeholder={t('manager.tables.enterSeats')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="numeric"
                 value={newTableCapacity}
                 onChangeText={setNewTableCapacity}
               />
-              <Text style={styles.inputHint}>Maximum number of guests for this table</Text>
+              <Text style={styles.inputHint}>{t('manager.tables.maxGuests')}</Text>
             </View>
 
             <TouchableOpacity style={styles.addButton} onPress={handleAddTable}>
-              <Text style={styles.addButtonText}>Add Table & Generate QR</Text>
+              <Text style={styles.addButtonText}>{t('manager.tables.addTableQR')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -504,7 +506,7 @@ export default function TablesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Table</Text>
+              <Text style={styles.modalTitle}>{t('manager.tables.editTable')}</Text>
               <TouchableOpacity onPress={() => { setShowEditModal(false); setEditTableNumber(''); setEditTableCapacity(''); setSelectedTable(null); }}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
@@ -513,43 +515,43 @@ export default function TablesScreen() {
             {/* Current Info Display */}
             {selectedTable && (
               <View style={styles.currentInfoCard}>
-                <Text style={styles.currentInfoLabel}>Currently:</Text>
+                <Text style={styles.currentInfoLabel}>{t('manager.tables.currently')}</Text>
                 <Text style={styles.currentInfoText}>
-                  Table {selectedTable.table_number} • {selectedTable.capacity} Seats
+                  {t('common.table')} {selectedTable.table_number} • {selectedTable.capacity} {t('manager.tables.seats')}
                 </Text>
               </View>
             )}
 
             {/* Table Number Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Table Number</Text>
+              <Text style={styles.inputLabel}>{t('manager.tables.tableNumber')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter table number"
+                placeholder={t('manager.tables.enterTableNumber')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="numeric"
                 value={editTableNumber}
                 onChangeText={setEditTableNumber}
               />
-              <Text style={styles.inputHint}>Unique identifier for this table</Text>
+              <Text style={styles.inputHint}>{t('manager.tables.uniqueIdentifier')}</Text>
             </View>
 
             {/* Capacity Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Seating Capacity</Text>
+              <Text style={styles.inputLabel}>{t('manager.tables.seatingCapacity')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter number of seats"
+                placeholder={t('manager.tables.enterSeats')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="numeric"
                 value={editTableCapacity}
                 onChangeText={setEditTableCapacity}
               />
-              <Text style={styles.inputHint}>Maximum number of guests for this table</Text>
+              <Text style={styles.inputHint}>{t('manager.tables.maxGuests')}</Text>
             </View>
 
             <TouchableOpacity style={styles.addButton} onPress={handleEditTable}>
-              <Text style={styles.addButtonText}>Save Changes</Text>
+              <Text style={styles.addButtonText}>{t('common.save')}</Text>
             </TouchableOpacity>
           </View>
         </View>
