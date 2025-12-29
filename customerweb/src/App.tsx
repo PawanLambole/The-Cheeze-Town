@@ -156,6 +156,7 @@ function AppContent() {
           <MenuPage
             onPlaceOrder={handlePlaceOrder}
             readOnly={false}
+            showNavbar={showNavAndFooter}
           />
         )}
         {currentPage === 'table-selection' && (
