@@ -22,7 +22,7 @@ export default function DownloadCTA() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6">
               <a
-                href="https://expo.dev/artifacts/eas/mPj7pzQ7Jb1jBCwMh3S3GP.apk"
+                href="https://expo.dev/artifacts/eas/wsqryyDMTgoYBvCWDDHNHD.apk"
                 className="inline-flex items-center gap-3 bg-gradient-to-r from-[#FFB800] to-[#FFD54A] text-black px-12 py-6 rounded-full text-xl font-bold hover:scale-110 transition-all duration-300 shadow-2xl hover:shadow-[#FFB800]/60 animate-pulse-glow"
               >
                 <Smartphone className="w-7 h-7" />

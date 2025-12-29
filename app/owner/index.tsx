@@ -90,13 +90,14 @@ export default function OwnerDashboardScreen() {
       if (ordersError) throw ordersError;
 
       const validOrders = (todaysOrders || []).filter((o: any) =>
-        o.status === 'completed' || o.status === 'served'
+        o.status !== 'cancelled' && o.status !== 'rejected'
       );
 
       const ordersCount = validOrders.length;
 
-      // Calculate Total Revenue
-      const revenue = validOrders.reduce((sum: number, order: any) => sum + (Number(order.total_amount) || 0), 0);
+      // Calculate Revenue Only from COMPLETED (Paid) orders
+      const paidOrders = validOrders.filter((o: any) => o.status === 'completed');
+      const revenue = paidOrders.reduce((sum: number, order: any) => sum + (Number(order.total_amount) || 0), 0);
 
       // 2. Get pending orders count (Real-time status) - This remains "Active Right Now"
       const { data: pendingData } = await database.query('orders', 'status', 'eq', 'pending');

@@ -70,7 +70,7 @@ export default function RevenueScreen() {
                         quantity
                     )
                 `)
-                .in('status', ['completed', 'served'])
+                .eq('status', 'completed')
                 .gte('created_at', startOfDay)
                 .lte('created_at', endOfDay)
                 .order('created_at', { ascending: false });
