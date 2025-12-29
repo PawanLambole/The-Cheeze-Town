@@ -16,6 +16,7 @@ import {
   Settings,
 } from 'lucide-react-native';
 import { supabase } from '@/services/database';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
 import { Colors } from '@/constants/Theme';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,7 +47,8 @@ function SettingItem({ icon, title, subtitle, onPress, showArrow = true }: Setti
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { signOut, userData, user, loading } = useAuth();
+  const { t } = useTranslation();
+  const { signOut, userData, loading } = useAuth();
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -65,7 +67,7 @@ export default function ProfileScreen() {
   };
 
   const handleSaveProfile = async () => {
-    if (!user?.id) return;
+    if (!userData?.id) return;
 
     try {
       const { error } = await supabase
@@ -74,16 +76,16 @@ export default function ProfileScreen() {
           full_name: formData.name,
           phone: formData.phone
         })
-        .eq('id', user.id);
+        .eq('id', userData.id);
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Profile updated successfully');
+      Alert.alert(t('common.success'), t('messages.profileUpdated'));
       setShowEditModal(false);
       // Ideally trigger a refresh of userData here, but for now we rely on real-time or subsequent fetches
     } catch (error) {
       console.error('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile');
+      Alert.alert(t('common.error'), t('errors.unexpected'));
     }
   };
 
@@ -108,7 +110,7 @@ export default function ProfileScreen() {
 
   const displayName = userData?.name || 'User';
   const displayRole = userData?.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : 'Staff';
-  const displayEmail = userData?.email || user?.email || '';
+  const displayEmail = userData?.email || '';
   const displayPhone = userData?.phone || 'Not provided';
 
   const getRoleColor = (role: string) => {
@@ -124,7 +126,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>{t('manager.profile.title')}</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -156,27 +158,27 @@ export default function ProfileScreen() {
         <View style={styles.settingsContainer}>
           {/* Account Section */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Account Information</Text>
+            <Text style={styles.sectionTitle}>{t('manager.profile.accountInfo')}</Text>
           </View>
           <View style={styles.settingsCard}>
             <SettingItem
               icon={<Mail size={20} color={Colors.dark.primary} />}
-              title="Email"
+              title={t('manager.profile.emailAddress')}
               subtitle={displayEmail}
               onPress={() => { }}
             />
             <View style={styles.separator} />
             <SettingItem
               icon={<Phone size={20} color={Colors.dark.primary} />}
-              title="Phone"
+              title={t('manager.profile.phoneNumber')}
               subtitle={displayPhone}
               onPress={() => { }}
             />
             <View style={styles.separator} />
             <SettingItem
               icon={<MapPin size={20} color={Colors.dark.primary} />}
-              title="Location"
-              subtitle="Main Branch"
+              title={t('manager.profile.location')}
+              subtitle={t('manager.profile.mainBranch')}
               onPress={() => { }}
               showArrow={false}
             />
@@ -184,13 +186,13 @@ export default function ProfileScreen() {
 
           {/* General Section */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>General</Text>
+            <Text style={styles.sectionTitle}>{t('manager.profile.general')}</Text>
           </View>
           <View style={styles.settingsCard}>
             <SettingItem
               icon={<Settings size={20} color={Colors.dark.primary} />}
-              title="Settings"
-              subtitle="App preferences and configurations"
+              title={t('manager.navigation.settings')}
+              subtitle={t('manager.profile.appPreferences')}
               onPress={() => {
                 const settingsPath = userData?.role === 'owner' ? '/owner/settings' : '/manager/settings';
                 router.push(settingsPath);
@@ -199,8 +201,8 @@ export default function ProfileScreen() {
             <View style={styles.separator} />
             <SettingItem
               icon={<Bell size={20} color={Colors.dark.primary} />}
-              title="Notifications"
-              subtitle="Manage notification preferences"
+              title={t('settings.notifications')}
+              subtitle={t('manager.profile.manageNotifications')}
               onPress={() => {
                 const settingsPath = userData?.role === 'owner' ? '/owner/settings' : '/manager/settings';
                 router.push(settingsPath);
@@ -210,12 +212,12 @@ export default function ProfileScreen() {
 
           {/* Support Section */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Support</Text>
+            <Text style={styles.sectionTitle}>{t('manager.profile.support')}</Text>
           </View>
           <View style={styles.settingsCard}>
             <SettingItem
               icon={<HelpCircle size={20} color={Colors.dark.primary} />}
-              title="Help & Support"
+              title={t('manager.profile.helpSupport')}
               onPress={() => { }}
             />
           </View>
@@ -223,10 +225,10 @@ export default function ProfileScreen() {
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <LogOut size={20} color="#EF4444" />
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>{t('manager.profile.logout')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>Version 1.0.0</Text>
+        <Text style={styles.version}>{t('settings.version')} 1.0.0</Text>
       </ScrollView>
 
       {/* Edit Profile Modal */}
@@ -234,14 +236,14 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <Text style={styles.modalTitle}>{t('manager.profile.updateProfile')}</Text>
               <TouchableOpacity onPress={() => setShowEditModal(false)}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={styles.label}>{t('manager.profile.fullName')}</Text>
               <TextInput
                 style={styles.input}
                 value={formData.name}
@@ -252,7 +254,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>{t('manager.profile.emailAddress')}</Text>
               <TextInput
                 style={[styles.input, styles.disabledInput]}
                 value={formData.email}
@@ -260,11 +262,11 @@ export default function ProfileScreen() {
                 placeholder="Enter your email"
                 placeholderTextColor={Colors.dark.textSecondary}
               />
-              <Text style={styles.helperText}>Email cannot be changed directly</Text>
+              <Text style={styles.helperText}>{t('manager.profile.emailReadOnly')}</Text>
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Phone Number</Text>
+              <Text style={styles.label}>{t('manager.profile.phoneNumber')}</Text>
               <TextInput
                 style={styles.input}
                 value={formData.phone}
@@ -276,7 +278,7 @@ export default function ProfileScreen() {
             </View>
 
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
-              <Text style={styles.saveButtonText}>Save Changes</Text>
+              <Text style={styles.saveButtonText}>{t('manager.profile.saveChanges')}</Text>
             </TouchableOpacity>
           </View>
         </View>

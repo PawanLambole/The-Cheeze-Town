@@ -19,19 +19,33 @@ export default function OwnerTabLayout() {
                     backgroundColor: Colors.dark.card,
                     borderTopWidth: 1,
                     borderTopColor: Colors.dark.border,
-                    height: 60 + insets.bottom,
-                    paddingBottom: insets.bottom + 8,
-                    paddingTop: 8,
+                    height: Platform.OS === 'web' ? 70 : 60 + insets.bottom,
+                    paddingBottom: Platform.OS === 'web' ? 10 : insets.bottom + 8,
+                    paddingTop: Platform.OS === 'web' ? 8 : 8,
+                    display: 'flex',
+                    position: Platform.OS === 'web' ? 'fixed' : 'relative',
+                    bottom: Platform.OS === 'web' ? 0 : undefined,
+                    left: Platform.OS === 'web' ? 0 : undefined,
+                    right: Platform.OS === 'web' ? 0 : undefined,
+                    zIndex: Platform.OS === 'web' ? 99999 : undefined,
+                    overflow: Platform.OS === 'web' ? 'visible' : undefined,
                 },
+                tabBarShowLabel: true,
                 tabBarLabelStyle: {
-                    fontSize: 12,
+                    fontSize: Platform.OS === 'web' ? 11 : 12,
                     fontWeight: '600',
+                    marginTop: Platform.OS === 'web' ? 2 : 0,
                 },
+                tabBarItemStyle: Platform.OS === 'web' ? {
+                    height: 60,
+                    paddingVertical: 4,
+                } : undefined,
+                tabBarActiveBackgroundColor: Platform.OS === 'web' ? 'transparent' : undefined,
             }}>
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: 'Overview',
+                    title: t('navigation.home'),
                     tabBarIcon: ({ size, color }) => (
                         <Home size={size} color={color} />
                     ),
@@ -40,7 +54,7 @@ export default function OwnerTabLayout() {
             <Tabs.Screen
                 name="purchases"
                 options={{
-                    title: 'Purchases',
+                    title: t('owner.purchases'),
                     tabBarIcon: ({ size, color }) => (
                         <ShoppingCart size={size} color={color} />
                     ),
@@ -49,7 +63,7 @@ export default function OwnerTabLayout() {
             <Tabs.Screen
                 name="inventory"
                 options={{
-                    title: 'Inventory',
+                    title: t('manager.navigation.inventory'),
                     tabBarIcon: ({ size, color }) => (
                         <Package size={size} color={color} />
                     ),
@@ -58,7 +72,7 @@ export default function OwnerTabLayout() {
             <Tabs.Screen
                 name="staff"
                 options={{
-                    title: 'Staff',
+                    title: t('owner.staff'),
                     tabBarIcon: ({ size, color }) => (
                         <Users size={size} color={color} />
                     ),
@@ -67,7 +81,7 @@ export default function OwnerTabLayout() {
             <Tabs.Screen
                 name="profile"
                 options={{
-                    title: 'Profile',
+                    title: t('common.profile'),
                     tabBarIcon: ({ size, color }) => (
                         <User size={size} color={color} />
                     ),
@@ -76,7 +90,7 @@ export default function OwnerTabLayout() {
             <Tabs.Screen
                 name="settings"
                 options={{
-                    title: 'Settings',
+                    title: t('settings.title'),
                     href: null,
                 }}
             />

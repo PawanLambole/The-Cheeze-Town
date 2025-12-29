@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Share, Platform, ActivityIndicator, Alert } from 'react-native';
 import { X, Share2, Printer } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import intentPrinterService from '@/services/IntentPrinterService';
 
@@ -17,9 +18,13 @@ interface ReceiptViewerProps {
  * Displays formatted thermal printer receipt in the app
  * Uses external printer apps for printing (e.g., RawBT Print Service)
  */
-export default function ReceiptViewer({ visible, onClose, receipt, title = 'Kitchen Receipt', onConfirm }: ReceiptViewerProps) {
+export default function ReceiptViewer({ visible, onClose, receipt, title, onConfirm }: ReceiptViewerProps) {
+    const { t } = useTranslation();
     const [loading, setLoading] = useState(false);
     const [printing, setPrinting] = useState(false);
+
+    // Default title if not provided
+    const displayTitle = title || "Kitchen Receipt";
 
     const handlePrint = async () => {
         try {
@@ -36,26 +41,14 @@ export default function ReceiptViewer({ visible, onClose, receipt, title = 'Kitc
                 return;
             }
 
-            // Use external printer app
-            Alert.alert(
-                'Print via External App',
-                'This will open your thermal printer app (e.g., RawBT Print Service). Make sure you have a thermal printer app installed and configured.',
-                [
-                    { text: 'Cancel', style: 'cancel', onPress: () => setPrinting(false) },
-                    {
-                        text: 'Open Printer App',
-                        onPress: async () => {
-                            try {
-                                await intentPrinterService.printViaRawBT(receipt);
-                            } catch (err: any) {
-                                Alert.alert('Print Error', err.message || 'Failed to print. Make sure RawBT Print Service or similar app is installed.');
-                            } finally {
-                                setPrinting(false);
-                            }
-                        }
-                    }
-                ]
-            );
+            // Directly open external printer app
+            try {
+                await intentPrinterService.printViaRawBT(receipt);
+            } catch (err: any) {
+                Alert.alert('Print Error', err.message || 'Failed to print. Make sure RawBT Print Service or similar app is installed.');
+            } finally {
+                setPrinting(false);
+            }
         } catch (error: any) {
             Alert.alert('Print Error', error.message || 'Failed to print receipt');
             setPrinting(false);
@@ -66,7 +59,7 @@ export default function ReceiptViewer({ visible, onClose, receipt, title = 'Kitc
         try {
             await Share.share({
                 message: receipt,
-                title: title,
+                title: displayTitle,
             });
         } catch (error) {
             console.error('Error sharing receipt:', error);
@@ -99,7 +92,7 @@ export default function ReceiptViewer({ visible, onClose, receipt, title = 'Kitc
                     <View style={styles.header}>
                         <View style={styles.headerLeft}>
                             <Printer size={20} color="#1F2937" />
-                            <Text style={styles.headerTitle}>{title}</Text>
+                            <Text style={styles.headerTitle}>{displayTitle}</Text>
                         </View>
                         {!loading && (
                             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -131,7 +124,7 @@ export default function ReceiptViewer({ visible, onClose, receipt, title = 'Kitc
                             ) : (
                                 <>
                                     <Printer size={18} color="#FFFFFF" />
-                                    <Text style={styles.printButtonText}>Print</Text>
+                                    <Text style={styles.printButtonText}>{t('common.print')}</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -142,7 +135,7 @@ export default function ReceiptViewer({ visible, onClose, receipt, title = 'Kitc
                             disabled={loading || printing}
                         >
                             <Share2 size={18} color="#FFFFFF" />
-                            <Text style={styles.shareButtonText}>Share</Text>
+                            <Text style={styles.shareButtonText}>{t('common.share')}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -153,7 +146,7 @@ export default function ReceiptViewer({ visible, onClose, receipt, title = 'Kitc
                             {loading ? (
                                 <ActivityIndicator color="#FFFFFF" size="small" />
                             ) : (
-                                <Text style={styles.doneButtonText}>Done</Text>
+                                <Text style={styles.doneButtonText}>{t('common.done')}</Text>
                             )}
                         </TouchableOpacity>
                     </View>

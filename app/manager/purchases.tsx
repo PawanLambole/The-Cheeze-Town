@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, X, Camera, User, Package, IndianRupee, Calendar, Image as ImageIcon } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import { database, supabase } from '@/services/database';
 import { uploadImage } from '@/services/imageUpload';
@@ -25,6 +26,7 @@ interface Purchase {
 }
 
 export default function PurchasesScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const [showAddModal, setShowAddModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -160,7 +162,7 @@ export default function PurchasesScreen() {
 
         // Validate min stock for inventory purchases
         if (formPurchaseType === 'inventory' && !formMinStock) {
-            alert('Please enter minimum stock level for inventory purchases');
+            alert(t('manager.purchases.errors.minStockRequired'));
             return;
         }
 
@@ -175,6 +177,7 @@ export default function PurchasesScreen() {
             const totalAmount = unitPrice * quantity;
 
             const newPurchase = {
+                // purchase_type: formPurchaseType, // Column does not exist in DB
                 item_name: formItemName.trim(),
                 category: formCategory || 'Other',
                 quantity: quantity,
@@ -213,7 +216,7 @@ export default function PurchasesScreen() {
                         category: formCategory || 'Other',
                         unit: formUnit,
                         quantity: parseFloat(formQuantity),
-                        min_stock: parseFloat(formMinStock) || 0
+                        reorder_level: parseFloat(formMinStock) || 0 // Fix: Use reorder_level instead of min_stock
                     }]);
                 }
             }
@@ -222,7 +225,7 @@ export default function PurchasesScreen() {
             resetForm();
         } catch (e) {
             console.error("Error adding purchase:", e);
-            alert("Failed to add purchase");
+            alert(t('manager.purchases.errors.addFailed'));
         }
     };
 
@@ -234,7 +237,7 @@ export default function PurchasesScreen() {
                 <TouchableOpacity onPress={() => router.back()}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Purchases & Expenses</Text>
+                <Text style={styles.headerTitle}>{t('manager.purchases.title')}</Text>
                 <TouchableOpacity onPress={() => setShowAddModal(true)}>
                     <Plus size={24} color={Colors.dark.primary} />
                 </TouchableOpacity>
@@ -245,26 +248,26 @@ export default function PurchasesScreen() {
                 <View style={styles.statsCard}>
                     <View style={styles.statItem}>
                         <Text style={styles.statValue}>{purchases.length}</Text>
-                        <Text style={styles.statLabel}>Total Purchases</Text>
+                        <Text style={styles.statLabel}>{t('manager.purchases.totalPurchases')}</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
                         <Text style={[styles.statValue, { color: Colors.dark.primary }]}>₹{totalSpent.toLocaleString()}</Text>
-                        <Text style={styles.statLabel}>Total Spent</Text>
+                        <Text style={styles.statLabel}>{t('manager.purchases.totalSpent')}</Text>
                     </View>
                 </View>
 
                 {/* Search Bar */}
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Search purchases..."
+                    placeholder={t('manager.purchases.searchPlaceholder')}
                     placeholderTextColor={Colors.dark.textSecondary}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                 />
 
                 {/* Purchases List */}
-                <Text style={styles.sectionTitle}>Purchase History</Text>
+                <Text style={styles.sectionTitle}>{t('manager.purchases.history')}</Text>
                 {filteredPurchases.map(purchase => (
                     <View key={purchase.id} style={styles.purchaseCard}>
                         <View style={styles.purchaseHeader}>
@@ -283,7 +286,7 @@ export default function PurchasesScreen() {
                                             styles.typeBadgeText,
                                             { color: purchase.purchaseType === 'inventory' ? '#60A5FA' : '#F87171' }
                                         ]}>
-                                            {purchase.purchaseType === 'inventory' ? 'Inventory' : 'Expense'}
+                                            {purchase.purchaseType === 'inventory' ? t('manager.purchases.inventoryType') : t('manager.purchases.expenseType')}
                                         </Text>
                                     </View>
                                 </View>
@@ -308,7 +311,7 @@ export default function PurchasesScreen() {
 
                         {purchase.notes && (
                             <View style={styles.notesContainer}>
-                                <Text style={styles.notesLabel}>Notes:</Text>
+                                <Text style={styles.notesLabel}>{t('manager.purchases.notes')}:</Text>
                                 <Text style={styles.notesText}>{purchase.notes}</Text>
                             </View>
                         )}
@@ -316,7 +319,7 @@ export default function PurchasesScreen() {
                         {purchase.receiptPhoto && (
                             <TouchableOpacity style={styles.receiptContainer}>
                                 <Image source={{ uri: purchase.receiptPhoto }} style={styles.receiptImage} />
-                                <Text style={styles.receiptLabel}>View Receipt</Text>
+                                <Text style={styles.receiptLabel}>{t('manager.purchases.viewReceipt')}</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -325,7 +328,7 @@ export default function PurchasesScreen() {
                 {filteredPurchases.length === 0 && (
                     <View style={styles.emptyContainer}>
                         <Package size={48} color={Colors.dark.secondary} />
-                        <Text style={styles.emptyText}>No purchases found</Text>
+                        <Text style={styles.emptyText}>{t('manager.purchases.empty')}</Text>
                     </View>
                 )}
 
@@ -337,14 +340,14 @@ export default function PurchasesScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Add Purchase</Text>
+                            <Text style={styles.modalTitle}>{t('manager.purchases.addPurchase')}</Text>
                             <TouchableOpacity onPress={() => { setShowAddModal(false); resetForm(); }}>
                                 <X size={24} color={Colors.dark.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            <Text style={styles.inputLabel}>Purchase Type *</Text>
+                            <Text style={styles.inputLabel}>{t('manager.purchases.purchaseType')} *</Text>
                             <View style={styles.purchaseTypeContainer}>
                                 <TouchableOpacity
                                     style={[
@@ -358,13 +361,13 @@ export default function PurchasesScreen() {
                                         styles.purchaseTypeText,
                                         formPurchaseType === 'inventory' && styles.purchaseTypeTextActive
                                     ]}>
-                                        Inventory Purchase
+                                        {t('manager.purchases.inventoryPurchase')}
                                     </Text>
                                     <Text style={[
                                         styles.purchaseTypeDesc,
                                         formPurchaseType === 'inventory' && styles.purchaseTypeDescActive
                                     ]}>
-                                        Adds to inventory
+                                        {t('manager.purchases.inventoryDesc')}
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
@@ -379,13 +382,13 @@ export default function PurchasesScreen() {
                                         styles.purchaseTypeText,
                                         formPurchaseType === 'other' && styles.purchaseTypeTextActive
                                     ]}>
-                                        Other Purchase
+                                        {t('manager.purchases.otherPurchase')}
                                     </Text>
                                     <Text style={[
                                         styles.purchaseTypeDesc,
                                         formPurchaseType === 'other' && styles.purchaseTypeDescActive
                                     ]}>
-                                        General expense
+                                        {t('manager.purchases.otherDesc')}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -394,7 +397,7 @@ export default function PurchasesScreen() {
                             <View style={styles.autocompleteContainer}>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Item Name *"
+                                    placeholder={t('manager.purchases.itemName') + " *"}
                                     placeholderTextColor={Colors.dark.textSecondary}
                                     value={formItemName}
                                     onChangeText={(text) => {
@@ -435,7 +438,7 @@ export default function PurchasesScreen() {
                             </View>
 
 
-                            <Text style={styles.inputLabel}>Category</Text>
+                            <Text style={styles.inputLabel}>{t('manager.purchases.category')}</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
                                 {categories.map(cat => (
                                     <TouchableOpacity
@@ -444,7 +447,7 @@ export default function PurchasesScreen() {
                                         onPress={() => setFormCategory(cat)}
                                     >
                                         <Text style={[styles.categoryText, formCategory === cat && styles.categoryTextActive]}>
-                                            {cat}
+                                            {t(`manager.categories.${cat.toLowerCase()}`) || cat}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
@@ -453,7 +456,7 @@ export default function PurchasesScreen() {
                             <View style={styles.row}>
                                 <TextInput
                                     style={[styles.input, styles.halfInput]}
-                                    placeholder="Quantity *"
+                                    placeholder={t('manager.purchases.quantity') + " *"}
                                     placeholderTextColor={Colors.dark.textSecondary}
                                     keyboardType="numeric"
                                     value={formQuantity}
@@ -476,7 +479,7 @@ export default function PurchasesScreen() {
 
                             <TextInput
                                 style={styles.input}
-                                placeholder="Unit Price (₹ per unit) *"
+                                placeholder={t('manager.purchases.unitPrice') + " *"}
                                 placeholderTextColor={Colors.dark.textSecondary}
                                 keyboardType="numeric"
                                 value={formPrice}
@@ -485,7 +488,7 @@ export default function PurchasesScreen() {
 
                             {formPrice && formQuantity && (
                                 <View style={styles.totalAmountDisplay}>
-                                    <Text style={styles.totalAmountLabel}>Total Amount:</Text>
+                                    <Text style={styles.totalAmountLabel}>{t('manager.purchases.totalAmount')}:</Text>
                                     <Text style={styles.totalAmountValue}>
                                         ₹{(parseFloat(formPrice) * parseFloat(formQuantity)).toFixed(2)}
                                     </Text>
@@ -495,7 +498,7 @@ export default function PurchasesScreen() {
                             {formPurchaseType === 'inventory' && (
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Minimum Stock Level *"
+                                    placeholder={t('manager.purchases.minStock') + " *"}
                                     placeholderTextColor={Colors.dark.textSecondary}
                                     keyboardType="numeric"
                                     value={formMinStock}
@@ -505,7 +508,7 @@ export default function PurchasesScreen() {
 
                             <TextInput
                                 style={styles.input}
-                                placeholder="Supplier"
+                                placeholder={t('manager.purchases.supplier')}
                                 placeholderTextColor={Colors.dark.textSecondary}
                                 value={formSupplier}
                                 onChangeText={setFormSupplier}
@@ -515,7 +518,7 @@ export default function PurchasesScreen() {
 
                             <TextInput
                                 style={[styles.input, styles.textArea]}
-                                placeholder="Notes (Optional)"
+                                placeholder={t('manager.purchases.notesOptional')}
                                 placeholderTextColor={Colors.dark.textSecondary}
                                 multiline
                                 numberOfLines={3}
@@ -523,15 +526,15 @@ export default function PurchasesScreen() {
                                 onChangeText={setFormNotes}
                             />
 
-                            <Text style={styles.inputLabel}>Receipt Photo (Optional)</Text>
+                            <Text style={styles.inputLabel}>{t('manager.purchases.receiptPhotoOptional')}</Text>
                             <View style={styles.photoButtons}>
                                 <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
                                     <Camera size={20} color="#000000" />
-                                    <Text style={styles.photoButtonText}>Take Photo</Text>
+                                    <Text style={styles.photoButtonText}>{t('manager.purchases.takePhoto')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
                                     <ImageIcon size={20} color="#000000" />
-                                    <Text style={styles.photoButtonText}>Choose from Gallery</Text>
+                                    <Text style={styles.photoButtonText}>{t('manager.purchases.chooseGallery')}</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -548,7 +551,7 @@ export default function PurchasesScreen() {
                             )}
 
                             <TouchableOpacity style={styles.submitButton} onPress={handleAddPurchase}>
-                                <Text style={styles.submitButtonText}>Add Purchase</Text>
+                                <Text style={styles.submitButtonText}>{t('manager.purchases.submit')}</Text>
                             </TouchableOpacity>
                         </ScrollView>
                     </View>

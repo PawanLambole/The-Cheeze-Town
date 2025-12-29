@@ -10,9 +10,11 @@ import {
     Alert,
     ActivityIndicator,
 } from 'react-native';
-import { X, CreditCard, Wallet, CheckCircle, Download, Share2, Clock } from 'lucide-react-native';
+import { X, CreditCard, Wallet, CheckCircle, Download, Share2, Clock, Smartphone } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { PhonePeGateway, ManualPayment } from '../services/phonepeService';
+import QRPaymentModal from './QRPaymentModal';
+import { PaymentStatus } from '../services/razorpayService';
 
 interface PaymentModalProps {
     visible: boolean;
@@ -24,7 +26,7 @@ interface PaymentModalProps {
     onPaymentSuccess: (transactionId: string, method: string) => void;
 }
 
-type PaymentMethod = 'gateway' | 'cash' | null;
+type PaymentMethod = 'gateway' | 'cash' | 'razorpay' | null;
 type PaymentStep = 'select' | 'qr_code' | 'receipt';
 
 // SuperMoney UPI Base Link
@@ -53,6 +55,7 @@ export default function PaymentModal({
     const [paymentMethod, setPaymentMethod] = useState('');
     const [checkingStatus, setCheckingStatus] = useState(false);
     const [qrValue, setQrValue] = useState('');
+    const [showRazorpayModal, setShowRazorpayModal] = useState(false);
 
     const resetState = () => {
         setSelectedMethod(null);
@@ -231,6 +234,26 @@ export default function PaymentModal({
                 )}
             </TouchableOpacity>
 
+            {/* Razorpay UPI Payment */}
+            <TouchableOpacity
+                style={[
+                    styles.paymentMethodCard,
+                    selectedMethod === 'razorpay' && styles.paymentMethodCardActive,
+                ]}
+                onPress={() => handlePaymentMethodSelect('razorpay')}
+            >
+                <View style={styles.paymentMethodIcon}>
+                    <Smartphone size={24} color={selectedMethod === 'razorpay' ? '#FDB813' : '#6B7280'} />
+                </View>
+                <View style={styles.paymentMethodInfo}>
+                    <Text style={styles.paymentMethodTitle}>Razorpay UPI</Text>
+                    <Text style={styles.paymentMethodDesc}>Automated QR payment verification</Text>
+                </View>
+                {selectedMethod === 'razorpay' && (
+                    <CheckCircle size={20} color="#FDB813" />
+                )}
+            </TouchableOpacity>
+
             {/* Payment Details based on selected method */}
             {selectedMethod === 'gateway' && (
                 <View style={styles.paymentDetailsSection}>
@@ -274,6 +297,30 @@ export default function PaymentModal({
                             <>
                                 <Wallet size={18} color="#FFFFFF" />
                                 <Text style={styles.proceedButtonText}>Confirm Cash Payment</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {selectedMethod === 'razorpay' && (
+                <View style={styles.paymentDetailsSection}>
+                    <View style={styles.cashInfoBox}>
+                        <Text style={styles.cashInfoText}>
+                            Generate a Razorpay QR code with automated payment verification. Payment status is checked every 3 seconds.
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        style={[styles.proceedButton, isProcessing && styles.proceedButtonDisabled]}
+                        onPress={() => setShowRazorpayModal(true)}
+                        disabled={isProcessing}
+                    >
+                        {isProcessing ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <>
+                                <Smartphone size={18} color="#FFFFFF" />
+                                <Text style={styles.proceedButtonText}>Generate Razorpay QR</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -448,6 +495,26 @@ export default function PaymentModal({
                     {currentStep === 'receipt' && renderReceipt()}
                 </View>
             </View>
+
+            {/* Razorpay QR Payment Modal */}
+            <QRPaymentModal
+                visible={showRazorpayModal}
+                onClose={() => setShowRazorpayModal(false)}
+                amount={amount}
+                description={`Order #${orderId}`}
+                orderId={orderId}
+                onPaymentSuccess={(paymentDetails: PaymentStatus) => {
+                    // Set transaction details
+                    setTransactionId(paymentDetails.id);
+                    setPaymentMethod('Razorpay UPI');
+                    // Close Razorpay modal
+                    setShowRazorpayModal(false);
+                    // Show receipt
+                    setCurrentStep('receipt');
+                    // Notify parent component to mark order as completed
+                    onPaymentSuccess(paymentDetails.id, 'Razorpay UPI');
+                }}
+            />
         </Modal>
     );
 }

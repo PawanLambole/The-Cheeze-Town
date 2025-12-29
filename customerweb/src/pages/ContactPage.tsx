@@ -92,9 +92,12 @@ export default function ContactPage() {
                 <div className="flex-1">
                   <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">Phone</h3>
                   <p className="text-gray-400 mb-1 text-sm md:text-base">Call us for immediate assistance</p>
-                  <a href="tel:+919766573966" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-base md:text-lg">
-                    +91 97665 73966
-                  </a>
+                  <div className="flex flex-col">
+                    <span className="text-gray-400 text-xs font-medium mb-0.5">Pavan Vitthal Lambole</span>
+                    <a href="tel:+919766573966" className="text-brand-yellow font-bold hover:text-yellow-300 transition-colors text-base md:text-lg">
+                      +91 97665 73966
+                    </a>
+                  </div>
                 </div>
               </Card>
 
@@ -109,9 +112,12 @@ export default function ContactPage() {
                     <a href="mailto:thecheesetown@gmail.com" className="text-brand-yellow font-semibold hover:text-yellow-300 transition-colors block text-sm md:text-base">
                       thecheesetown@gmail.com
                     </a>
-                    <a href="mailto:pavanlambole578@gmail.com" className="text-brand-yellow/80 font-medium hover:text-yellow-300 transition-colors block text-xs md:text-sm">
-                      pavanlambole578@gmail.com
-                    </a>
+                    <div className="pt-1">
+                      <p className="text-gray-400 text-xs font-medium">Pavan Vitthal Lambole</p>
+                      <a href="mailto:pavanlambole578@gmail.com" className="text-brand-yellow/80 font-medium hover:text-yellow-300 transition-colors block text-xs md:text-sm">
+                        pavanlambole578@gmail.com
+                      </a>
+                    </div>
                   </div>
                 </div>
               </Card>
