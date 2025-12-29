@@ -171,7 +171,7 @@ export default function TableDetailsScreen() {
                                 <QRCode
                                     value={qrValue}
                                     size={200}
-                                    logo={require('@/assets/images/logo.jpeg')}
+                                    logo={require('@/assets/images/logo.png')}
                                     logoSize={50}
                                     logoBackgroundColor='white'
                                     logoBorderRadius={25}
