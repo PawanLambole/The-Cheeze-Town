@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
-import cafeLogo from '../../../assets/images/logo.jpeg';
+import cafeLogo from '../assets/logo.png';
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);

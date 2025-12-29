@@ -1,5 +1,5 @@
 import { Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
-import cafeLogo from '../../../assets/images/logo.jpeg';
+import cafeLogo from '../assets/logo.png';
 
 export default function Footer() {
   return (
