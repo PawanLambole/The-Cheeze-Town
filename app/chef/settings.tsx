@@ -22,11 +22,33 @@ interface SettingItemProps {
 }
 
 function SettingItem({ icon, title, subtitle, onPress, showArrow = true, value, hasSwitch, switchValue, onSwitchChange }: SettingItemProps) {
+    if (hasSwitch) {
+        return (
+            <View style={styles.settingItem}>
+                <View style={styles.settingLeft}>
+                    <View style={styles.settingIconContainer}>{icon}</View>
+                    <View style={styles.settingTextContainer}>
+                        <Text style={styles.settingTitle}>{title}</Text>
+                        {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
+                    </View>
+                </View>
+                <View style={styles.settingRight}>
+                    {value && <Text style={styles.settingValue}>{value}</Text>}
+                    <Switch
+                        value={switchValue}
+                        onValueChange={onSwitchChange}
+                        trackColor={{ false: '#3F3F46', true: Colors.dark.primary }}
+                        thumbColor={switchValue ? '#FFFFFF' : '#F4F4F5'}
+                    />
+                </View>
+            </View>
+        );
+    }
+
     return (
         <TouchableOpacity
             style={styles.settingItem}
             onPress={onPress}
-            disabled={hasSwitch}
             activeOpacity={0.7}
         >
             <View style={styles.settingLeft}>
@@ -38,15 +60,7 @@ function SettingItem({ icon, title, subtitle, onPress, showArrow = true, value, 
             </View>
             <View style={styles.settingRight}>
                 {value && <Text style={styles.settingValue}>{value}</Text>}
-                {hasSwitch && (
-                    <Switch
-                        value={switchValue}
-                        onValueChange={onSwitchChange}
-                        trackColor={{ false: '#3F3F46', true: Colors.dark.primary }}
-                        thumbColor={switchValue ? '#FFFFFF' : '#F4F4F5'}
-                    />
-                )}
-                {showArrow && !hasSwitch && <ChevronRight size={18} color={Colors.dark.textSecondary} />}
+                {showArrow && <ChevronRight size={18} color={Colors.dark.textSecondary} />}
             </View>
         </TouchableOpacity>
     );
@@ -97,8 +111,14 @@ export default function ChefSettings() {
         }
     };
 
+    const normalizeLanguage = (lang: string) => (lang || '').toLowerCase().startsWith('mr') ? 'mr' : 'en';
+
     // Language selector state
-    const [selectedLanguage, setSelectedLanguage] = React.useState(i18n.language);
+    const [selectedLanguage, setSelectedLanguage] = React.useState(normalizeLanguage(i18n.language));
+
+    React.useEffect(() => {
+        setSelectedLanguage(normalizeLanguage(i18n.language));
+    }, [i18n.language]);
 
     const handleLanguageChange = async (lang: string) => {
         setSelectedLanguage(lang);
@@ -121,38 +141,19 @@ export default function ChefSettings() {
                     <Text style={styles.sectionTitle}>{t('chef.settings.language')}</Text>
                     <View style={styles.settingsList}>
                         <SettingItem
-                            icon={<Text style={{fontSize: 20}}>🌐</Text>}
-                            title={t('chef.settings.languageOption')}
-                            subtitle={t('chef.settings.languageSubtitle')}
+                            icon={<Text style={{ fontSize: 20 }}>🌐</Text>}
+                            title={t('chef.settings.english')}
                             showArrow={false}
-                            value={selectedLanguage === 'en' ? 'English' : 'मराठी'}
-                            onPress={() => {}}
+                            value={selectedLanguage === 'en' ? '✓' : ''}
+                            onPress={() => handleLanguageChange('en')}
                         />
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-around', padding: 16 }}>
-                            <TouchableOpacity
-                                style={{
-                                    backgroundColor: selectedLanguage === 'en' ? Colors.dark.primary : Colors.dark.card,
-                                    paddingVertical: 8,
-                                    paddingHorizontal: 24,
-                                    borderRadius: 8,
-                                    marginRight: 8,
-                                }}
-                                onPress={() => handleLanguageChange('en')}
-                            >
-                                <Text style={{ color: selectedLanguage === 'en' ? '#fff' : Colors.dark.text }}>English</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={{
-                                    backgroundColor: selectedLanguage === 'mr' ? Colors.dark.primary : Colors.dark.card,
-                                    paddingVertical: 8,
-                                    paddingHorizontal: 24,
-                                    borderRadius: 8,
-                                }}
-                                onPress={() => handleLanguageChange('mr')}
-                            >
-                                <Text style={{ color: selectedLanguage === 'mr' ? '#fff' : Colors.dark.text }}>मराठी</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <SettingItem
+                            icon={<Text style={{ fontSize: 20 }}>🌐</Text>}
+                            title={t('chef.settings.marathi')}
+                            showArrow={false}
+                            value={selectedLanguage === 'mr' ? '✓' : ''}
+                            onPress={() => handleLanguageChange('mr')}
+                        />
                     </View>
                 </View>
 

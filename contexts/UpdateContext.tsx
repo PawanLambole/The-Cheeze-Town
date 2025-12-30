@@ -5,7 +5,7 @@ import * as updateService from '@/services/updateService';
 import type { UpdateCheckResult, AppVersion } from '@/services/updateService';
 
 interface UpdateContextType {
-    checkForUpdate: () => Promise<void>;
+    checkForUpdate: () => Promise<boolean>;
     isCheckingUpdate: boolean;
     updateAvailable: boolean;
     latestVersion: AppVersion | null;
@@ -45,7 +45,7 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
             // Don't check in development mode
             if (updateService.isDevelopmentMode() && !force) {
                 console.log('⚠️ Skipping update check in development mode');
-                return;
+                return false;
             }
 
             // Check if enough time has passed since last check
@@ -53,15 +53,17 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
                 const shouldCheck = await updateService.shouldCheckForUpdate(checkInterval);
                 if (!shouldCheck) {
                     console.log('⏭️ Skipping update check - too soon since last check');
-                    return;
+                    return false;
                 }
             }
 
             setIsCheckingUpdate(true);
 
+            let result: UpdateCheckResult | null = null;
+
             try {
                 console.log('🔍 Checking for updates...');
-                const result = await updateService.checkForUpdate();
+                result = await updateService.checkForUpdate();
 
                 console.log('Update check result:', {
                     updateRequired: result.updateRequired,
@@ -80,7 +82,7 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
                         );
                         if (hasDismissed) {
                             console.log('⏭️ User has dismissed this update');
-                            return;
+                            return result.updateRequired;
                         }
                     }
 
@@ -93,10 +95,12 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
             } finally {
                 setIsCheckingUpdate(false);
             }
+            return result?.updateRequired ?? false;
         } catch (error) {
             // Catch any errors from the outer try block (e.g., isDevelopmentMode)
             console.error('❌ Fatal error in update check initialization:', error);
             setIsCheckingUpdate(false);
+            return false;
         }
     }, [checkInterval]);
 

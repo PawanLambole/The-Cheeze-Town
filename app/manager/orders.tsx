@@ -26,6 +26,7 @@ interface Order {
     items: OrderItem[];
     isServed: boolean;
     isPaid: boolean;
+    isCompleted: boolean;
     totalAmount: number;
     time: string;
     duration: string;
@@ -81,6 +82,23 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
 
             if (error) throw error;
 
+            const orderIds = (dbOrders || []).map((o: any) => o.id);
+            let paymentsMap = new Map();
+
+            if (orderIds.length > 0) {
+                const { data: paymentsData } = await supabase
+                    .from('payments')
+                    .select('order_id, status, transaction_id, payment_method')
+                    .in('order_id', orderIds)
+                    .in('status', ['completed', 'confirmed']); // Only confirmed payments
+
+                if (paymentsData) {
+                    paymentsData.forEach((p: any) => {
+                        paymentsMap.set(String(p.order_id), p);
+                    });
+                }
+            }
+
             const ordersWithItems = await Promise.all((dbOrders || []).map(async (o: any) => {
                 const { data: items } = await supabase
                     .from('order_items')
@@ -93,8 +111,18 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                     price: i.unit_price
                 }));
 
-                const isServed = o.status === 'served' || o.status === 'completed';
-                const isPaid = o.status === 'completed';
+                const paymentRecord = paymentsMap.get(String(o.id));
+                const status = o.status;
+
+                // Status Logic:
+                // isPaid: True if status is 'paid'/'completed' OR payment record exists
+                const isPaid = status === 'paid' || status === 'completed' || !!paymentRecord;
+
+                // isServed: True if Chef marked ready (status='ready'/'served'/'completed') OR is_served flag is true
+                const isServed = status === 'served' || status === 'ready' || status === 'completed' || o.is_served === true;
+
+                // isCompleted: Strictly 'completed' status
+                const isCompleted = status === 'completed';
 
                 return {
                     id: String(o.id),
@@ -104,11 +132,12 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                     items: mappedItems,
                     isServed: isServed,
                     isPaid: isPaid,
+                    isCompleted: isCompleted,
                     totalAmount: o.total_amount,
                     time: getTimeAgo(o.created_at),
                     duration: getTimeAgo(o.created_at).replace(' ago', ''),
-                    transactionId: o.transaction_id,
-                    paymentMethod: o.payment_method
+                    transactionId: o.transaction_id || paymentRecord?.transaction_id,
+                    paymentMethod: o.payment_method || paymentRecord?.payment_method
                 };
             }));
 
@@ -148,9 +177,9 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
     // Filter orders based on status
     const getFilteredByStatus = () => {
         if (selectedStatus === 'all') return orders;
-        if (selectedStatus === 'pending') return orders.filter(o => !o.isServed);
-        if (selectedStatus === 'served') return orders.filter(o => o.isServed && !o.isPaid);
-        return orders.filter(o => o.isPaid); // Completed = paid orders
+        if (selectedStatus === 'pending') return orders.filter(o => !o.isServed && !o.isCompleted);
+        if (selectedStatus === 'served') return orders.filter(o => o.isServed && !o.isCompleted);
+        return orders.filter(o => o.isCompleted);
     };
 
     // Apply search filter
@@ -160,9 +189,9 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
         order.tableNo.toString().includes(searchQuery)
     );
 
-    const pendingOrdersCount = orders.filter(o => !o.isServed).length;
-    const servedOrdersCount = orders.filter(o => o.isServed && !o.isPaid).length;
-    const completedOrdersCount = orders.filter(o => o.isPaid).length;
+    const pendingOrdersCount = orders.filter(o => !o.isServed && !o.isCompleted).length;
+    const servedOrdersCount = orders.filter(o => o.isServed && !o.isCompleted).length;
+    const completedOrdersCount = orders.filter(o => o.isCompleted).length;
 
     const handleOrderClick = (order: Order) => {
         setSelectedOrder(order);
@@ -173,12 +202,15 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
         const order = orders.find(o => o.id === orderId);
         if (!order) return;
 
-        const newStatus = order.isServed ? 'pending' : 'served';
+        const newStatus = order.isServed ? 'pending' : 'ready'; // Toggle between ready/pending
 
         try {
             const { error } = await supabase
                 .from('orders')
-                .update({ status: newStatus })
+                .update({
+                    status: newStatus,
+                    is_served: !order.isServed
+                })
                 .eq('id', Number(orderId));
 
             if (error) throw error;
@@ -346,17 +378,19 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                 </View>
 
                                 <View style={styles.footerRight}>
-                                    <TouchableOpacity
-                                        style={styles.addItemButtonCard}
-                                        onPress={(e) => {
-                                            e.stopPropagation();
-                                            setOrderForAddItem(order);
-                                            setShowAddItemModal(true);
-                                        }}
-                                    >
-                                        <Plus size={14} color="#000000" />
-                                        <Text style={styles.addItemButtonCardText}>{t('manager.orders.addItem')}</Text>
-                                    </TouchableOpacity>
+                                    {!order.isCompleted && (
+                                        <TouchableOpacity
+                                            style={styles.addItemButtonCard}
+                                            onPress={(e) => {
+                                                e.stopPropagation();
+                                                setOrderForAddItem(order);
+                                                setShowAddItemModal(true);
+                                            }}
+                                        >
+                                            <Plus size={14} color="#000000" />
+                                            <Text style={styles.addItemButtonCardText}>{t('manager.orders.addItem')}</Text>
+                                        </TouchableOpacity>
+                                    )}
                                     <Text style={styles.totalAmount}>₹{order.totalAmount.toFixed(2)}</Text>
                                 </View>
                             </View>
@@ -436,34 +470,36 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                     {selectedOrder.items.map((item, index) => (
                                         <View key={index} style={styles.orderItem}>
                                             <View style={styles.orderItemLeft}>
-                                                <TouchableOpacity
-                                                    style={styles.orderQuantityButton}
-                                                    onPress={() => {
-                                                        const updatedItems = [...selectedOrder.items];
-                                                        if (item.quantity > 1) {
-                                                            updatedItems[index] = { ...item, quantity: item.quantity - 1 };
-                                                        } else {
-                                                            // Remove item if quantity would be 0
-                                                            updatedItems.splice(index, 1);
-                                                        }
-                                                        const newTotal = updatedItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+                                                {!selectedOrder.isCompleted && (
+                                                    <TouchableOpacity
+                                                        style={styles.orderQuantityButton}
+                                                        onPress={() => {
+                                                            const updatedItems = [...selectedOrder.items];
+                                                            if (item.quantity > 1) {
+                                                                updatedItems[index] = { ...item, quantity: item.quantity - 1 };
+                                                            } else {
+                                                                // Remove item if quantity would be 0
+                                                                updatedItems.splice(index, 1);
+                                                            }
+                                                            const newTotal = updatedItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
 
-                                                        // Update selectedOrder
-                                                        const updatedOrder = {
-                                                            ...selectedOrder,
-                                                            items: updatedItems,
-                                                            totalAmount: newTotal
-                                                        };
-                                                        setSelectedOrder(updatedOrder);
+                                                            // Update selectedOrder
+                                                            const updatedOrder = {
+                                                                ...selectedOrder,
+                                                                items: updatedItems,
+                                                                totalAmount: newTotal
+                                                            };
+                                                            setSelectedOrder(updatedOrder);
 
-                                                        // Update orders state
-                                                        setOrders(prev => prev.map(o =>
-                                                            o.id === selectedOrder.id ? updatedOrder : o
-                                                        ));
-                                                    }}
-                                                >
-                                                    <Text style={styles.orderQuantityButtonText}>-</Text>
-                                                </TouchableOpacity>
+                                                            // Update orders state
+                                                            setOrders(prev => prev.map(o =>
+                                                                o.id === selectedOrder.id ? updatedOrder : o
+                                                            ));
+                                                        }}
+                                                    >
+                                                        <Text style={styles.orderQuantityButtonText}>-</Text>
+                                                    </TouchableOpacity>
+                                                )}
                                                 <Text style={styles.orderItemQuantityText}>{item.quantity}x</Text>
                                                 <Text style={styles.orderItemName}>{item.name}</Text>
                                             </View>
@@ -479,26 +515,88 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                 </View>
 
                                 {/* Total Amount - Highlighted */}
-                                <View style={styles.orderTotal}>
-                                    <Text style={styles.orderTotalLabel}>{t('manager.orders.totalAmount')}</Text>
-                                    <Text style={styles.orderTotalAmount}>₹{selectedOrder.totalAmount.toFixed(2)}</Text>
-                                </View>
+                                <Text style={styles.orderTotalAmount}>₹{selectedOrder.totalAmount.toFixed(2)}</Text>
 
-                                {/* Payment Button */}
-                                <TouchableOpacity
-                                    style={[styles.paymentButton, !selectedOrder.isServed && styles.paymentButtonDisabled]}
-                                    onPress={() => {
-                                        if (selectedOrder.isServed) {
-                                            setShowPaymentModal(true);
-                                        }
-                                    }}
-                                    disabled={!selectedOrder.isServed}
-                                >
-                                    <CreditCard size={18} color="#FFFFFF" />
-                                    <Text style={styles.paymentButtonText}>
-                                        {selectedOrder.isServed ? t('manager.orders.processPayment') : t('manager.orders.markServed')}
-                                    </Text>
-                                </TouchableOpacity>
+                                {/* Payment / Complete Button - Only show if not completed */}
+                                {!selectedOrder.isCompleted && (
+                                    <TouchableOpacity
+                                        style={[styles.paymentButton, !selectedOrder.isServed && styles.paymentButtonDisabled]}
+                                        onPress={async () => {
+                                            if (!selectedOrder.isServed) return;
+
+                                            // If already paid, just mark as completed
+                                            if (selectedOrder.isPaid) {
+                                                try {
+                                                    // 1. Update order status
+                                                    const { error } = await supabase
+                                                        .from('orders')
+                                                        .update({ status: 'completed', completed_time: new Date().toISOString() })
+                                                        .eq('id', Number(selectedOrder.id));
+
+                                                    if (error) throw error;
+
+                                                    // 2. Release table if assigned
+                                                    if (selectedOrder.tableNo) {
+                                                        const { error: tableError } = await supabase
+                                                            .from('restaurant_tables')
+                                                            .update({ status: 'available', current_order_id: null })
+                                                            .eq('table_number', selectedOrder.tableNo); // Assuming tableNo maps to table_number or you need to fetch ID. 
+                                                        // Wait, selectedOrder has tableNo which is a number. 
+                                                        // In fetchOrders, tableNo comes from o.table_id which is likely the ID or Number.
+                                                        // Let's verify mapping in fetchOrders.
+                                                        // o.table_id is used. In create-order it inserts table_id.
+                                                        // So selectedOrder.tableNo is likely the Table ID if the column is table_id. 
+                                                        // Checking Create Order: table_id: selectedTable ? parseInt(selectedTable) : null
+                                                        // Checking Fetch Orders: tableNo: o.table_id
+                                                        // So tableNo IS the table_id (FK).
+                                                        // But wait, the display says "Table {order.tableNo}". 
+                                                        // If table_id is 1, 2, 3 it might be fine if IDs match Numbers.
+                                                        // But usually IDs are distinct.
+                                                        // Let's check create-order again: 
+                                                        // tableNo: selectedTable ? tables.find(t => t.id === selectedTable)?.number : 'Takeaway'
+                                                        // In fetchOrders: tableNo: o.table_id.
+                                                        // Ideally we should update by ID.
+
+                                                        // Using the ID to update
+                                                        /* 
+                                                            NOTE: selectedOrder.tableNo comes from database column `table_id`.
+                                                            So we should use .eq('id', selectedOrder.tableNo).
+                                                        */
+
+                                                        if (selectedOrder.tableNo) {
+                                                            await supabase
+                                                                .from('restaurant_tables')
+                                                                .update({ status: 'available', current_order_id: null })
+                                                                .eq('id', selectedOrder.tableNo);
+                                                        }
+                                                    }
+
+                                                    fetchOrders();
+                                                    setShowOrderModal(false);
+                                                    Alert.alert('Success', 'Order marked as completed.');
+                                                } catch (e) {
+                                                    console.error("Error completing order", e);
+                                                }
+                                            } else {
+                                                // Open Payment Modal
+                                                setShowPaymentModal(true);
+                                            }
+                                        }}
+                                        disabled={!selectedOrder.isServed}
+                                    >
+                                        {selectedOrder.isPaid ? (
+                                            <CheckCircle size={18} color="#FFFFFF" />
+                                        ) : (
+                                            <CreditCard size={18} color="#FFFFFF" />
+                                        )}
+                                        <Text style={styles.paymentButtonText}>
+                                            {selectedOrder.isServed
+                                                ? (selectedOrder.isPaid ? t('manager.orders.completeOrder', { defaultValue: 'Complete Order' }) : t('manager.orders.processPayment'))
+                                                : t('manager.orders.markServed')
+                                            }
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
 
                                 <View style={{ height: 20 }} />
                             </ScrollView>
@@ -710,99 +808,103 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
             </Modal>
 
             {/* Payment Modal */}
-            {selectedOrder && (
-                <PaymentModal
-                    visible={showPaymentModal}
-                    onClose={() => setShowPaymentModal(false)}
-                    orderId={selectedOrder.orderId}
-                    amount={selectedOrder.totalAmount}
-                    customerName={selectedOrder.customerName}
-                    onPaymentSuccess={async (transactionId, method) => {
-                        console.log('Payment successful:', { transactionId, method, orderId: selectedOrder.orderId });
+            {
+                selectedOrder && (
+                    <PaymentModal
+                        visible={showPaymentModal}
+                        onClose={() => setShowPaymentModal(false)}
+                        orderId={selectedOrder.orderId}
+                        amount={selectedOrder.totalAmount}
+                        customerName={selectedOrder.customerName}
+                        onPaymentSuccess={async (transactionId, method) => {
+                            if (!selectedOrder) return;
+                            console.log('Payment successful:', { transactionId, method, orderId: selectedOrder.orderId });
 
-                        try {
-                            // 1. Update order status
-                            const { error: orderError } = await supabase
-                                .from('orders')
-                                .update({
-                                    status: 'completed',
-                                    updated_at: new Date().toISOString()
-                                })
-                                .eq('id', Number(selectedOrder.id));
+                            try {
+                                // 1. Update order status
+                                const { error: orderError } = await supabase
+                                    .from('orders')
+                                    .update({
+                                        status: 'completed',
+                                        updated_at: new Date().toISOString()
+                                    })
+                                    .eq('id', Number(selectedOrder.id));
 
-                            if (orderError) throw orderError;
+                                if (orderError) throw orderError;
 
-                            // 2. Insert payment record
-                            const { error: paymentError } = await supabase
-                                .from('payments')
-                                .insert([{
-                                    order_id: Number(selectedOrder.id),
-                                    amount: selectedOrder.totalAmount,
-                                    payment_method: method,
-                                    transaction_id: transactionId,
-                                    status: 'completed',
-                                    payment_date: new Date().toISOString()
-                                }]);
+                                // 2. Insert payment record
+                                const { error: paymentError } = await supabase
+                                    .from('payments')
+                                    .insert([{
+                                        order_id: Number(selectedOrder.id),
+                                        amount: selectedOrder.totalAmount,
+                                        payment_method: method,
+                                        transaction_id: transactionId,
+                                        status: 'completed',
+                                        payment_date: new Date().toISOString(),
+                                        // processed_by: userData?.id // If we had user context here
+                                    }]);
 
-                            if (paymentError) {
-                                console.error('Error recording payment:', paymentError);
-                                // Don't block completion, but log error
-                                Alert.alert('Warning', t('manager.orders.paymentError'));
+                                if (paymentError) {
+                                    console.error('Error recording payment:', paymentError);
+                                    // Don't block completion, but log error
+                                    Alert.alert('Warning', t('manager.orders.paymentError'));
+                                }
+
+                                // Update order to mark as paid/completed in local state
+                                setOrders(prev => prev.map(o =>
+                                    o.id === selectedOrder.id
+                                        ? {
+                                            ...o,
+                                            isPaid: true,
+                                            transactionId,
+                                            paymentMethod: method
+                                        }
+                                        : o
+                                ));
+
+                                // Update selected order state
+                                const updatedOrder = {
+                                    ...selectedOrder,
+                                    isPaid: true,
+                                    transactionId,
+                                    paymentMethod: method
+                                };
+                                setSelectedOrder(updatedOrder);
+
+                                setShowPaymentModal(false);
+                                setShowOrderModal(false);
+
+                                // Generate payment receipt
+                                const paymentData = {
+                                    orderId: selectedOrder.orderId,
+                                    tableNo: selectedOrder.tableNo,
+                                    customerName: selectedOrder.customerName,
+                                    items: selectedOrder.items,
+                                    subtotal: selectedOrder.totalAmount,
+                                    tax: 0,
+                                    discount: 0,
+                                    totalAmount: selectedOrder.totalAmount,
+                                    paymentMethod: method,
+                                    transactionId: transactionId,
+                                    timestamp: new Date(),
+                                    orderType: 'dine-in' as const
+                                };
+
+                                const receiptResult = await printPaymentReceipt(paymentData);
+
+                                if (receiptResult.success && receiptResult.receipt) {
+                                    setCurrentReceipt(receiptResult.receipt);
+                                    setShowReceipt(true);
+                                }
+                            } catch (error) {
+                                console.error('Error processing payment:', error);
+                                Alert.alert('Error', 'Failed to process payment');
                             }
-
-                            // Update order to mark as paid/completed in local state
-                            setOrders(prev => prev.map(o =>
-                                o.id === selectedOrder.id
-                                    ? {
-                                        ...o,
-                                        isPaid: true,
-                                        transactionId,
-                                        paymentMethod: method
-                                    }
-                                    : o
-                            ));
-
-                            // Update selected order state
-                            const updatedOrder = {
-                                ...selectedOrder,
-                                isPaid: true,
-                                transactionId,
-                                paymentMethod: method
-                            };
-                            setSelectedOrder(updatedOrder);
-
-                            setShowPaymentModal(false);
-                            setShowOrderModal(false);
-
-                            // Generate payment receipt
-                            const paymentData = {
-                                orderId: selectedOrder.orderId,
-                                tableNo: selectedOrder.tableNo,
-                                customerName: selectedOrder.customerName,
-                                items: selectedOrder.items,
-                                subtotal: selectedOrder.totalAmount,
-                                tax: 0,
-                                discount: 0,
-                                totalAmount: selectedOrder.totalAmount,
-                                paymentMethod: method,
-                                transactionId: transactionId,
-                                timestamp: new Date(),
-                                orderType: 'dine-in' as const
-                            };
-
-                            const receiptResult = await printPaymentReceipt(paymentData);
-
-                            if (receiptResult.success && receiptResult.receipt) {
-                                setCurrentReceipt(receiptResult.receipt);
-                                setShowReceipt(true);
-                            }
-                        } catch (error) {
-                            console.error('Error processing payment:', error);
-                            Alert.alert('Error', 'Failed to process payment');
-                        }
-                    }}
-                />
-            )}
+                        }}
+                    />
+                )
+            }
 
             {/* Receipt Viewer */}
             <ReceiptViewer

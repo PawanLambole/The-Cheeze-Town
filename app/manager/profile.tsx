@@ -146,9 +146,11 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.headerEditButton} onPress={handleEditOpen}>
-              <Edit size={20} color={Colors.dark.primary} />
-            </TouchableOpacity>
+            {userData?.role === 'owner' && (
+              <TouchableOpacity style={styles.headerEditButton} onPress={handleEditOpen}>
+                <Edit size={20} color={Colors.dark.primary} />
+              </TouchableOpacity>
+            )}
           </View>
 
 

@@ -336,7 +336,7 @@ export default function TablesScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Table Management</Text>
+        <Text style={styles.headerTitle}>{t('manager.tables.title')}</Text>
         <TouchableOpacity onPress={() => setShowAddModal(true)}>
           <Plus size={24} color={Colors.dark.primary} />
         </TouchableOpacity>
@@ -346,11 +346,11 @@ export default function TablesScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{tables.filter(t => t.status === 'available').length}</Text>
-            <Text style={styles.statLabel}>Available</Text>
+            <Text style={styles.statLabel}>{t('manager.tables.vacant')}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{tables.filter(t => t.status === 'occupied').length}</Text>
-            <Text style={styles.statLabel}>Occupied</Text>
+            <Text style={styles.statLabel}>{t('manager.tables.occupied')}</Text>
           </View>
         </View>
 
@@ -372,7 +372,7 @@ export default function TablesScreen() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={Colors.dark.primary} />
-            <Text style={styles.loadingText}>Loading tables...</Text>
+            <Text style={styles.loadingText}>{t('common.loading')}</Text>
           </View>
         ) : (
           <ScrollView
@@ -412,7 +412,7 @@ export default function TablesScreen() {
                           <Text style={[
                             styles.tableNumberText,
                             table.status === 'occupied' && { color: Colors.dark.text }
-                          ]}>Table {table.table_number}</Text>
+                          ]}>{t('manager.tables.tableNumber').replace('Number', '')} {table.table_number}</Text>
 
                           <TouchableOpacity
                             style={{ position: 'absolute', right: 0, padding: 4 }}
@@ -442,7 +442,7 @@ export default function TablesScreen() {
 
                     <View style={styles.tableInfoRow}>
                       <Users size={14} color={Colors.dark.textSecondary} />
-                      <Text style={styles.tableInfoText}>{table.capacity} Seats</Text>
+                      <Text style={styles.tableInfoText}>{table.capacity} {t('manager.tables.seats')}</Text>
                     </View>
                   </View>
 
@@ -573,10 +573,10 @@ export default function TablesScreen() {
             <Text style={styles.deleteModalMessage}>
               Are you sure you want to delete{' '}
               <Text style={styles.deleteHighlight}>
-                Table {selectedTable?.table_number}
+                {t('common.table')} {selectedTable?.table_number}
               </Text>
               {selectedTable?.capacity && (
-                <Text> ({selectedTable.capacity} seats)</Text>
+                <Text> ({selectedTable.capacity} {t('manager.tables.seats')})</Text>
               )}
               ?
             </Text>
@@ -678,7 +678,7 @@ export default function TablesScreen() {
         visible={showReceipt}
         onClose={() => setShowReceipt(false)}
         receipt={currentReceipt}
-        title="Payment Receipt"
+        title={t('manager.orders.printBill')}
       />
 
       {/* Order Details Modal used when clicking occupied table */}
@@ -686,7 +686,7 @@ export default function TablesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Order Details</Text>
+              <Text style={styles.modalTitle}>{t('manager.orders.orderDetails')}</Text>
               <TouchableOpacity onPress={() => setShowOrderModal(false)}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
@@ -696,7 +696,7 @@ export default function TablesScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.orderHeaderCard}>
                   <View style={styles.orderHeaderLeft}>
-                    <Text style={styles.orderTableText}>Table {selectedTable.table_number}</Text>
+                    <Text style={styles.orderTableText}>{t('manager.tables.tableNumber').replace('Number', '')} {selectedTable.table_number}</Text>
                     <Text style={styles.orderIdText}>#{selectedTable.orderId}</Text>
                   </View>
                   <View style={styles.orderDurationBadge}>
@@ -713,7 +713,7 @@ export default function TablesScreen() {
                 )}
 
                 <View style={styles.orderItemsSection}>
-                  <Text style={styles.sectionLabel}>Items</Text>
+                  <Text style={styles.sectionLabel}>{t('common.items')}</Text>
                   {selectedTable.items?.map((item, index) => (
                     <View key={index} style={styles.orderItem}>
                       <View style={styles.orderItemLeft}>
@@ -731,7 +731,7 @@ export default function TablesScreen() {
                 </View>
 
                 <View style={styles.orderTotal}>
-                  <Text style={styles.orderTotalLabel}>Total Amount</Text>
+                  <Text style={styles.orderTotalLabel}>{t('manager.orders.totalAmount')}</Text>
                   <Text style={styles.orderTotalAmount}>₹{selectedTable.orderAmount}</Text>
                 </View>
 
@@ -745,7 +745,7 @@ export default function TablesScreen() {
                   disabled={!selectedTable.isServed}
                 >
                   <Text style={styles.paymentButtonText}>
-                    {selectedTable.isServed ? 'Process Payment' : 'Mark as Served First'}
+                    {selectedTable.isServed ? t('manager.orders.processPayment') : t('manager.orders.markServed')}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>

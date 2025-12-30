@@ -39,6 +39,10 @@
     "navigation": {
         "home": "Home"
     },
+    "settings": {
+        "notifications": "Notifications",
+        "version": "Version"
+    },
     "login": {
         "subtitle": "Café Management System",
         "tagline": "Restaurant Management System",
@@ -66,6 +70,8 @@
         "settings": {
             "title": "Settings",
             "language": "Language",
+            "languageOption": "Language",
+            "languageSubtitle": "Choose app language",
             "english": "English",
             "marathi": "मराठी (Marathi)",
             "notifications": "Notifications",
@@ -87,6 +93,10 @@
             "pendingOrders": "Pending Orders",
             "todaysRevenue": "Today's Revenue",
             "todaysExpense": "Today's Expense",
+            "financialOverview": "Financial Overview (Today)",
+            "totalSales": "Total Sales",
+            "totalExpense": "Total Expense",
+            "netProfit": "Net Profit",
             "quickAccess": "Quick Access",
             "recentOrders": "Recent Orders",
             "served": "Served",
@@ -340,7 +350,11 @@
             "discount": "Discount",
             "grandTotal": "Grand Total",
             "tableNumber": "Table Number",
-            "optional": "Optional"
+            "optional": "Optional",
+            "makeAvailableTitle": "Release Table?",
+            "makeAvailableDesc": "This will detach the current order from this table. The order status will not be changed.",
+            "longPressHint": "Tip: Long press an occupied table to force release.",
+            "release": "Release"
         },
         "purchases": {
             "title": "Purchases & Expenses",

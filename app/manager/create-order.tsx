@@ -1,6 +1,6 @@
 // Force re-bundle
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Search, Plus } from 'lucide-react-native';
@@ -27,28 +27,88 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
     const [currentReceipt, setCurrentReceipt] = useState('');
     const [tables, setTables] = useState<any[]>([]);
     const [menuOptions, setMenuOptions] = useState<any[]>([]);
+    const [releaseModalVisible, setReleaseModalVisible] = useState(false);
+    const [selectedTableForRelease, setSelectedTableForRelease] = useState<string | null>(null);
 
+    // Fetch tables from database
     // Fetch tables from database
     const fetchTables = async () => {
         try {
-            const { data, error } = await supabase
+            // 1. Fetch tables
+            const { data: tablesData, error: tablesError } = await supabase
                 .from('restaurant_tables')
                 .select('*')
                 .order('table_number');
 
-            if (error) throw error;
+            if (tablesError) throw tablesError;
 
-            // Transform data to match expected format
-            const transformedTables = (data || []).map(table => ({
-                id: String(table.id),
-                number: table.table_number,
-                status: table.status
-            }));
+            // 2. Fetch ALL active orders that have a table assigned
+            const { data: activeOrders, error: ordersError } = await supabase
+                .from('orders')
+                .select('id, order_number, created_at, table_id')
+                .not('status', 'in', '("cancelled","completed")')
+                .not('table_id', 'is', null);
+
+            if (ordersError) throw ordersError;
+
+            // Create map of TableID -> Order
+            const tableOrderMap = new Map();
+            if (activeOrders) {
+                activeOrders.forEach(o => {
+                    const existing = tableOrderMap.get(o.table_id);
+                    const currentCreatedAt = o.created_at ? new Date(o.created_at) : new Date(0);
+                    const existingCreatedAt = existing?.created_at ? new Date(existing.created_at) : new Date(0);
+
+                    if (!existing || currentCreatedAt > existingCreatedAt) {
+                        tableOrderMap.set(o.table_id, o);
+                    }
+                });
+            }
+
+            // Transform data
+            const transformedTables = (tablesData || []).map(table => {
+                const activeOrder = tableOrderMap.get(table.id);
+
+                return {
+                    id: String(table.id),
+                    number: table.table_number,
+                    status: table.status,
+                    currentOrder: activeOrder ? {
+                        id: activeOrder.id,
+                        number: activeOrder.order_number,
+                        createdAt: activeOrder.created_at
+                    } : null
+                };
+            });
 
             setTables(transformedTables);
         } catch (error) {
             console.error('Error fetching tables:', error);
             Alert.alert(t('common.error'), t('manager.createOrder.errors.loadTables'));
+        }
+    };
+
+    const handleMakeAvailable = (tableId: string) => {
+        setSelectedTableForRelease(tableId);
+        setReleaseModalVisible(true);
+    };
+
+    const confirmRelease = async () => {
+        if (!selectedTableForRelease) return;
+
+        try {
+            const { error } = await supabase
+                .from('restaurant_tables')
+                .update({ status: 'available', current_order_id: null })
+                .eq('id', parseInt(selectedTableForRelease));
+
+            if (error) throw error;
+            fetchTables();
+            setReleaseModalVisible(false);
+            setSelectedTableForRelease(null);
+        } catch (error) {
+            console.error('Error freeing table:', error);
+            Alert.alert(t('common.error'), 'Failed to update table status');
         }
     };
 
@@ -221,6 +281,18 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
 
     const insets = useSafeAreaInsets();
 
+    const getTimeAgo = (dateString: string) => {
+        if (!dateString) return '';
+        const now = new Date();
+        const past = new Date(dateString);
+        const diffMs = now.getTime() - past.getTime();
+        const diffMins = Math.round(diffMs / 60000);
+        if (diffMins < 60) return `${diffMins}m`;
+        const diffHours = Math.round(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h`;
+        return `${Math.round(diffHours / 24)}d`;
+    };
+
     return (
         <View style={styles.container}>
             <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
@@ -246,8 +318,13 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                                 <Text style={styles.skipButtonText}>{t('manager.createOrder.skip')}</Text>
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.stepSubtitle}>{t('manager.createOrder.skipSubtitle')}</Text>
-                        <ScrollView style={styles.tablesGrid}>
+                        <View style={{ flexDirection: 'column', marginBottom: 16 }}>
+                            <Text style={styles.stepSubtitle}>{t('manager.createOrder.skipSubtitle')}</Text>
+                            <Text style={{ fontSize: 11, color: Colors.dark.textSecondary, opacity: 0.7 }}>
+                                {t('manager.createOrder.longPressHint')}
+                            </Text>
+                        </View>
+                        <ScrollView style={styles.tablesGrid} contentContainerStyle={{ paddingBottom: 20 }}>
                             <View style={styles.tablesRow}>
                                 {tables.map(table => (
                                     <TouchableOpacity
@@ -257,8 +334,10 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                                             table.status === 'occupied' && styles.tableOccupied,
                                             selectedTable === table.id && styles.tableSelected
                                         ]}
-                                        onPress={() => handleTableSelect(table.id)}
-                                        disabled={table.status === 'occupied'}
+                                        onPress={() => table.status !== 'occupied' && handleTableSelect(table.id)}
+                                        onLongPress={() => table.status === 'occupied' && handleMakeAvailable(table.id)}
+                                        delayLongPress={500}
+                                        activeOpacity={0.7}
                                     >
                                         <Text style={[
                                             styles.tableNumber,
@@ -270,6 +349,12 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                                         <Text style={styles.tableStatus}>
                                             {table.status}
                                         </Text>
+                                        {table.status === 'occupied' && table.currentOrder && (
+                                            <View style={{ alignItems: 'center', marginTop: 4 }}>
+                                                <Text style={{ fontSize: 10, color: Colors.dark.textSecondary, fontWeight: '600' }}>#{table.currentOrder.number}</Text>
+                                                <Text style={{ fontSize: 10, color: Colors.dark.textSecondary }}>{getTimeAgo(table.currentOrder.createdAt)}</Text>
+                                            </View>
+                                        )}
                                     </TouchableOpacity>
                                 ))}
                             </View>
@@ -362,6 +447,34 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                 title={t('manager.createOrder.previewReceipt')}
                 onConfirm={submitOrder}
             />
+
+            {/* Custom Release Confirmation Modal */}
+            <Modal visible={releaseModalVisible} transparent animationType="fade">
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                    <View style={{ backgroundColor: Colors.dark.card, borderRadius: 16, padding: 20, width: '90%', maxWidth: 400, borderWidth: 1, borderColor: Colors.dark.border }}>
+                        <Text style={{ fontSize: 18, fontWeight: '700', color: Colors.dark.text, marginBottom: 8, textAlign: 'center' }}>
+                            {t('manager.createOrder.makeAvailableTitle')}
+                        </Text>
+                        <Text style={{ fontSize: 14, color: Colors.dark.textSecondary, marginBottom: 24, textAlign: 'center', lineHeight: 20 }}>
+                            {t('manager.createOrder.makeAvailableDesc')}
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                            <TouchableOpacity
+                                style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: Colors.dark.secondary, alignItems: 'center', borderWidth: 1, borderColor: Colors.dark.border }}
+                                onPress={() => setReleaseModalVisible(false)}
+                            >
+                                <Text style={{ color: Colors.dark.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#EF4444', alignItems: 'center' }}
+                                onPress={confirmRelease}
+                            >
+                                <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>{t('manager.createOrder.release')}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }

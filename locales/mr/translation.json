@@ -39,6 +39,10 @@
     "navigation": {
         "home": "मुख्यपृष्ठ"
     },
+    "settings": {
+        "notifications": "सूचना",
+        "version": "आवृत्ती"
+    },
     "login": {
         "subtitle": "कॅफे व्यवस्थापन प्रणाली",
         "tagline": "रेस्टॉरंट व्यवस्थापन प्रणाली",
@@ -66,6 +70,8 @@
         "settings": {
             "title": "सेटिंग्ज",
             "language": "भाषा",
+            "languageOption": "भाषा",
+            "languageSubtitle": "ॲपची भाषा निवडा",
             "english": "English",
             "marathi": "मराठी",
             "notifications": "सूचना",
@@ -87,6 +93,10 @@
             "pendingOrders": "प्रलंबित ऑर्डर",
             "todaysRevenue": "आजचे उत्पन्न",
             "todaysExpense": "आजचा खर्च",
+            "financialOverview": "आर्थिक विहंगावलोकन (आज)",
+            "totalSales": "एकूण विक्री",
+            "totalExpense": "एकूण खर्च",
+            "netProfit": "निव्वळ नफा",
             "recentOrders": "अलीकडील ऑर्डर",
             "quickAccess": "जलद प्रवेश",
             "served": "पूर्ण झाले",
@@ -340,7 +350,11 @@
             "discount": "सूट",
             "grandTotal": "एकूण रक्कम",
             "tableNumber": "टेबल क्रमांक",
-            "optional": "ऐच्छिक"
+            "optional": "ऐच्छिक",
+            "makeAvailableTitle": "टेबल मोकळे करा?",
+            "makeAvailableDesc": "हे या टेबलवरून वर्तमान ऑर्डर वेगळे करेल. ऑर्डर स्थिती बदलली जाणार नाही.",
+            "longPressHint": "टीप: टेबल सक्तीने सोडण्यासाठी व्यापलेल्या टेबलवर थोडा वेळ दाबून ठेवा.",
+            "release": "सोडा"
         },
         "purchases": {
             "title": "खरेदी आणि खर्च",

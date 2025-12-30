@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notificationService } from '@/services/NotificationService';
 
 interface NotificationSettingsContextType {
     soundEnabled: boolean;
@@ -29,9 +30,22 @@ export function NotificationSettingsProvider({ children }: { children: ReactNode
             const popup = await AsyncStorage.getItem('chef_popup_enabled');
             const system = await AsyncStorage.getItem('chef_system_enabled');
 
-            if (sound !== null) setSoundEnabled(sound === 'true');
-            if (popup !== null) setPopupEnabled(popup === 'true');
-            if (system !== null) setSystemEnabled(system === 'true');
+            const soundValue = sound !== null ? sound === 'true' : true;
+            const popupValue = popup !== null ? popup === 'true' : true;
+            const systemValue = system !== null ? system === 'true' : true;
+
+            setSoundEnabled(soundValue);
+            setPopupEnabled(popupValue);
+            setSystemEnabled(systemValue);
+
+            // If system notifications are enabled, ensure we have permissions/channel.
+            if (systemValue) {
+                const granted = await notificationService.registerForPushNotificationsAsync();
+                if (!granted) {
+                    setSystemEnabled(false);
+                    await AsyncStorage.setItem('chef_system_enabled', 'false');
+                }
+            }
         } catch (error) {
             console.error('Error loading settings:', error);
         }
@@ -39,6 +53,16 @@ export function NotificationSettingsProvider({ children }: { children: ReactNode
 
     const toggleSetting = async (key: string, value: boolean, setter: (v: boolean) => void) => {
         try {
+            // Special handling: when enabling system notifications, request permission first.
+            if (key === 'chef_system_enabled' && value) {
+                const granted = await notificationService.registerForPushNotificationsAsync();
+                if (!granted) {
+                    setter(false);
+                    await AsyncStorage.setItem(key, 'false');
+                    return;
+                }
+            }
+
             setter(value);
             await AsyncStorage.setItem(key, String(value));
         } catch (error) {

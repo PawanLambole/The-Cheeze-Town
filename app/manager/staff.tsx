@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, FlatList, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Plus, Search, User, Mail, Phone, X, Edit2 } from 'lucide-react-native';
+import { ArrowLeft, Plus, Search, User, Mail, Phone, X, Edit2, UserX, UserPlus } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
+import { useTranslation } from 'react-i18next';
 import { database, supabase } from '@/services/database';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
@@ -14,7 +15,7 @@ interface StaffMember {
   email: string;
   phone: string;
   role: string;
-  status?: 'approved' | 'pending';
+  status?: 'approved' | 'pending' | 'fired';
   joinDate: string;
 }
 
@@ -24,6 +25,7 @@ interface StaffScreenProps {
 }
 
 export default function StaffScreen({ isOwner, showBack = true }: StaffScreenProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ role?: string }>();
   const isOwnerView = isOwner ?? false;
@@ -31,14 +33,20 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+
+  // Filter out manager if not owner
+  const baseDesignations = ['manager', 'chef', 'waiter', 'cashier'];
+  const allowedDesignations = isOwnerView ? baseDesignations : baseDesignations.filter(d => d !== 'manager');
+
   const [selectedRole, setSelectedRole] = useState('all');
-  const [designations, setDesignations] = useState<string[]>(['manager', 'chef', 'waiter', 'cashier']);
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'pending' | 'fired'>('all'); // Add status filter state
+  const [designations, setDesignations] = useState<string[]>(allowedDesignations);
   const roles = ['all', ...designations];
 
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formPhone, setFormPhone] = useState('');
-  const [selectedDesignation, setSelectedDesignation] = useState<string>('manager');
+  const [selectedDesignation, setSelectedDesignation] = useState<string>(allowedDesignations[0]);
   const [newDesignation, setNewDesignation] = useState('');
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -47,7 +55,19 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
   const fetchStaff = async () => {
     if (!refreshing) setRefreshing(true);
     try {
-      const { data } = await supabase.from('users').select('*').neq('role', 'owner');
+      // Build query based on user role
+      let query = supabase.from('users').select('*');
+
+      if (isOwnerView) {
+        // Owner sees all staff except other owners
+        query = query.neq('role', 'owner');
+      } else {
+        // Manager sees only lower-level staff (chef, waiter, cashier, staff)
+        // Excludes: owner and manager
+        query = query.not('role', 'in', '("owner","manager")');
+      }
+
+      const { data } = await query;
       if (data) {
         setStaff(data.map((u: any) => ({
           id: String(u.id),
@@ -55,7 +75,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
           email: u.email || '',
           phone: u.phone || '',
           role: u.role,
-          // status: (u.status === 'approved') ? 'approved' : 'pending',
+          status: (u.status || 'approved') as 'approved' | 'pending' | 'fired',
           joinDate: u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'
         })));
       }
@@ -76,7 +96,19 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
     const matchesSearch = member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = selectedRole === 'all' || member.role === selectedRole;
-    return matchesSearch && matchesRole;
+
+    // Status Logic
+    // all -> Show Approved + Pending (Exclude Fired)
+    // pending -> Show Pending
+    // fired -> Show Fired
+    let matchesStatus = false;
+    if (selectedStatus === 'all') {
+      matchesStatus = member.status !== 'fired';
+    } else {
+      matchesStatus = member.status === selectedStatus;
+    }
+
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
   const getRoleColor = (role: string) => {
@@ -89,8 +121,9 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
     }
   };
 
-  const totalStaff = staff.length;
+  const activeStaff = staff.filter(s => s.status !== 'fired').length;
   const pendingStaff = staff.filter(s => s.status === 'pending').length;
+  const firedStaff = staff.filter(s => s.status === 'fired').length;
 
   const resetForm = () => {
     setFormName('');
@@ -108,9 +141,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
         email: formEmail.trim(),
         phone: formPhone.trim(),
         role: selectedDesignation,
-        // status removed
-        // Default auth_id might be needed if required, but Supabase usually generates it on auth signup.
-        // If this is just a 'users' record:
+        status: 'pending', // All new staff need approval
         created_at: new Date().toISOString()
       };
       const { error } = await supabase.from('users').insert([newUser]);
@@ -123,6 +154,62 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
       console.error("Error adding staff", e);
       alert("Failed to add staff");
     }
+  };
+
+  const handleFireStaff = (member: StaffMember) => {
+    Alert.alert(
+      t('manager.staff.fireTitle', { defaultValue: 'Fire Staff Member' }),
+      t('manager.staff.fireMessage', { defaultValue: 'Are you sure you want to fire {name}? They will be moved to the fired list.', name: member.name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.confirm'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('users')
+                .update({ status: 'fired' })
+                .eq('id', member.id);
+
+              if (error) throw error;
+              fetchStaff();
+            } catch (e) {
+              console.error("Error firing staff", e);
+              Alert.alert('Error', 'Failed to fire staff member');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleReinstateStaff = (member: StaffMember) => {
+    Alert.alert(
+      t('manager.staff.reinstateTitle', { defaultValue: 'Reinstate Staff Member' }),
+      t('manager.staff.reinstateMessage', { defaultValue: 'Are you sure you want to reinstate {name}? They will be moved to pending status for approval.', name: member.name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.confirm'),
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('users')
+                .update({ status: 'pending' })
+                .eq('id', member.id);
+
+              if (error) throw error;
+              fetchStaff();
+              Alert.alert('Success', 'Staff member reinstated to Pending list.');
+            } catch (e) {
+              console.error("Error reinstating staff", e);
+              Alert.alert('Error', 'Failed to reinstate staff member');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleEditStaff = (member: StaffMember) => {
@@ -173,10 +260,14 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
     if (!selectedStaffForApproval) return;
 
     try {
-      // Status update removed as column doesn't exist
-      // const { error } = await supabase...
+      const { error } = await supabase
+        .from('users')
+        .update({ status: 'approved' })
+        .eq('id', selectedStaffForApproval);
 
-      // Check if we need to do anything else for approval
+      if (error) throw error;
+
+      Alert.alert('Success', 'Staff member approved successfully');
       fetchStaff();
     } catch (e) {
       console.error("Error approving staff", e);
@@ -200,74 +291,113 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
   const insets = useSafeAreaInsets();
 
   const renderStaffItem = ({ item: member }: { item: StaffMember }) => (
-    <TouchableOpacity
+    <View
       key={member.id}
       style={styles.staffCard}
-      onPress={() => router.push(`${isOwnerView ? '/owner' : '/manager'}/staff/${member.id}` as any)}
-      activeOpacity={0.7}
     >
-      {/* Left Section: Avatar and Core Info */}
-      <View style={styles.cardLeftSection}>
-        <View style={styles.staffAvatar}>
-          <User size={28} color={Colors.dark.text} />
-        </View>
-        <View style={styles.staffMainInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.staffName} numberOfLines={1}>{member.name}</Text>
-          </View>
-          <View style={[styles.roleBadge, { backgroundColor: getRoleColor(member.role) }]}>
-            <Text style={styles.roleBadgeText}>{member.role.toUpperCase()}</Text>
-          </View>
-        </View>
-      </View>
+      {/* Edit Button - Top Right Corner */}
+      <TouchableOpacity
+        style={styles.editButtonTopRight}
+        onPress={(e) => {
+          e.stopPropagation();
+          handleEditStaff(member);
+        }}
+      >
+        <Edit2 size={18} color={Colors.dark.primary} />
+      </TouchableOpacity>
 
-      {/* Middle Section: Contact Details */}
-      <View style={styles.cardMiddleSection}>
-        <View style={styles.contactRow}>
-          <Mail size={13} color={Colors.dark.textSecondary} />
-          <Text style={styles.contactText} numberOfLines={1}>{member.email}</Text>
+      {/* Main Content - Clickable */}
+      <TouchableOpacity
+        onPress={() => router.push(`${isOwnerView ? '/owner' : '/manager'}/staff/${member.id}` as any)}
+        activeOpacity={0.7}
+        style={{ flex: 1 }}
+      >
+        {/* Top Section: Avatar and Core Info */}
+        <View style={styles.cardTopSection}>
+          <View style={styles.staffAvatar}>
+            <User size={28} color={Colors.dark.text} />
+          </View>
+          <View style={styles.staffMainInfo}>
+            <Text style={styles.staffName} numberOfLines={1}>{member.name}</Text>
+            <View style={[styles.roleBadge, { backgroundColor: getRoleColor(member.role) }]}>
+              <Text style={styles.roleBadgeText}>{member.role.toUpperCase()}</Text>
+            </View>
+          </View>
         </View>
-        <View style={styles.contactRow}>
-          <Phone size={13} color={Colors.dark.textSecondary} />
-          <Text style={styles.contactText} numberOfLines={1}>{member.phone}</Text>
+
+        {/* Contact Details */}
+        <View style={styles.cardMiddleSection}>
+          <View style={styles.contactRow}>
+            <Mail size={13} color={Colors.dark.textSecondary} />
+            <Text style={styles.contactText} numberOfLines={1}>{member.email}</Text>
+          </View>
+          <View style={styles.contactRow}>
+            <Phone size={13} color={Colors.dark.textSecondary} />
+            <Text style={styles.contactText} numberOfLines={1}>{member.phone}</Text>
+          </View>
         </View>
-        <View style={styles.metaRow}>
+
+        {/* Bottom Section: Date and Status */}
+        <View style={styles.cardBottomSection}>
           <Text style={styles.joinDateText}>Joined {member.joinDate}</Text>
           <View style={[
             styles.statusBadge,
-            member.status === 'approved' ? styles.statusApproved : styles.statusPending
+            member.status === 'approved' ? styles.statusApproved :
+              member.status === 'fired' ? styles.statusFired : styles.statusPending
           ]}>
             <Text style={[
               styles.statusText,
-              member.status === 'approved' ? { color: '#10B981' } : { color: '#F59E0B' }
+              member.status === 'approved' ? { color: '#10B981' } :
+                member.status === 'fired' ? { color: '#EF4444' } : { color: '#F59E0B' }
             ]}>
-              {member.status === 'approved' ? '✓ Approved' : '⏱ Pending'}
+              {member.status === 'approved' ? '✓ Approved' :
+                member.status === 'fired' ? '✕ Fired' : '⏱ Pending'}
             </Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
 
-      {/* Right Section: Actions */}
-      <View style={styles.cardRightSection}>
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={(e) => {
-            e.stopPropagation();
-            handleEditStaff(member);
-          }}
-        >
-          <Edit2 size={18} color={Colors.dark.primary} />
-        </TouchableOpacity>
-        {isOwnerView && member.status === 'pending' && (
-          <TouchableOpacity
-            style={styles.approveButton}
-            onPress={(e) => handleApproveClick(member.id, e)}
-          >
-            <Text style={styles.approveButtonText}>Approve</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </TouchableOpacity>
+      {/* Action Buttons for Owner */}
+      {isOwnerView && (
+        <View style={styles.actionButtonsContainer}>
+          {/* Approve Button */}
+          {member.status === 'pending' && (
+            <TouchableOpacity
+              style={[styles.actionButtonFull, styles.approveButtonBg]}
+              onPress={(e) => handleApproveClick(member.id, e)}
+            >
+              <Text style={styles.actionButtonText}>Approve</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Fire Button - Only for non-fired staff */}
+          {member.status !== 'fired' && (
+            <TouchableOpacity
+              style={[styles.actionButtonFull, styles.fireButtonBg, member.status === 'pending' && { marginTop: 8 }]}
+              onPress={() => handleFireStaff(member)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                <UserX size={16} color="#FFF" />
+                <Text style={styles.actionButtonText}>Fire Staff</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Reinstate Button - Only for fired staff */}
+          {member.status === 'fired' && (
+            <TouchableOpacity
+              style={[styles.actionButtonFull, styles.approveButtonBg]}
+              onPress={() => handleReinstateStaff(member)}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                <UserPlus size={16} color="#FFF" />
+                <Text style={styles.actionButtonText}>Reinstate</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </View>
   );
 
   return (
@@ -281,7 +411,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
           <View style={{ width: 24 }} /> // Spacer to keep title centered if needed, or remove if aligned left
         )}
         <Text style={[styles.headerTitle, !showBack && { marginLeft: 0 }]}>
-          {isOwnerView ? 'Staff Management' : 'Team (Manager)'}
+          {isOwnerView ? t('manager.staff.title') : `${t('manager.owner.staff')} (${t('login.manager')})`}
         </Text>
         <TouchableOpacity onPress={() => setShowAddModal(true)} style={styles.addButtonHeader}>
           <Plus size={24} color="#000" />
@@ -293,7 +423,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
           <Search size={20} color={Colors.dark.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search staff..."
+            placeholder={t('common.search')}
             placeholderTextColor={Colors.dark.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -317,14 +447,29 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
         </View>
 
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{totalStaff}</Text>
-            <Text style={styles.statLabel}>Total Staff</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{pendingStaff}</Text>
-            <Text style={styles.statLabel}>Pending Approval</Text>
-          </View>
+          <TouchableOpacity
+            style={[styles.statCard, selectedStatus === 'all' && styles.statCardActive]}
+            onPress={() => setSelectedStatus('all')}
+          >
+            <Text style={[styles.statValue, selectedStatus === 'all' && styles.statTextActive]}>{activeStaff}</Text>
+            <Text style={[styles.statLabel, selectedStatus === 'all' && styles.statTextActive]}>{t('common.total')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statCard, selectedStatus === 'pending' && styles.statCardActive]}
+            onPress={() => setSelectedStatus('pending')}
+          >
+            <Text style={[styles.statValue, selectedStatus === 'pending' && styles.statTextActive]}>{pendingStaff}</Text>
+            <Text style={[styles.statLabel, selectedStatus === 'pending' && styles.statTextActive]}>{t('manager.orders.filter.pending')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statCard, selectedStatus === 'fired' && styles.statCardActive]}
+            onPress={() => setSelectedStatus('fired')}
+          >
+            <Text style={[styles.statValue, selectedStatus === 'fired' && styles.statTextActive]}>{firedStaff}</Text>
+            <Text style={[styles.statLabel, selectedStatus === 'fired' && styles.statTextActive]}>Fired</Text>
+          </TouchableOpacity>
         </View>
 
         <FlatList
@@ -342,7 +487,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Staff Member</Text>
+              <Text style={styles.modalTitle}>{t('manager.staff.addStaff')}</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
@@ -350,14 +495,14 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
             <ScrollView>
               <TextInput
                 style={styles.input}
-                placeholder="Full Name"
+                placeholder={t('manager.staff.name')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 value={formName}
                 onChangeText={setFormName}
               />
               <TextInput
                 style={styles.input}
-                placeholder="Email"
+                placeholder={t('manager.staff.email')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="email-address"
                 value={formEmail}
@@ -365,14 +510,14 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
               />
               <TextInput
                 style={styles.input}
-                placeholder="Phone"
+                placeholder={t('manager.staff.phone')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="phone-pad"
                 value={formPhone}
                 onChangeText={setFormPhone}
               />
 
-              <Text style={styles.modalLabel}>Designation</Text>
+              <Text style={styles.modalLabel}>{t('manager.staff.role')}</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -416,7 +561,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
 
               <TouchableOpacity style={styles.modalAddButton} onPress={handleAddStaff}>
                 <Text style={styles.modalAddButtonText}>
-                  {isOwnerView ? 'Add Staff (Approved)' : 'Send for Approval'}
+                  {isOwnerView ? t('manager.staff.addStaff') : t('manager.staff.submitForApproval', { defaultValue: 'Send for Approval' })}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -428,7 +573,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Staff Member</Text>
+              <Text style={styles.modalTitle}>{t('manager.staff.editStaff')}</Text>
               <TouchableOpacity onPress={() => {
                 setShowEditModal(false);
                 setEditingStaff(null);
@@ -440,14 +585,14 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
             <ScrollView>
               <TextInput
                 style={styles.input}
-                placeholder="Full Name"
+                placeholder={t('manager.staff.name')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 value={formName}
                 onChangeText={setFormName}
               />
               <TextInput
                 style={styles.input}
-                placeholder="Email"
+                placeholder={t('manager.staff.email')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="email-address"
                 value={formEmail}
@@ -455,14 +600,14 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
               />
               <TextInput
                 style={styles.input}
-                placeholder="Phone"
+                placeholder={t('manager.staff.phone')}
                 placeholderTextColor={Colors.dark.textSecondary}
                 keyboardType="phone-pad"
                 value={formPhone}
                 onChangeText={setFormPhone}
               />
 
-              <Text style={styles.modalLabel}>Designation</Text>
+              <Text style={styles.modalLabel}>{t('manager.staff.role')}</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -489,23 +634,8 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
                 ))}
               </ScrollView>
 
-              {isOwnerView && (
-                <View style={styles.newDesignationRow}>
-                  <TextInput
-                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                    placeholder="New designation (optional)"
-                    placeholderTextColor={Colors.dark.textSecondary}
-                    value={newDesignation}
-                    onChangeText={setNewDesignation}
-                  />
-                  <TouchableOpacity style={styles.addDesignationButton} onPress={handleAddDesignation}>
-                    <Text style={styles.addDesignationText}>Add</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
               <TouchableOpacity style={styles.modalAddButton} onPress={handleUpdateStaff}>
-                <Text style={styles.modalAddButtonText}>Update Staff Member</Text>
+                <Text style={styles.modalAddButtonText}>{t('common.save', { defaultValue: 'Save' })}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -523,11 +653,11 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
               <View style={styles.warningIconContainer}>
                 <User size={32} color={Colors.dark.primary} />
               </View>
-              <Text style={styles.confirmationTitle}>Approve Staff Member?</Text>
+              <Text style={styles.confirmationTitle}>{t('manager.staff.approveAccess', { defaultValue: 'Approve Access?' })}</Text>
             </View>
 
             <Text style={styles.confirmationText}>
-              Are you sure you want to approve this staff member? They will gain access to the system based on their assigned role.
+              {t('manager.staff.approveMessage', { defaultValue: 'Are you sure you want to approve this staff member? They will gain access to the system based on their assigned role.' })}
             </Text>
 
             <View style={styles.confirmationActions}>
@@ -535,14 +665,14 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
                 style={styles.cancelButton}
                 onPress={() => setShowApprovalModal(false)}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.confirmButton}
                 onPress={confirmApproval}
               >
-                <Text style={styles.confirmButtonText}>Approve Access</Text>
+                <Text style={styles.confirmButtonText}>{t('common.confirm')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -662,7 +792,25 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     borderWidth: 1,
     borderColor: Colors.dark.border,
+    gap: 12,
+    position: 'relative', // For absolute positioning of edit button
+  },
+  editButtonTopRight: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 8,
+    backgroundColor: Colors.dark.secondary,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    zIndex: 10,
+  },
+  cardTopSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 14,
+    marginRight: 40, // Space for edit button
   },
   cardLeftSection: {
     flexDirection: 'row',
@@ -707,7 +855,7 @@ const styles = StyleSheet.create({
   },
   cardMiddleSection: {
     gap: 8,
-    paddingLeft: 4,
+    marginTop: 4,
   },
   contactRow: {
     flexDirection: 'row',
@@ -744,9 +892,21 @@ const styles = StyleSheet.create({
   statusPending: {
     backgroundColor: 'rgba(245, 158, 11, 0.15)',
   },
+  statusFired: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
   statusText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  cardBottomSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.dark.border,
   },
   cardRightSection: {
     flexDirection: 'row',
@@ -774,6 +934,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  actionButtonsContainer: {
+    marginTop: 8,
+    gap: 8,
+  },
+  actionButtonFull: {
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  approveButtonBg: {
+    backgroundColor: '#10B981',
+  },
+  fireButtonBg: {
+    backgroundColor: '#EF4444',
+  },
+  actionButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  statCardActive: {
+    backgroundColor: Colors.dark.primary + '20', // Light opacity primary
+    borderColor: Colors.dark.primary,
+  },
+  statTextActive: {
+    color: Colors.dark.primary,
   },
   pendingTag: {
     paddingHorizontal: 10,

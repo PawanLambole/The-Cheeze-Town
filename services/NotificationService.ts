@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 class NotificationService {
     private static instance: NotificationService;
+    private readonly androidChannelId = 'default';
 
     private constructor() {
         this.configure();
@@ -26,19 +27,30 @@ class NotificationService {
         });
     }
 
-    async registerForPushNotificationsAsync() {
+    private async ensureAndroidChannelAsync() {
+        if (Platform.OS !== 'android') return;
+
+        try {
+            await Notifications.setNotificationChannelAsync(this.androidChannelId, {
+                name: 'Orders',
+                importance: Notifications.AndroidImportance.MAX,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#FF231F7C',
+                lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+                enableVibrate: true,
+                enableLights: true,
+            });
+        } catch (error) {
+            console.warn('Failed to set Android notification channel:', error);
+        }
+    }
+
+    async registerForPushNotificationsAsync(): Promise<boolean> {
         // In Expo Go, we can't get a remote push token without EAS or development build.
         // We only need local notifications for now, so we can skip the push token part if in Expo Go.
         // However, we still need permissions for local notifications.
 
-        if (Platform.OS === 'android') {
-            await Notifications.setNotificationChannelAsync('default', {
-                name: 'default',
-                importance: Notifications.AndroidImportance.MAX,
-                vibrationPattern: [0, 250, 250, 250],
-                lightColor: '#FF231F7C',
-            });
-        }
+        await this.ensureAndroidChannelAsync();
 
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
@@ -50,14 +62,21 @@ class NotificationService {
 
         if (finalStatus !== 'granted') {
             console.log('Failed to get push token for push notification!');
-            return;
+            return false;
         }
 
         // We are NOT calling getExpoPushTokenAsync() here to avoid the Expo Go error.
         // Since we are using local notifications, we don't strictly need the remote token yet.
+
+        return true;
     }
 
-    async scheduleNotification(title: string, body: string, data: any = {}) {
+    async scheduleNotification(
+        title: string,
+        body: string,
+        data: any = {},
+        options: { playSound?: boolean } = {}
+    ) {
         if (Platform.OS === 'web') {
             console.log('Notification:', { title, body });
             // Simple web notification fallback
@@ -81,7 +100,7 @@ class NotificationService {
                     title,
                     body,
                     data,
-                    sound: true,
+                    sound: options.playSound === false ? false : 'default',
                     vibrate: [0, 250, 250, 250],
                 },
                 trigger: null, // Show immediately

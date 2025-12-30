@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { RefreshCw, CheckCircle, Info } from 'lucide-react-native';
 import { useUpdate } from '@/contexts/UpdateContext';
 
@@ -38,7 +38,18 @@ export const UpdateChecker: React.FC<UpdateCheckerProps> = ({
                     styles.button,
                     isCheckingUpdate && styles.buttonDisabled,
                 ]}
-                onPress={checkForUpdate}
+                onPress={async () => {
+                    // Manual check triggered by user
+                    const updateFound = await checkForUpdate();
+
+                    if (!updateFound) {
+                        Alert.alert(
+                            'Up to Date',
+                            'You are using the latest version of the app.',
+                            [{ text: 'OK' }]
+                        );
+                    }
+                }}
                 disabled={isCheckingUpdate}
             >
                 {isCheckingUpdate ? (

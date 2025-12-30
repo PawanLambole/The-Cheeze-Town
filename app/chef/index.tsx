@@ -183,7 +183,8 @@ export default function ChefDashboard() {
                         await notificationService.scheduleNotification(
                             `New Order #${orderNumber} - ${tableId}`,
                             notificationBody,
-                            { orderId: payload.new.id }
+                            { orderId: payload.new.id },
+                            { playSound: soundEnabled }
                         );
                         console.log('🔔 System notification scheduled');
                     } else {
@@ -227,14 +228,18 @@ export default function ChefDashboard() {
         };
     }, [soundEnabled, popupEnabled, systemEnabled]);
 
-    // Helper function to get today's start and end timestamps
+    // Helper: today's range in local time, converted to UTC ISO for Supabase.
+    // Use [startOfDay, startOfNextDay) to avoid millisecond edge cases.
     const getTodayRange = () => {
         const now = new Date();
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        const startOfDay = new Date(now);
+        startOfDay.setHours(0, 0, 0, 0);
+        const startOfNextDay = new Date(startOfDay);
+        startOfNextDay.setDate(startOfNextDay.getDate() + 1);
+
         return {
             start: startOfDay.toISOString(),
-            end: endOfDay.toISOString()
+            end: startOfNextDay.toISOString(),
         };
     };
 
@@ -243,51 +248,60 @@ export default function ChefDashboard() {
         try {
             const { start, end } = getTodayRange();
 
-            // Fetch active orders (pending or preparing) from today
-            const { data: activeData, error: activeError } = await supabase
+            // 1) Fetch active orders (today only)
+            // Include 'paid' status since web orders are marked as 'paid' after successful payment
+            const { data: activeOrders, error: activeError } = await supabase
                 .from('orders')
-                .select(`
-                    *,
-                    order_items (
-                        id,
-                        menu_item_name,
-                        quantity,
-                        special_instructions
-                    )
-                `)
-                .in('status', ['pending', 'preparing'])
+                .select('id, order_number, table_id, status, total_amount, notes, order_time, created_at, prepared_time')
+                .in('status', ['pending', 'preparing', 'paid'])
                 .gte('created_at', start)
-                .lte('created_at', end)
+                .lt('created_at', end)
                 .order('created_at', { ascending: true });
 
-            // Fetch completed orders (ready or completed) from today
-            const { data: completedData, error: completedError } = await supabase
+            // 2) Fetch completed orders (keep to today)
+            const { data: completedOrdersRaw, error: completedError } = await supabase
                 .from('orders')
-                .select(`
-                    *,
-                    order_items (
-                        id,
-                        menu_item_name,
-                        quantity,
-                        special_instructions
-                    )
-                `)
-                .in('status', ['ready', 'completed'])
+                .select('id, order_number, table_id, status, total_amount, notes, order_time, created_at, prepared_time')
+                .in('status', ['ready', 'served', 'completed'])
                 .gte('created_at', start)
-                .lte('created_at', end)
+                .lt('created_at', end)
                 .order('prepared_time', { ascending: false });
 
-            if (activeError) {
-                console.error('Error fetching active orders:', activeError);
-            } else {
-                setOrders(activeData || []);
+            if (activeError) console.error('Error fetching active orders:', activeError);
+            if (completedError) console.error('Error fetching completed orders:', completedError);
+
+            const safeActive = (activeOrders || []) as unknown as Order[];
+            const safeCompleted = (completedOrdersRaw || []) as unknown as Order[];
+
+            const allIds = [...safeActive, ...safeCompleted].map(o => o.id).filter(Boolean);
+
+            let itemsByOrderId = new Map<number, OrderItem[]>();
+            if (allIds.length > 0) {
+                const { data: itemsData, error: itemsError } = await supabase
+                    .from('order_items')
+                    .select('id, order_id, menu_item_name, quantity, special_instructions')
+                    .in('order_id', allIds);
+
+                if (itemsError) {
+                    console.error('Error fetching order items:', itemsError);
+                } else {
+                    for (const row of itemsData || []) {
+                        const orderId = Number((row as any).order_id);
+                        const item: OrderItem = {
+                            id: (row as any).id,
+                            menu_item_name: (row as any).menu_item_name,
+                            quantity: Number((row as any).quantity) || 0,
+                            special_instructions: (row as any).special_instructions ?? null,
+                        };
+                        const existing = itemsByOrderId.get(orderId) || [];
+                        existing.push(item);
+                        itemsByOrderId.set(orderId, existing);
+                    }
+                }
             }
 
-            if (completedError) {
-                console.error('Error fetching completed orders:', completedError);
-            } else {
-                setCompletedOrders(completedData || []);
-            }
+            setOrders(safeActive.map(o => ({ ...o, order_items: itemsByOrderId.get(o.id) || [] })));
+            setCompletedOrders(safeCompleted.map(o => ({ ...o, order_items: itemsByOrderId.get(o.id) || [] })));
         } catch (error) {
             console.error('Error:', error);
         } finally {
@@ -297,27 +311,38 @@ export default function ChefDashboard() {
     };
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-
-
-
-    const handleMarkServed = (orderId: number) => {
-        setSelectedOrderId(orderId);
+    const handleMarkServed = (order: Order) => {
+        setSelectedOrder(order);
         setShowConfirmModal(true);
     };
 
     const confirmMarkServed = async () => {
-        if (selectedOrderId) {
+        if (selectedOrder) {
             try {
-                // Update order status to 'ready' in database
-                await database.update('orders', selectedOrderId, {
-                    status: 'ready',
+                // Check if order is already paid (Web orders)
+                const isPaid = selectedOrder.status === 'paid';
+
+                // If paid, mark as completed directly. Else mark as ready.
+                const newStatus = isPaid ? 'completed' : 'ready';
+
+                const updateData: any = {
+                    status: newStatus,
+                    is_served: true,
                     prepared_time: new Date().toISOString()
-                });
+                };
+
+                // If completing, set completed_time as well
+                if (newStatus === 'completed') {
+                    updateData.completed_time = new Date().toISOString();
+                }
+
+                await database.update('orders', selectedOrder.id, updateData);
+
                 // Orders will be refreshed via real-time subscription
                 setShowConfirmModal(false);
-                setSelectedOrderId(null);
+                setSelectedOrder(null);
             } catch (error) {
                 console.error('Error updating order:', error);
                 Alert.alert('Error', 'Failed to update order status');
@@ -332,7 +357,8 @@ export default function ChefDashboard() {
         await notificationService.scheduleNotification(
             'Test Order 🔔',
             'This is a test notification for Table 99',
-            { test: true }
+            { test: true },
+            { playSound: true }
         );
 
         setNotificationOrder({
@@ -497,7 +523,7 @@ export default function ChefDashboard() {
                                 {/* Action Button */}
                                 <TouchableOpacity
                                     style={styles.completeButton}
-                                    onPress={() => handleMarkServed(order.id)}
+                                    onPress={() => handleMarkServed(order)}
                                 >
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                         <CheckCircle size={20} color="#000000" />

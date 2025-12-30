@@ -95,8 +95,8 @@ export default function OwnerDashboardScreen() {
 
       const ordersCount = validOrders.length;
 
-      // Calculate Revenue Only from COMPLETED (Paid) orders
-      const paidOrders = validOrders.filter((o: any) => o.status === 'completed');
+      // Calculate Revenue from COMPLETED and PAID orders (paid = web orders)
+      const paidOrders = validOrders.filter((o: any) => o.status === 'completed' || o.status === 'paid');
       const revenue = paidOrders.reduce((sum: number, order: any) => sum + (Number(order.total_amount) || 0), 0);
 
       // 2. Get pending orders count (Real-time status) - This remains "Active Right Now"

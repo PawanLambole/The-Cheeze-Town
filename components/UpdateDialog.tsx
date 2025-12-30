@@ -113,23 +113,24 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
 
                         {/* Version Info */}
                         <View style={styles.versionContainer}>
-                            <Text style={styles.versionLabel}>Current Version</Text>
-                            <Text style={styles.versionText}>{currentVersion.name}</Text>
+                            <View style={styles.versionItem}>
+                                <Text style={styles.versionLabel}>Current</Text>
+                                <Text style={styles.versionText}>{currentVersion.name}</Text>
+                            </View>
 
-                            <Text style={styles.versionArrow}>→</Text>
+                            <View style={styles.arrowContainer}>
+                                <Text style={styles.versionArrow}>→</Text>
+                            </View>
 
-                            <Text style={styles.versionLabel}>New Version</Text>
-                            <Text style={[styles.versionText, styles.newVersion]}>
-                                {version.version_name}
-                            </Text>
+                            <View style={styles.versionItem}>
+                                <Text style={styles.versionLabel}>New</Text>
+                                <Text style={[styles.versionText, styles.newVersion]}>
+                                    {version.version_name}
+                                </Text>
+                            </View>
                         </View>
 
-                        {/* Update Message */}
-                        {version.update_message && (
-                            <Text style={styles.message}>{version.update_message}</Text>
-                        )}
-
-                        {/* Update Type Badge */}
+                        {/* Update Update Type Badge Position */}
                         <View style={styles.badgeContainer}>
                             <View style={[
                                 styles.badge,
@@ -140,6 +141,11 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
                                 </Text>
                             </View>
                         </View>
+
+                        {/* Update Message */}
+                        {version.update_message && (
+                            <Text style={styles.message}>{version.update_message}</Text>
+                        )}
 
                         {/* Description */}
                         <Text style={styles.description}>
@@ -265,32 +271,39 @@ const styles = StyleSheet.create({
     versionContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         marginBottom: 20,
         paddingVertical: 16,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
         borderRadius: 12,
+        width: '100%',
+    },
+    versionItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    arrowContainer: {
+        paddingHorizontal: 8,
     },
     versionLabel: {
-        fontSize: 12,
+        fontSize: 11,
         color: '#666',
         marginBottom: 4,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     versionText: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: '700',
         color: '#fff',
-        marginRight: 12,
     },
     versionArrow: {
         fontSize: 20,
         color: '#666',
-        marginHorizontal: 12,
     },
     newVersion: {
         color: '#3b82f6',
-        marginRight: 0,
     },
     message: {
         fontSize: 16,

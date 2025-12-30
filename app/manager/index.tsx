@@ -139,6 +139,10 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
+  const tabBarHeight = Platform.OS === 'web' ? 70 : 60 + insets.bottom;
+  const fabProtrusion = Platform.OS === 'web' ? 15 : Platform.OS === 'ios' ? 5 : 10;
+  const scrollBottomPadding = tabBarHeight + fabProtrusion + 24;
+
 
   const [stats, setStats] = useState({
     todayOrders: 0,
@@ -169,7 +173,9 @@ export default function HomeScreen() {
       const ordersList = ((todaysOrdersData as unknown) || []) as DatabaseOrder[];
       const orderCount = ordersList.length;
 
-      // Calculate Revenue from actual collected payments: sum of payments.amount for completed payments today
+      // Calculate Revenue from both:
+      // 1. Actual payment records from payments table
+      // 2. Orders with status 'paid' (from website) that might not have payment records yet
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).toISOString();
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
 
@@ -182,7 +188,14 @@ export default function HomeScreen() {
 
       if (paymentsError) throw paymentsError;
 
-      const revenue = (paymentsToday || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+      const paymentsRevenue = (paymentsToday || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+
+      // Also get revenue from 'paid' orders (website orders)
+      const paidOrders = ordersList.filter((o: DatabaseOrder) => o.status === 'paid' || o.status === 'completed');
+      const ordersRevenue = paidOrders.reduce((sum: number, o: DatabaseOrder) => sum + (Number(o.total_amount) || 0), 0);
+
+      // Use the higher value to avoid double counting (payments table should include all, but just in case)
+      const revenue = Math.max(paymentsRevenue, ordersRevenue);
 
       // 2. Get pending orders count (all time or just today/recent? Usually 'pending' status implies current)
       const { data: pendingData, error: pendingError } = await database.query(
@@ -224,7 +237,7 @@ export default function HomeScreen() {
           tableNo: order.table_id,
           customerName: order.customer_name || t('common.guest'),
           items: [], // We would need to fetch order_items. Leaving empty for performance for now or TODO.
-          isServed: order.status === 'served' || order.status === 'completed',
+          isServed: order.status === 'served' || order.status === 'completed' || order.status === 'paid',
           totalAmount: order.total_amount,
           time: getTimeAgo(order.created_at),
           status: order.status
@@ -335,6 +348,7 @@ export default function HomeScreen() {
 
       <ScrollView
         style={styles.content}
+        contentContainerStyle={[styles.contentContainer, { paddingBottom: scrollBottomPadding }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -375,6 +389,32 @@ export default function HomeScreen() {
             color="#EF4444"
             onPress={() => router.push('/manager/expenses')}
           />
+        </View>
+
+        <View style={styles.reportCard}>
+          <Text style={styles.reportTitle}>{t('manager.home.financialOverview')}</Text>
+          <View style={styles.reportRow}>
+            <View style={styles.reportItem}>
+              <Text style={styles.reportLabel}>{t('manager.home.totalSales')}</Text>
+              <Text style={[styles.reportValue, { color: '#16A34A' }]}>
+                ₹{stats.todayRevenue.toLocaleString()}
+              </Text>
+            </View>
+            <View style={styles.reportDivider} />
+            <View style={styles.reportItem}>
+              <Text style={styles.reportLabel}>{t('manager.home.totalExpense')}</Text>
+              <Text style={[styles.reportValue, { color: '#EF4444' }]}>
+                ₹{stats.todayExpense.toLocaleString()}
+              </Text>
+            </View>
+            <View style={styles.reportDivider} />
+            <View style={styles.reportItem}>
+              <Text style={styles.reportLabel}>{t('manager.home.netProfit')}</Text>
+              <Text style={[styles.reportValue, { color: Colors.dark.primary }]}>
+                ₹{(stats.todayRevenue - stats.todayExpense).toLocaleString()}
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Quick Access Section */}
@@ -447,9 +487,6 @@ export default function HomeScreen() {
             />
           ))}
         </View>
-
-        {/* Bottom spacing for tab bar */}
-        <View style={{ height: 100 }} />
       </ScrollView>
     </View>
   );
@@ -483,18 +520,21 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 20,
   },
   // Stats Cards
   statsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'space-between',
     marginTop: 16,
-    marginBottom: 20,
+    marginBottom: 8, // Reduced since items have marginBottom
   },
   statCardWrapper: {
     width: '48%',
+    marginBottom: 12,
   },
   statCard: {
     flex: 1,
@@ -525,6 +565,43 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.dark.textSecondary,
   },
+  reportCard: {
+    backgroundColor: Colors.dark.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    padding: 16,
+    marginBottom: 20,
+  },
+  reportTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.dark.text,
+    marginBottom: 16,
+  },
+  reportRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reportItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  reportLabel: {
+    fontSize: 12,
+    color: Colors.dark.textSecondary,
+    marginBottom: 4,
+  },
+  reportValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  reportDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: Colors.dark.border,
+  },
   // Section Header
   sectionHeader: {
     flexDirection: 'row',
@@ -546,18 +623,18 @@ const styles = StyleSheet.create({
   quickAccessGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
   quickAccessCard: {
-    flex: 1,
-    minWidth: '47%',
+    width: '48%',
     backgroundColor: Colors.dark.card,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.dark.border,
     alignItems: 'center',
+    marginBottom: 12,
     gap: 8,
   },
   quickAccessIcon: {
