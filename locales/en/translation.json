@@ -22,6 +22,7 @@
         "items": "Items",
         "table": "Table",
         "time": "Time",
+        "date": "Date",
         "status": "Status",
         "amount": "Amount",
         "tryAgain": "Try Again",
@@ -365,6 +366,7 @@
             "inventoryType": "Inventory",
             "expenseType": "Expense",
             "notes": "Notes",
+            "receipt": "Receipt",
             "viewReceipt": "View Receipt",
             "empty": "No purchases found",
             "addPurchase": "Add Purchase",
@@ -384,11 +386,21 @@
             "receiptPhotoOptional": "Receipt Photo (Optional)",
             "takePhoto": "Take Photo",
             "chooseGallery": "Choose from Gallery",
+            "uploading": "Uploading...",
             "submit": "Add Purchase",
             "errors": {
                 "minStockRequired": "Please enter minimum stock level for inventory purchases",
-                "addFailed": "Failed to add purchase"
-            }
+                "addFailed": "Failed to add purchase",
+                "deleteFailed": "Failed to delete purchase"
+            },
+            "success": {
+                "added": "Purchase added successfully",
+                "deleted": "Purchase deleted successfully"
+            },
+            "details": "Purchase Details",
+            "delete": "Delete Purchase",
+            "deleteConfirmTitle": "Delete Purchase",
+            "deleteConfirmMessage": "Are you sure you want to delete this purchase? This action cannot be undone."
         },
         "tables": {
             "title": "Table Management",
@@ -511,7 +523,16 @@
         "reasonForAdjustment": "Reason for adjustment (optional)",
         "itemName": "Item Name",
         "category": "Category",
-        "enterAmount": "Enter amount"
+        "enterAmount": "Enter amount",
+        "adjust": "Adjust",
+        "delete": "Delete",
+        "deleteConfirmTitle": "Delete Item",
+        "deleteConfirmMessage": "Are you sure you want to delete this item?",
+        "errors": {
+            "addFailed": "Failed to add item",
+            "adjustFailed": "Failed to adjust stock",
+            "deleteFailed": "Failed to delete item"
+        }
     },
     "menu": {
         "management": {

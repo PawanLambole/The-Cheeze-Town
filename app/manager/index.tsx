@@ -245,22 +245,15 @@ export default function HomeScreen() {
       });
 
       // 4. Calculate today's expenses from purchases
-      // Some Supabase/PostgREST setups return 400 when comparing date columns with full
-      // ISO timestamps. To avoid that, fetch the candidate rows and filter client-side
-      // by parsing `purchase_date` into a Date and checking the range.
-      const { data: expDataRaw, error: expError } = await supabase
+      const { data: expData, error: expError } = await supabase
         .from('purchases')
-        .select('total_amount, purchase_date');
+        .select('total_amount')
+        .gte('created_at', startOfDay)
+        .lte('created_at', endOfDay);
 
       if (expError) throw expError;
 
-      const totalExpense = (expDataRaw || [])
-        .filter((p: any) => {
-          if (!p.purchase_date) return false;
-          const pd = new Date(p.purchase_date);
-          return pd >= new Date(startOfDay) && pd <= new Date(endOfDay);
-        })
-        .reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
+      const totalExpense = (expData || []).reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
 
       // Update state
       setStats({

@@ -22,6 +22,7 @@
         "items": "वस्तू",
         "table": "टेबल",
         "time": "वेळ",
+        "date": "तारीख",
         "status": "स्थिती",
         "amount": "रक्कम",
         "tryAgain": "पुन्हा प्रयत्न करा",
@@ -365,6 +366,7 @@
             "inventoryType": "इन्व्हेंटरी",
             "expenseType": "खर्च",
             "notes": "टिपा",
+            "receipt": "पावती",
             "viewReceipt": "पावती पहा",
             "empty": "कोणतीही खरेदी सापडली नाही",
             "addPurchase": "खरेदी जोडा",
@@ -384,6 +386,7 @@
             "receiptPhotoOptional": "पावती फोटो (पर्यायी)",
             "takePhoto": "फोटो काढा",
             "chooseGallery": "गॅलरीमधून निवडा",
+            "uploading": "अपलोड होत आहे...",
             "submit": "खरेदी जोडा",
             "errors": {
                 "minStockRequired": "कृपया इन्व्हेंटरी खरेदीसाठी किमान साठा स्तर प्रविष्ट करा",

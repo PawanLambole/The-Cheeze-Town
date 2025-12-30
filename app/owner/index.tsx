@@ -107,10 +107,10 @@ export default function OwnerDashboardScreen() {
       // 3. Get TODAY'S expenses from purchases table
       const { data: todaysPurchases } = await supabase
         .from('purchases')
-        .select('total_price')
+        .select('total_amount')
         .gte('created_at', todayISO);
 
-      const expenses = (todaysPurchases || []).reduce((sum: number, p: any) => sum + (Number(p.total_price) || 0), 0);
+      const expenses = (todaysPurchases || []).reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
 
       setStats({
         totalRevenue: revenue,

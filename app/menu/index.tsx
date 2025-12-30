@@ -359,7 +359,7 @@ export default function MenuScreen() {
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
-            <ScrollView>
+            <ScrollView keyboardShouldPersistTaps="handled">
               <TextInput style={styles.input} placeholder={t('menu.management.itemName')} placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
               <View style={styles.categoryInputContainer}>
                 <TextInput
@@ -373,10 +373,10 @@ export default function MenuScreen() {
                     setCategorySuggestions(filtered);
                     setShowCategorySuggestions(true);
                   }}
-                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
+                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 300)}
                 />
                 {showCategorySuggestions && categorySuggestions.length > 0 && (
-                  <ScrollView style={styles.suggestionList} nestedScrollEnabled>
+                  <ScrollView style={styles.suggestionList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
                     {categorySuggestions.map((item, index) => (
                       <TouchableOpacity
                         key={index}
@@ -428,7 +428,7 @@ export default function MenuScreen() {
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
-            <ScrollView>
+            <ScrollView keyboardShouldPersistTaps="handled">
               <TextInput style={styles.input} placeholder={t('menu.management.itemName')} placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
               <View style={styles.categoryInputContainer}>
                 <TextInput
@@ -442,10 +442,10 @@ export default function MenuScreen() {
                     setCategorySuggestions(filtered);
                     setShowCategorySuggestions(true);
                   }}
-                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 200)}
+                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 300)}
                 />
                 {showCategorySuggestions && categorySuggestions.length > 0 && (
-                  <ScrollView style={styles.suggestionList} nestedScrollEnabled>
+                  <ScrollView style={styles.suggestionList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
                     {categorySuggestions.map((item, index) => (
                       <TouchableOpacity
                         key={index}
@@ -850,12 +850,12 @@ const styles = StyleSheet.create({
   },
   suggestionItem: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.dark.border,
   },
   suggestionText: {
     color: Colors.dark.text,
-    fontSize: 14,
+    fontSize: 16,
   },
 });

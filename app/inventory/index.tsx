@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, RefreshControl, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Plus, Minus, X } from 'lucide-react-native';
+import { ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Plus, Minus, X, Trash } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
 import { database, supabase } from '@/services/database';
 import { useTranslation } from 'react-i18next';
@@ -77,6 +77,30 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
     setShowAdjustModal(true);
   };
 
+  const handleDelete = (item: InventoryItem) => {
+    Alert.alert(
+      t('inventory.deleteConfirmTitle'),
+      t('inventory.deleteConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('inventory.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.from('inventory').delete().eq('id', Number(item.id));
+              if (error) throw error;
+              fetchInventory();
+            } catch (e) {
+              console.error("Error deleting item", e);
+              alert(t('inventory.errors.deleteFailed'));
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleAddItem = async () => {
     if (!newItemName.trim() || !newItemCategory.trim() || !newItemStock || !newItemMinStock) {
       return;
@@ -104,7 +128,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
       setNewItemUnit('kg');
     } catch (e) {
       console.error("Error adding inventory item", e);
-      alert("Failed to add item");
+      alert(t('inventory.errors.addFailed'));
     }
   };
 
@@ -117,7 +141,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
       const { error } = await supabase
         .from('inventory')
         .update({ quantity: newStock })
-        .eq('id', selectedItem.id as any);
+        .eq('id', Number(selectedItem.id));
 
       if (error) throw error;
 
@@ -127,7 +151,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
       setAdjustmentAmount('');
     } catch (e) {
       console.error("Error adjusting stock", e);
-      alert("Failed to adjust stock");
+      alert(t('inventory.errors.adjustFailed'));
     }
   };
 
@@ -233,12 +257,20 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                 </View>
                 <Text style={styles.lastRestocked}>{t('inventory.lastUpdated')}: {item.lastRestocked}</Text>
               </View>
-              <TouchableOpacity
-                style={styles.adjustButton}
-                onPress={() => handleAdjustStock(item)}
-              >
-                <Text style={styles.adjustButtonText}>{t('inventory.adjust')}</Text>
-              </TouchableOpacity>
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={styles.adjustButton}
+                  onPress={() => handleAdjustStock(item)}
+                >
+                  <Text style={styles.adjustButtonText}>{t('inventory.adjust')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDelete(item)}
+                >
+                  <Trash size={20} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
             </View>
           );
         })}
@@ -570,12 +602,23 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     justifyContent: 'center',
-    alignSelf: 'flex-start',
+    color: '#000000',
   },
   adjustButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#000000',
+  },
+  actions: {
+    gap: 12,
+    alignItems: 'center',
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,

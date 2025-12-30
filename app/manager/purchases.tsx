@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Plus, X, Camera, User, Package, IndianRupee, Calendar, Image as ImageIcon } from 'lucide-react-native';
+import { ArrowLeft, Plus, X, Camera, User, Package, IndianRupee, Calendar, Image as ImageIcon, Trash, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
@@ -10,6 +10,7 @@ import { database, supabase } from '@/services/database';
 import { uploadImage } from '@/services/imageUpload';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Purchase {
     id: string;
@@ -28,7 +29,12 @@ interface Purchase {
 export default function PurchasesScreen() {
     const { t } = useTranslation();
     const router = useRouter();
+    const { userData } = useAuth();
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [viewImage, setViewImage] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
     // Form fields
@@ -84,10 +90,9 @@ export default function PurchasesScreen() {
                 category: p.category,
                 quantity: Number(p.quantity),
                 unit: p.unit,
-                totalPrice: Number(p.total_price),
-
+                totalPrice: Number(p.total_amount),
                 purchaseDate: p.purchase_date,
-                receiptPhoto: p.receipt_photo,
+                receiptPhoto: p.receipt_url || p.receipt_photo,
                 notes: p.notes,
             }));
 
@@ -107,7 +112,7 @@ export default function PurchasesScreen() {
         purchase.category.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const totalSpent = purchases.reduce((sum, purchase) => sum + purchase.totalPrice, 0);
+    const totalSpent = purchases.reduce((sum, purchase) => sum + (purchase.totalPrice || 0), 0);
 
     const resetForm = () => {
         setFormPurchaseType('inventory');
@@ -134,8 +139,8 @@ export default function PurchasesScreen() {
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: false,
+            mediaTypes: ['images'],
+            allowsEditing: true,
             quality: 1,
         });
 
@@ -146,7 +151,7 @@ export default function PurchasesScreen() {
 
     const takePhoto = async () => {
         const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: false,
+            allowsEditing: true,
             quality: 1,
         });
 
@@ -155,8 +160,35 @@ export default function PurchasesScreen() {
         }
     };
 
+    const handleDelete = (purchase: Purchase) => {
+        Alert.alert(
+            t('manager.purchases.deleteConfirmTitle'),
+            t('manager.purchases.deleteConfirmMessage'),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('manager.purchases.delete'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const { error } = await supabase.from('purchases').delete().eq('id', Number(purchase.id));
+                            if (error) throw error;
+                            setShowDetailModal(false);
+                            fetchPurchases();
+                            alert(t('manager.purchases.success.deleted'));
+                        } catch (e) {
+                            console.error("Error deleting purchase", e);
+                            alert(t('manager.purchases.errors.deleteFailed'));
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handleAddPurchase = async () => {
         if (!formItemName.trim() || !formQuantity || !formPrice) {
+            alert(t('validation.required'));
             return;
         }
 
@@ -167,6 +199,7 @@ export default function PurchasesScreen() {
         }
 
         try {
+            setIsSubmitting(true);
             let receiptUrl = formReceiptPhoto;
             if (formReceiptPhoto && formReceiptPhoto.startsWith('file://')) {
                 receiptUrl = await uploadImage(formReceiptPhoto, 'purchase') || undefined;
@@ -177,7 +210,7 @@ export default function PurchasesScreen() {
             const totalAmount = unitPrice * quantity;
 
             const newPurchase = {
-                // purchase_type: formPurchaseType, // Column does not exist in DB
+                purchase_type: formPurchaseType,
                 item_name: formItemName.trim(),
                 category: formCategory || 'Other',
                 quantity: quantity,
@@ -194,8 +227,6 @@ export default function PurchasesScreen() {
                 .insert([newPurchase]);
 
             if (error) throw error;
-
-            fetchPurchases();
 
             if (formPurchaseType === 'inventory') {
                 // Check if item exists in inventory_items to update stock
@@ -221,11 +252,17 @@ export default function PurchasesScreen() {
                 }
             }
 
-            setShowAddModal(false);
+            // Refresh list BEFORE closing modal/resetting form for smoother UX
+            await fetchPurchases();
+
             resetForm();
+            setShowAddModal(false);
+            alert(t('manager.purchases.success.added'));
         } catch (e) {
             console.error("Error adding purchase:", e);
             alert(t('manager.purchases.errors.addFailed'));
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -269,7 +306,14 @@ export default function PurchasesScreen() {
                 {/* Purchases List */}
                 <Text style={styles.sectionTitle}>{t('manager.purchases.history')}</Text>
                 {filteredPurchases.map(purchase => (
-                    <View key={purchase.id} style={styles.purchaseCard}>
+                    <TouchableOpacity
+                        key={purchase.id}
+                        style={styles.purchaseCard}
+                        onPress={() => {
+                            setSelectedPurchase(purchase);
+                            setShowDetailModal(true);
+                        }}
+                    >
                         <View style={styles.purchaseHeader}>
                             <View style={styles.purchaseIconContainer}>
                                 <Package size={20} color={Colors.dark.primary} />
@@ -317,12 +361,15 @@ export default function PurchasesScreen() {
                         )}
 
                         {purchase.receiptPhoto && (
-                            <TouchableOpacity style={styles.receiptContainer}>
+                            <TouchableOpacity
+                                style={styles.receiptContainer}
+                                onPress={() => setViewImage(purchase.receiptPhoto || null)}
+                            >
                                 <Image source={{ uri: purchase.receiptPhoto }} style={styles.receiptImage} />
                                 <Text style={styles.receiptLabel}>{t('manager.purchases.viewReceipt')}</Text>
                             </TouchableOpacity>
                         )}
-                    </View>
+                    </TouchableOpacity>
                 ))}
 
                 {filteredPurchases.length === 0 && (
@@ -540,21 +587,165 @@ export default function PurchasesScreen() {
 
                             {formReceiptPhoto && (
                                 <View style={styles.previewContainer}>
-                                    <Image source={{ uri: formReceiptPhoto }} style={styles.previewImage} />
-                                    <TouchableOpacity
-                                        style={styles.removePhotoButton}
-                                        onPress={() => setFormReceiptPhoto(undefined)}
-                                    >
-                                        <X size={16} color="#FFFFFF" />
-                                    </TouchableOpacity>
+                                    <View style={styles.previewImageWrapper}>
+                                        <TouchableOpacity
+                                            onPress={() => setViewImage(formReceiptPhoto)}
+                                            activeOpacity={0.9}
+                                        >
+                                            <Image source={{ uri: formReceiptPhoto }} style={styles.previewImage} resizeMode="contain" />
+                                        </TouchableOpacity>
+                                    </View>
+                                    <View style={styles.previewActions}>
+                                        <TouchableOpacity
+                                            style={styles.actionButton}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Check size={20} color={Colors.dark.primary} />
+                                            <Text style={styles.actionText}>{t('common.confirm') || 'Select'}</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.actionButton, styles.actionButtonDestructive]}
+                                            onPress={() => setFormReceiptPhoto(undefined)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <X size={20} color="#EF4444" />
+                                            <Text style={[styles.actionText, styles.actionTextDestructive]}>{t('common.delete') || 'Deselect'}</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             )}
 
-                            <TouchableOpacity style={styles.submitButton} onPress={handleAddPurchase}>
-                                <Text style={styles.submitButtonText}>{t('manager.purchases.submit')}</Text>
+                            <TouchableOpacity
+                                style={[styles.submitButton, isSubmitting && { opacity: 0.7 }]}
+                                onPress={handleAddPurchase}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <ActivityIndicator color="#000000" size="small" />
+                                        <Text style={styles.submitButtonText}>{t('manager.purchases.uploading') || 'Uploading...'}</Text>
+                                    </View>
+                                ) : (
+                                    <Text style={styles.submitButtonText}>{t('manager.purchases.submit')}</Text>
+                                )}
                             </TouchableOpacity>
                         </ScrollView>
                     </View>
+                </View>
+            </Modal>
+
+            {/* Detail Modal */}
+            <Modal visible={showDetailModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{t('manager.purchases.details')}</Text>
+                            <TouchableOpacity onPress={() => setShowDetailModal(false)} style={styles.closeButton}>
+                                <X size={24} color={Colors.dark.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {selectedPurchase && (
+                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollContent}>
+                                {/* Hero Section */}
+                                <View style={styles.heroSection}>
+                                    <View style={styles.heroIconCircle}>
+                                        <Package size={32} color={Colors.dark.primary} />
+                                    </View>
+                                    <Text style={styles.heroAmount}>₹{selectedPurchase.totalPrice.toLocaleString()}</Text>
+                                    <Text style={styles.heroName}>{selectedPurchase.itemName}</Text>
+
+                                    <View style={[
+                                        styles.heroBadge,
+                                        { backgroundColor: selectedPurchase.purchaseType === 'inventory' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 68, 68, 0.15)' }
+                                    ]}>
+                                        <Text style={[
+                                            styles.heroBadgeText,
+                                            { color: selectedPurchase.purchaseType === 'inventory' ? '#60A5FA' : '#F87171' }
+                                        ]}>
+                                            {selectedPurchase.purchaseType === 'inventory' ? t('manager.purchases.inventoryType') : t('manager.purchases.expenseType')}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* Meta Grid */}
+                                <View style={styles.metaGrid}>
+                                    <View style={styles.metaItem}>
+                                        <Text style={styles.metaLabel}>{t('manager.purchases.category')}</Text>
+                                        <Text style={styles.metaValue}>{selectedPurchase.category}</Text>
+                                    </View>
+                                    <View style={styles.metaItem}>
+                                        <Text style={styles.metaLabel}>{t('manager.purchases.quantity')}</Text>
+                                        <Text style={styles.metaValue}>{selectedPurchase.quantity} {selectedPurchase.unit}</Text>
+                                    </View>
+                                    <View style={styles.metaItem}>
+                                        <Text style={styles.metaLabel}>{t('common.date')}</Text>
+                                        {/* Simple date formatting */}
+                                        <Text style={styles.metaValue}>
+                                            {new Date(selectedPurchase.purchaseDate).toLocaleDateString()}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* Notes Section */}
+                                {selectedPurchase.notes && (
+                                    <View style={styles.detailBlock}>
+                                        <Text style={styles.blockLabel}>{t('manager.purchases.notes')}</Text>
+                                        <View style={styles.noteBox}>
+                                            <Text style={styles.noteContent}>{selectedPurchase.notes}</Text>
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* Receipt Section */}
+                                {selectedPurchase.receiptPhoto && (
+                                    <View style={styles.detailBlock}>
+                                        <Text style={styles.blockLabel}>{t('manager.purchases.receipt')}</Text>
+                                        <TouchableOpacity
+                                            style={styles.receiptBox}
+                                            onPress={() => setViewImage(selectedPurchase.receiptPhoto || null)}
+                                            activeOpacity={0.9}
+                                        >
+                                            <Image
+                                                source={{ uri: selectedPurchase.receiptPhoto }}
+                                                style={styles.fullReceipt}
+                                                resizeMode="contain"
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+
+                                {/* Delete Action */}
+                                {userData?.role === 'owner' && (
+                                    <TouchableOpacity
+                                        style={styles.dangerButton}
+                                        onPress={() => handleDelete(selectedPurchase)}
+                                    >
+                                        <Trash size={20} color="#EF4444" />
+                                        <Text style={styles.dangerButtonText}>{t('manager.purchases.delete')}</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </ScrollView>
+                        )}
+                    </View>
+                </View>
+            </Modal>
+            {/* Full Screen Image Modal */}
+            <Modal visible={!!viewImage} animationType="fade" transparent>
+                <View style={styles.fullImageContainer}>
+                    <TouchableOpacity
+                        style={styles.fullImageClose}
+                        onPress={() => setViewImage(null)}
+                    >
+                        <X size={32} color="#FFFFFF" />
+                    </TouchableOpacity>
+                    {viewImage && (
+                        <Image
+                            source={{ uri: viewImage }}
+                            style={styles.fullImage}
+                            resizeMode="contain"
+                        />
+                    )}
                 </View>
             </Modal>
         </View>
@@ -799,6 +990,34 @@ const styles = StyleSheet.create({
         flex: 1,
         marginBottom: 0,
     },
+    detailSection: {
+        marginBottom: 20,
+    },
+    detailLabel: {
+        fontSize: 12,
+        color: Colors.dark.textSecondary,
+        marginBottom: 4,
+    },
+    detailValue: {
+        fontSize: 16,
+        color: Colors.dark.text,
+        fontWeight: '600',
+    },
+    deleteButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        padding: 16,
+        borderRadius: 12,
+        gap: 8,
+        marginTop: 20,
+    },
+    deleteButtonText: {
+        color: '#EF4444',
+        fontSize: 16,
+        fontWeight: '600',
+    },
     unitSelector: {
         flex: 1,
     },
@@ -858,6 +1077,9 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 200,
         borderRadius: 8,
+    },
+    previewImageWrapper: {
+        width: '100%',
     },
     removePhotoButton: {
         position: 'absolute',
@@ -997,5 +1219,188 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '700',
         color: Colors.dark.primary,
+    },
+    // New Modal Styles
+    modalScrollContent: {
+        paddingBottom: 20,
+    },
+    closeButton: {
+        padding: 4,
+        borderRadius: 20,
+        backgroundColor: Colors.dark.secondary,
+    },
+    heroSection: {
+        alignItems: 'center',
+        marginBottom: 24,
+        paddingBottom: 24,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.dark.border,
+    },
+    heroIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'rgba(253, 184, 19, 0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(253, 184, 19, 0.3)',
+    },
+    heroAmount: {
+        fontSize: 36,
+        fontWeight: '800',
+        color: Colors.dark.primary,
+        marginBottom: 8,
+        letterSpacing: -0.5,
+    },
+    heroName: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: Colors.dark.text,
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    heroBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    heroBadgeText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    metaGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        marginBottom: 24,
+    },
+    metaItem: {
+        flex: 1,
+        minWidth: '45%',
+        backgroundColor: Colors.dark.secondary,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+    },
+    metaLabel: {
+        fontSize: 12,
+        color: Colors.dark.textSecondary,
+        marginBottom: 4,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    metaValue: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: Colors.dark.text,
+    },
+    detailBlock: {
+        marginBottom: 20,
+    },
+    blockLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.dark.text,
+        marginBottom: 8,
+    },
+    noteBox: {
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        padding: 16,
+        borderRadius: 12,
+        borderLeftWidth: 3,
+        borderLeftColor: Colors.dark.primary,
+    },
+    noteContent: {
+        fontSize: 15,
+        color: Colors.dark.text,
+        lineHeight: 22,
+    },
+    receiptBox: {
+        borderRadius: 12,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        backgroundColor: Colors.dark.background,
+    },
+    fullReceipt: {
+        width: '100%',
+        height: 350,
+        backgroundColor: '#000',
+    },
+    dangerButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        padding: 16,
+        borderRadius: 12,
+        gap: 8,
+        marginTop: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+    },
+    dangerButtonText: {
+        color: '#EF4444',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    previewActions: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 12,
+    },
+    actionButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(253, 184, 19, 0.1)',
+        padding: 12,
+        borderRadius: 8,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(253, 184, 19, 0.3)',
+    },
+    actionButtonDestructive: {
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+    },
+    actionText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.dark.primary,
+    },
+    actionTextDestructive: {
+        color: '#EF4444',
+    },
+    // Full Screen Image Styles
+    fullImageContainer: {
+        flex: 1,
+        backgroundColor: '#000000',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullImageClose: {
+        position: 'absolute',
+        top: 40,
+        right: 20,
+        zIndex: 20,
+        padding: 8,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 20,
+    },
+    fullImageScroll: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
+        height: '100%',
+    },
+    fullImage: {
+        width: '100%',
+        height: '100%',
     },
 });

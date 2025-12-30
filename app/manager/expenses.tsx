@@ -44,7 +44,7 @@ export default function ExpensesScreen() {
             const mapped: ExpenseItem[] = (data || []).map((p: any) => ({
                 id: p.id,
                 category: p.category,
-                amount: Number(p.total_price),
+                amount: Number(p.total_amount),
                 date: p.purchase_date,
                 description: p.item_name
             }));
