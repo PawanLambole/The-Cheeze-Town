@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Plus, X, Camera, User, Package, IndianRupee, Calendar, Image as ImageIcon, Trash, Check } from 'lucide-react-native';
+import { ArrowLeft, Plus, X, Camera, User, Package, IndianRupee, Calendar, Image as ImageIcon, Trash, Check, Filter } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
@@ -24,6 +24,16 @@ interface Purchase {
     purchaseDate: string;
     receiptPhoto?: string;
     notes?: string;
+}
+
+interface FilterState {
+    dateRange: 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
+    startDate: Date | null;
+    endDate: Date | null;
+    type: 'all' | 'inventory' | 'other';
+    categories: string[];
+    minPrice: string;
+    maxPrice: string;
 }
 
 export default function PurchasesScreen() {
@@ -51,26 +61,63 @@ export default function PurchasesScreen() {
     const [formMinStock, setFormMinStock] = useState('');
     const [showAutocomplete, setShowAutocomplete] = useState(false);
 
-    // Mock inventory items for autocomplete
-    const inventoryItems = [
-        { name: 'Cheese (Mozzarella)', category: 'Dairy', unit: 'kg', minStock: 10 },
-        { name: 'Tomatoes', category: 'Vegetables', unit: 'kg', minStock: 5 },
-        { name: 'Pizza Dough', category: 'Dairy', unit: 'kg', minStock: 15 },
-        { name: 'Bell Peppers', category: 'Vegetables', unit: 'kg', minStock: 5 },
-        { name: 'Oregano', category: 'Spices', unit: 'kg', minStock: 1 },
-        { name: 'Olive Oil', category: 'Beverages', unit: 'L', minStock: 8 },
-        { name: 'Pizza Boxes', category: 'Packaging', unit: 'pieces', minStock: 100 },
-        { name: 'Onions', category: 'Vegetables', unit: 'kg', minStock: 10 },
-        { name: 'Garlic', category: 'Vegetables', unit: 'kg', minStock: 3 },
-        { name: 'Basil', category: 'Spices', unit: 'g', minStock: 200 },
-    ];
+    // Dynamic lists
+    const [categories, setCategories] = useState<string[]>(['Vegetables', 'Dairy', 'Meat', 'Spices', 'Beverages', 'Packaging', 'Equipment', 'Other']);
+    const [units, setUnits] = useState<string[]>(['kg', 'g', 'L', 'ml', 'pieces', 'boxes']);
+    const [customUnit, setCustomUnit] = useState('');
+    const [isCustomUnit, setIsCustomUnit] = useState(false);
+
+    const [inventoryItems, setInventoryItems] = useState<{ name: string; category: string; unit: string; minStock: number }[]>([]);
+
+    const [showFilterModal, setShowFilterModal] = useState(false);
+    const [activeFilters, setActiveFilters] = useState<FilterState>({
+        dateRange: 'all',
+        startDate: null,
+        endDate: null,
+        type: 'all',
+        categories: [],
+        minPrice: '',
+        maxPrice: ''
+    });
+
+    const [tempFilters, setTempFilters] = useState<FilterState>(activeFilters); // For modal state before applying
+
+    const fetchInventoryItems = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('inventory')
+                .select('item_name, category, unit, reorder_level')
+                .order('item_name');
+
+            if (error) throw error;
+
+            if (data) {
+                const fetchedItems = data.map((item: any) => ({
+                    name: item.item_name,
+                    category: item.category,
+                    unit: item.unit,
+                    minStock: item.reorder_level || 0
+                }));
+                setInventoryItems(fetchedItems);
+
+                // Extract unique categories and units
+                const uniqueCategories = Array.from(new Set(fetchedItems.map((i: any) => i.category))).filter(Boolean) as string[];
+                const uniqueUnits = Array.from(new Set(fetchedItems.map((i: any) => i.unit))).filter(Boolean) as string[];
+
+                // Update dynamic lists merging with defaults
+                setCategories(prev => Array.from(new Set([...prev, ...uniqueCategories])));
+                setUnits(prev => Array.from(new Set([...prev, ...uniqueUnits])));
+            }
+        } catch (error) {
+            console.error('Error fetching inventory items:', error);
+        }
+    };
 
     const filteredInventoryItems = inventoryItems.filter(item =>
         item.name.toLowerCase().includes(formItemName.toLowerCase())
     );
 
-    const categories = ['Vegetables', 'Dairy', 'Meat', 'Spices', 'Beverages', 'Packaging', 'Equipment', 'Other'];
-    const units = ['kg', 'g', 'L', 'ml', 'pieces', 'boxes'];
+
 
     const [purchases, setPurchases] = useState<Purchase[]>([]);
 
@@ -105,14 +152,78 @@ export default function PurchasesScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchPurchases();
+            fetchInventoryItems();
         }, [])
     );
 
-    const filteredPurchases = purchases.filter(purchase =>
-        purchase.category.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredPurchases = purchases.filter(purchase => {
+        // Search Filter
+        const matchesSearch =
+            purchase.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            purchase.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (purchase.notes && purchase.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        if (!matchesSearch) return false;
+
+        // Type Filter
+        if (activeFilters.type !== 'all' && purchase.purchaseType !== activeFilters.type) return false;
+
+        // Category Filter
+        if (activeFilters.categories.length > 0 && !activeFilters.categories.includes(purchase.category)) return false;
+
+        // Price Filter
+        if (activeFilters.minPrice && purchase.totalPrice < parseFloat(activeFilters.minPrice)) return false;
+        if (activeFilters.maxPrice && purchase.totalPrice > parseFloat(activeFilters.maxPrice)) return false;
+
+        // Date Filter
+        if (activeFilters.dateRange !== 'all') {
+            const purchaseDate = new Date(purchase.purchaseDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (activeFilters.dateRange === 'today') {
+                if (purchaseDate < today) return false;
+            } else if (activeFilters.dateRange === 'yesterday') {
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                const nextDay = new Date(yesterday);
+                nextDay.setDate(nextDay.getDate() + 1);
+                if (purchaseDate < yesterday || purchaseDate >= nextDay) return false;
+            } else if (activeFilters.dateRange === 'week') {
+                const weekAgo = new Date(today);
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                if (purchaseDate < weekAgo) return false;
+            } else if (activeFilters.dateRange === 'month') {
+                const monthAgo = new Date(today);
+                monthAgo.setMonth(monthAgo.getMonth() - 1);
+                if (purchaseDate < monthAgo) return false;
+            } else if (activeFilters.dateRange === 'custom') {
+                if (activeFilters.startDate && purchaseDate < activeFilters.startDate) return false;
+                if (activeFilters.endDate) {
+                    const end = new Date(activeFilters.endDate);
+                    end.setHours(23, 59, 59, 999);
+                    if (purchaseDate > end) return false;
+                }
+            }
+        }
+
+        return true;
+    });
 
     const totalSpent = purchases.reduce((sum, purchase) => sum + (purchase.totalPrice || 0), 0);
+
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await Promise.all([fetchPurchases(), fetchInventoryItems()]);
+        } catch (error) {
+            console.error('Error refreshing:', error);
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     const resetForm = () => {
         setFormPurchaseType('inventory');
@@ -127,11 +238,18 @@ export default function PurchasesScreen() {
         setFormReceiptPhoto(undefined);
         setFormMinStock('');
         setShowAutocomplete(false);
+        setCustomUnit('');
+        setIsCustomUnit(false);
     };
 
     const selectInventoryItem = (item: typeof inventoryItems[0]) => {
         setFormItemName(item.name);
         setFormCategory(item.category);
+
+        // Check if unit is in list, if not maybe add it or handle custom?
+        // For now just set it. If it's custom it might not match buttons exactly unless we add logic.
+        // We will just set it and if it's not in standard list, maybe add to units list dynamically?
+        // Actually simpler: just setFormUnit. 
         setFormUnit(item.unit);
         setFormMinStock(String(item.minStock));
         setShowAutocomplete(false);
@@ -214,7 +332,7 @@ export default function PurchasesScreen() {
                 item_name: formItemName.trim(),
                 category: formCategory || 'Other',
                 quantity: quantity,
-                unit: formUnit,
+                unit: isCustomUnit ? customUnit : formUnit,
                 unit_price: unitPrice,
                 total_amount: totalAmount,
                 created_at: new Date().toISOString(),
@@ -245,7 +363,7 @@ export default function PurchasesScreen() {
                     await supabase.from('inventory').insert([{
                         item_name: formItemName.trim(),
                         category: formCategory || 'Other',
-                        unit: formUnit,
+                        unit: isCustomUnit ? customUnit : formUnit,
                         quantity: parseFloat(formQuantity),
                         reorder_level: parseFloat(formMinStock) || 0 // Fix: Use reorder_level instead of min_stock
                     }]);
@@ -280,7 +398,13 @@ export default function PurchasesScreen() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={styles.content}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.dark.primary]} tintColor={Colors.dark.primary} />
+                }
+            >
                 {/* Stats Card */}
                 <View style={styles.statsCard}>
                     <View style={styles.statItem}>
@@ -295,13 +419,28 @@ export default function PurchasesScreen() {
                 </View>
 
                 {/* Search Bar */}
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder={t('manager.purchases.searchPlaceholder')}
-                    placeholderTextColor={Colors.dark.textSecondary}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                />
+                {/* Search Bar & Filter */}
+                <View style={styles.searchContainer}>
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder={t('manager.purchases.searchPlaceholder')}
+                        placeholderTextColor={Colors.dark.textSecondary}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                    <TouchableOpacity
+                        style={[
+                            styles.filterButton,
+                            (activeFilters.dateRange !== 'all' || activeFilters.type !== 'all' || activeFilters.categories.length > 0 || activeFilters.minPrice || activeFilters.maxPrice) && styles.filterButtonActive
+                        ]}
+                        onPress={() => {
+                            setTempFilters(activeFilters);
+                            setShowFilterModal(true);
+                        }}
+                    >
+                        <Filter size={20} color={(activeFilters.dateRange !== 'all' || activeFilters.type !== 'all' || activeFilters.categories.length > 0 || activeFilters.minPrice || activeFilters.maxPrice) ? '#000000' : Colors.dark.text} />
+                    </TouchableOpacity>
+                </View>
 
                 {/* Purchases List */}
                 <Text style={styles.sectionTitle}>{t('manager.purchases.history')}</Text>
@@ -494,7 +633,7 @@ export default function PurchasesScreen() {
                                         onPress={() => setFormCategory(cat)}
                                     >
                                         <Text style={[styles.categoryText, formCategory === cat && styles.categoryTextActive]}>
-                                            {t(`manager.categories.${cat.toLowerCase()}`) || cat}
+                                            {t(`manager.categories.${cat.toLowerCase()}`, { defaultValue: cat })}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
@@ -511,17 +650,41 @@ export default function PurchasesScreen() {
                                 />
                                 <View style={styles.unitSelector}>
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                        {units.map(u => (
+                                        {[...units, 'Other'].map(u => (
                                             <TouchableOpacity
                                                 key={u}
-                                                style={[styles.unitButton, formUnit === u && styles.unitButtonActive]}
-                                                onPress={() => setFormUnit(u)}
+                                                style={[
+                                                    styles.unitButton,
+                                                    (!isCustomUnit && formUnit === u) || (isCustomUnit && u === 'Other') ? styles.unitButtonActive : {}
+                                                ]}
+                                                onPress={() => {
+                                                    if (u === 'Other') {
+                                                        setIsCustomUnit(true);
+                                                    } else {
+                                                        setIsCustomUnit(false);
+                                                        setFormUnit(u);
+                                                    }
+                                                }}
                                             >
-                                                <Text style={[styles.unitText, formUnit === u && styles.unitTextActive]}>{u}</Text>
+                                                <Text style={[
+                                                    styles.unitText,
+                                                    (!isCustomUnit && formUnit === u) || (isCustomUnit && u === 'Other') ? styles.unitTextActive : {}
+                                                ]}>{u === 'Other' ? t('manager.purchases.otherUnit') : u}</Text>
                                             </TouchableOpacity>
                                         ))}
                                     </ScrollView>
                                 </View>
+                                {isCustomUnit && (
+                                    <View style={{ marginTop: 8 }}>
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder={t('manager.purchases.customUnit')}
+                                            placeholderTextColor={Colors.dark.textSecondary}
+                                            value={customUnit}
+                                            onChangeText={setCustomUnit}
+                                        />
+                                    </View>
+                                )}
                             </View>
 
                             <TextInput
@@ -748,6 +911,163 @@ export default function PurchasesScreen() {
                     )}
                 </View>
             </Modal>
+
+            {/* Filter Modal */}
+            <Modal visible={showFilterModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{t('filters.title')}</Text>
+                            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                                <X size={24} color={Colors.dark.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {/* Date Range */}
+                            <Text style={styles.filterLabel}>{t('filters.dateRange')}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChipsScroll}>
+                                <View style={styles.filterRow}>
+                                    {['all', 'today', 'yesterday', 'week', 'month', 'custom'].map((range: any) => (
+                                        <TouchableOpacity
+                                            key={range}
+                                            style={[styles.filterChip, tempFilters.dateRange === range && styles.filterChipActive]}
+                                            onPress={() => setTempFilters(prev => ({ ...prev, dateRange: range }))}
+                                        >
+                                            <Text style={[styles.filterChipText, tempFilters.dateRange === range && styles.filterChipTextActive]}>
+                                                {range === 'all' ? t('filters.all') :
+                                                    range === 'week' ? t('filters.thisWeek') :
+                                                        range === 'month' ? t('filters.thisMonth') :
+                                                            t(`filters.${range}`)}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </ScrollView>
+
+                            {/* Custom Date Range Inputs */}
+                            {tempFilters.dateRange === 'custom' && (
+                                <View style={styles.filterInputsRow}>
+                                    <TextInput
+                                        style={styles.filterInput}
+                                        placeholder="YYYY-MM-DD"
+                                        placeholderTextColor={Colors.dark.textSecondary}
+                                        value={tempFilters.startDate ? tempFilters.startDate.toISOString().split('T')[0] : ''}
+                                        onChangeText={(text) => {
+                                            const date = new Date(text);
+                                            if (!isNaN(date.getTime())) {
+                                                setTempFilters(prev => ({ ...prev, startDate: date }));
+                                            }
+                                        }}
+                                    />
+                                    <Text style={{ color: Colors.dark.text }}>-</Text>
+                                    <TextInput
+                                        style={styles.filterInput}
+                                        placeholder="YYYY-MM-DD"
+                                        placeholderTextColor={Colors.dark.textSecondary}
+                                        value={tempFilters.endDate ? tempFilters.endDate.toISOString().split('T')[0] : ''}
+                                        onChangeText={(text) => {
+                                            const date = new Date(text);
+                                            if (!isNaN(date.getTime())) {
+                                                setTempFilters(prev => ({ ...prev, endDate: date }));
+                                            }
+                                        }}
+                                    />
+                                </View>
+                            )}
+
+                            {/* Purchase Type */}
+                            <Text style={styles.filterLabel}>{t('filters.type')}</Text>
+                            <View style={styles.filterRow}>
+                                {['all', 'inventory', 'other'].map((type: any) => (
+                                    <TouchableOpacity
+                                        key={type}
+                                        style={[styles.filterChip, tempFilters.type === type && styles.filterChipActive]}
+                                        onPress={() => setTempFilters(prev => ({ ...prev, type: type }))}
+                                    >
+                                        <Text style={[styles.filterChipText, tempFilters.type === type && styles.filterChipTextActive]}>
+                                            {type === 'all' ? t('filters.all') :
+                                                type === 'inventory' ? t('manager.purchases.inventoryType') :
+                                                    t('manager.purchases.otherPurchase')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Categories */}
+                            <Text style={styles.filterLabel}>{t('filters.category')}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChipsScroll}>
+                                {categories.map(cat => (
+                                    <TouchableOpacity
+                                        key={cat}
+                                        style={[styles.filterChip, tempFilters.categories.includes(cat) && styles.filterChipActive]}
+                                        onPress={() => {
+                                            const newCats = tempFilters.categories.includes(cat)
+                                                ? tempFilters.categories.filter(c => c !== cat)
+                                                : [...tempFilters.categories, cat];
+                                            setTempFilters(prev => ({ ...prev, categories: newCats }));
+                                        }}
+                                    >
+                                        <Text style={[styles.filterChipText, tempFilters.categories.includes(cat) && styles.filterChipTextActive]}>
+                                            {t(`manager.categories.${cat.toLowerCase()}`, { defaultValue: cat })}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+
+                            {/* Price Range */}
+                            <Text style={styles.filterLabel}>{t('filters.priceRange')}</Text>
+                            <View style={styles.filterInputsRow}>
+                                <TextInput
+                                    style={styles.filterInput}
+                                    placeholder={t('filters.minPrice')}
+                                    placeholderTextColor={Colors.dark.textSecondary}
+                                    keyboardType="numeric"
+                                    value={tempFilters.minPrice}
+                                    onChangeText={text => setTempFilters(prev => ({ ...prev, minPrice: text }))}
+                                />
+                                <Text style={{ color: Colors.dark.textSecondary }}>-</Text>
+                                <TextInput
+                                    style={styles.filterInput}
+                                    placeholder={t('filters.maxPrice')}
+                                    placeholderTextColor={Colors.dark.textSecondary}
+                                    keyboardType="numeric"
+                                    value={tempFilters.maxPrice}
+                                    onChangeText={text => setTempFilters(prev => ({ ...prev, maxPrice: text }))}
+                                />
+                            </View>
+
+                            <TouchableOpacity
+                                style={styles.applyButton}
+                                onPress={() => {
+                                    setActiveFilters(tempFilters);
+                                    setShowFilterModal(false);
+                                }}
+                            >
+                                <Text style={styles.applyButtonText}>{t('filters.apply')}</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.resetButton}
+                                onPress={() => {
+                                    setTempFilters({
+                                        dateRange: 'all',
+                                        startDate: null,
+                                        endDate: null,
+                                        type: 'all',
+                                        categories: [],
+                                        minPrice: '',
+                                        maxPrice: ''
+                                    });
+                                }}
+                            >
+                                <Text style={styles.resetButtonText}>{t('filters.reset')}</Text>
+                            </TouchableOpacity>
+                            <View style={{ height: 40 }} />
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -805,13 +1125,13 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
     },
     searchInput: {
+        flex: 1,
         backgroundColor: Colors.dark.inputBackground,
         borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 16,
         color: Colors.dark.text,
-        marginTop: 16,
         borderWidth: 1,
         borderColor: Colors.dark.border,
     },
@@ -1403,4 +1723,97 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
+    // Filter Styles
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 16,
+        marginTop: 16,
+    },
+    filterButton: {
+        backgroundColor: Colors.dark.card,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 50,
+        width: 50,
+    },
+    filterButtonActive: {
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
+    },
+    filterLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.dark.text,
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    filterChipsScroll: {
+        marginBottom: 8,
+    },
+    filterRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    filterChip: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        backgroundColor: Colors.dark.inputBackground,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        marginRight: 8,
+    },
+    filterChipActive: {
+        backgroundColor: 'rgba(253, 184, 19, 0.2)',
+        borderColor: Colors.dark.primary,
+    },
+    filterChipText: {
+        fontSize: 13,
+        color: Colors.dark.textSecondary,
+    },
+    filterChipTextActive: {
+        color: Colors.dark.primary,
+        fontWeight: '600',
+    },
+    filterInputsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    filterInput: {
+        flex: 1,
+        backgroundColor: Colors.dark.inputBackground,
+        padding: 12,
+        borderRadius: 8,
+        color: Colors.dark.text,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+    },
+    applyButton: {
+        backgroundColor: Colors.dark.primary,
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginTop: 24,
+    },
+    applyButtonText: {
+        color: '#000000',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    resetButton: {
+        padding: 16,
+        alignItems: 'center',
+    },
+    resetButtonText: {
+        color: Colors.dark.textSecondary,
+        fontSize: 14,
+    }
 });

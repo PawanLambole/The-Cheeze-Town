@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard, Plus } from 'lucide-react-native';
+import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard, Plus, Filter } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import PaymentModal from '@/components/PaymentModal';
 import { printAddedItemsReceipt, printPaymentReceipt } from '../../services/thermalPrinter';
@@ -11,6 +11,7 @@ import { Colors } from '@/constants/Theme';
 import { database, supabase } from '@/services/database';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
+import { deductInventoryForOrder } from '@/services/inventoryService';
 
 interface OrderItem {
     name: string;
@@ -24,6 +25,7 @@ interface Order {
     tableNo: number;
     customerName?: string;
     items: OrderItem[];
+    status: string;
     isServed: boolean;
     isPaid: boolean;
     isCompleted: boolean;
@@ -32,11 +34,21 @@ interface Order {
     duration: string;
     transactionId?: string;
     paymentMethod?: string;
+    createdAt: string;
 }
 
 // Add interface
 interface OrdersScreenProps {
     createOrderPath?: string;
+}
+
+interface OrderFilterState {
+    dateRange: 'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom';
+    startDate: Date | null;
+    endDate: Date | null;
+    status: 'all' | 'pending' | 'served' | 'completed';
+    paymentStatus: 'all' | 'paid' | 'unpaid';
+    orderType: 'all' | 'dine-in' | 'takeaway';
 }
 
 export default function OrdersScreen({ createOrderPath = '/manager/create-order' }: OrdersScreenProps) {
@@ -52,6 +64,17 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showReceipt, setShowReceipt] = useState(false);
     const [currentReceipt, setCurrentReceipt] = useState('');
+
+    const [showFilterModal, setShowFilterModal] = useState(false);
+    const [activeFilters, setActiveFilters] = useState<OrderFilterState>({
+        dateRange: 'all',
+        startDate: null,
+        endDate: null,
+        status: 'all',
+        paymentStatus: 'all',
+        orderType: 'all'
+    });
+    const [tempFilters, setTempFilters] = useState<OrderFilterState>(activeFilters);
 
     const statusOptions: ('all' | 'pending' | 'served' | 'completed')[] = ['all', 'pending', 'served', 'completed'];
 
@@ -128,6 +151,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                     id: String(o.id),
                     orderId: o.order_number,
                     tableNo: o.table_id,
+                    createdAt: o.created_at,
                     customerName: o.customer_name,
                     items: mappedItems,
                     isServed: isServed,
@@ -137,7 +161,8 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                     time: getTimeAgo(o.created_at),
                     duration: getTimeAgo(o.created_at).replace(' ago', ''),
                     transactionId: o.transaction_id || paymentRecord?.transaction_id,
-                    paymentMethod: o.payment_method || paymentRecord?.payment_method
+                    paymentMethod: o.payment_method || paymentRecord?.payment_method,
+                    status: o.status, // Added status field
                 };
             }));
 
@@ -174,20 +199,111 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
         };
     }, []);
 
-    // Filter orders based on status
-    const getFilteredByStatus = () => {
-        if (selectedStatus === 'all') return orders;
-        if (selectedStatus === 'pending') return orders.filter(o => !o.isServed && !o.isCompleted);
-        if (selectedStatus === 'served') return orders.filter(o => o.isServed && !o.isCompleted);
-        return orders.filter(o => o.isCompleted);
+    // Advanced Filtering Logic
+    const getFilteredOrders = () => {
+        return orders.filter(order => {
+            // Search Filter
+            const matchesSearch =
+                order.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                order.tableNo.toString().includes(searchQuery) ||
+                order.items?.some((item: any) => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+            if (!matchesSearch) return false;
+
+            // Status Filter - Check both activeFilters and quick chips (selectedStatus)
+            // If activeFilters.status is 'all', use selectedStatus. Else use activeFilters.status logic.
+            // Actually, let's say Modal filters OVERRIDE quick chips if set to something specific.
+            // Or better: selectedStatus syncs with activeFilters.status?
+            // Let's make them separate but compatible.
+            // If activeFilters.status is 'all', we respect selectedStatus (Quick Filter).
+            // If activeFilters.status is SPECIFIC, it overrides selectedStatus.
+
+            let statusMatch = true;
+            if (activeFilters.status !== 'all') {
+                if (activeFilters.status === 'pending') statusMatch = !order.isServed && !order.isCompleted;
+                else if (activeFilters.status === 'served') statusMatch = order.isServed && !order.isCompleted;
+                else if (activeFilters.status === 'completed') statusMatch = order.isCompleted;
+            } else {
+                // Quick Chips Fallback
+                if (selectedStatus === 'pending') statusMatch = !order.isServed && !order.isCompleted;
+                else if (selectedStatus === 'served') statusMatch = order.isServed && !order.isCompleted;
+                else if (selectedStatus === 'completed') statusMatch = order.isCompleted;
+            }
+            if (!statusMatch) return false;
+
+
+            // Payment Status Filter
+            if (activeFilters.paymentStatus !== 'all') {
+                const isPaid = order.isPaid;
+                if (activeFilters.paymentStatus === 'paid' && !isPaid) return false;
+                if (activeFilters.paymentStatus === 'unpaid' && isPaid) return false;
+            }
+
+            // Order Type Filter
+            // We discern type by tableNo? Or do we have an order type column?
+            // Interface says `tableNo: number`. Usually 0 or null implies Takeaway?
+            // "Takeaway" logic in code: `tableNo: selectedTable ? ... : 'Takeaway'` (but tableNo is number?)
+            // In fetchOrders: tableNo: o.table_id
+            // If table_id is null, it might be takeaway.
+            // Let's assume tableNo presence means Dine-in.
+            // Check if tableNo is valid.
+            if (activeFilters.orderType !== 'all') {
+                // This logic depends on how takeaway is stored. 
+                // If tableNo is used for ID, maybe check if it maps to a real table?
+                // For now, let's skip strict enforcement if unsure, or try:
+                // If tableNo exists/positive -> Dine In. If null/0 -> Takeaway.
+                const isDineIn = order.tableNo && order.tableNo > 0;
+                if (activeFilters.orderType === 'dine-in' && !isDineIn) return false;
+                if (activeFilters.orderType === 'takeaway' && isDineIn) return false;
+            }
+
+            // Date Filter
+            if (activeFilters.dateRange !== 'all') {
+                if (!order.createdAt) return false;
+                const orderDate = new Date(order.createdAt);
+                const today = new Date();
+
+                if (activeFilters.dateRange === 'today') {
+                    if (orderDate.toDateString() !== today.toDateString()) return false;
+                }
+                else if (activeFilters.dateRange === 'yesterday') {
+                    const yesterday = new Date(today);
+                    yesterday.setDate(today.getDate() - 1);
+                    if (orderDate.toDateString() !== yesterday.toDateString()) return false;
+                }
+                else if (activeFilters.dateRange === 'week') {
+                    const weekAgo = new Date(today);
+                    weekAgo.setDate(today.getDate() - 7);
+                    if (orderDate < weekAgo) return false;
+                }
+                else if (activeFilters.dateRange === 'month') {
+                    const monthAgo = new Date(today);
+                    monthAgo.setMonth(today.getMonth() - 1);
+                    if (orderDate < monthAgo) return false;
+                }
+                else if (activeFilters.dateRange === 'custom') {
+                    // Reset hours for fair comparison
+                    if (activeFilters.startDate) {
+                        const start = new Date(activeFilters.startDate);
+                        start.setHours(0, 0, 0, 0);
+                        if (orderDate < start) return false;
+                    }
+                    if (activeFilters.endDate) {
+                        const end = new Date(activeFilters.endDate);
+                        end.setHours(23, 59, 59, 999);
+                        if (orderDate > end) return false;
+                    }
+                }
+            }
+
+            return true;
+
+            return true;
+        });
     };
 
-    // Apply search filter
-    const filteredOrders = getFilteredByStatus().filter(order =>
-        order.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.tableNo.toString().includes(searchQuery)
-    );
+    const filteredOrders = getFilteredOrders();
 
     const pendingOrdersCount = orders.filter(o => !o.isServed && !o.isCompleted).length;
     const servedOrdersCount = orders.filter(o => o.isServed && !o.isCompleted).length;
@@ -200,7 +316,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
 
     const toggleOrderStatus = async (orderId: string) => {
         const order = orders.find(o => o.id === orderId);
-        if (!order) return;
+        if (!order || order.isCompleted) return;
 
         const newStatus = order.isServed ? 'pending' : 'ready'; // Toggle between ready/pending
 
@@ -278,20 +394,34 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                 </View>
 
                 {/* Search Bar */}
-                <View style={styles.searchContainer}>
-                    <Search size={20} color={Colors.dark.textSecondary} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder={t('manager.orders.searchPlaceholder')}
-                        placeholderTextColor={Colors.dark.textSecondary}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearchQuery('')}>
-                            <X size={20} color={Colors.dark.textSecondary} />
-                        </TouchableOpacity>
-                    )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 }}>
+                    <View style={[styles.searchContainer, { marginBottom: 0, flex: 1 }]}>
+                        <Search size={20} color={Colors.dark.textSecondary} />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder={t('manager.orders.searchPlaceholder')}
+                            placeholderTextColor={Colors.dark.textSecondary}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <X size={20} color={Colors.dark.textSecondary} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    <TouchableOpacity
+                        style={[
+                            styles.filterButton,
+                            (activeFilters.dateRange !== 'all' || activeFilters.status !== 'all' || activeFilters.paymentStatus !== 'all' || activeFilters.orderType !== 'all') && styles.filterButtonActive
+                        ]}
+                        onPress={() => {
+                            setTempFilters(activeFilters);
+                            setShowFilterModal(true);
+                        }}
+                    >
+                        <Filter size={20} color={(activeFilters.dateRange !== 'all' || activeFilters.status !== 'all' || activeFilters.paymentStatus !== 'all' || activeFilters.orderType !== 'all') ? '#000000' : Colors.dark.text} />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Status Filter */}
@@ -345,24 +475,35 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                     )}
                                 </View>
 
-                                <TouchableOpacity
-                                    style={[styles.statusToggleCompact, order.isServed && styles.statusToggleCompactServed]}
-                                    onPress={(e) => {
-                                        e.stopPropagation();
-                                        toggleOrderStatus(order.id);
-                                    }}
-                                >
-                                    <View style={[styles.toggleThumb, order.isServed && styles.toggleThumbServed]}>
-                                        {order.isServed ? (
-                                            <CheckCircle size={10} color="#047857" />
-                                        ) : (
-                                            <Clock size={10} color="#92400E" />
-                                        )}
+                                {order.isCompleted ? (
+                                    <View style={[styles.statusToggleCompact, { backgroundColor: '#E5E7EB', borderColor: '#D1D5DB' }]}>
+                                        <View style={[styles.toggleThumb, { backgroundColor: '#9CA3AF' }]}>
+                                            <CheckCircle size={10} color="#FFFFFF" />
+                                        </View>
+                                        <Text style={[styles.statusToggleCompactText, { color: '#6B7280' }]}>
+                                            {t('manager.orders.stats.completed')}
+                                        </Text>
                                     </View>
-                                    <Text style={[styles.statusToggleCompactText, order.isServed && styles.statusToggleCompactTextServed]}>
-                                        {order.isServed ? t('manager.orders.stats.served') : t('manager.orders.stats.pending')}
-                                    </Text>
-                                </TouchableOpacity>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={[styles.statusToggleCompact, order.isServed && styles.statusToggleCompactServed]}
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            toggleOrderStatus(order.id);
+                                        }}
+                                    >
+                                        <View style={[styles.toggleThumb, order.isServed && styles.toggleThumbServed]}>
+                                            {order.isServed ? (
+                                                <CheckCircle size={10} color="#047857" />
+                                            ) : (
+                                                <Clock size={10} color="#92400E" />
+                                            )}
+                                        </View>
+                                        <Text style={[styles.statusToggleCompactText, order.isServed && styles.statusToggleCompactTextServed]}>
+                                            {order.isServed ? t('manager.orders.stats.served') : t('manager.orders.stats.pending')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
 
                             <View style={styles.itemsContainer}>
@@ -438,7 +579,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                         </View>
                                         <View style={styles.summaryDivider} />
                                         <View>
-                                            <Text style={styles.summaryLabel}>{t('manager.orders.status')}</Text>
+                                            <Text style={styles.summaryLabel}>{t('common.status')}</Text>
                                             <Text style={[styles.summaryValue, { color: selectedOrder.isServed ? '#10B981' : '#F59E0B' }]}>
                                                 {selectedOrder.isServed ? t('manager.orders.stats.served') : t('manager.orders.stats.pending')}
                                             </Text>
@@ -534,6 +675,17 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                                         .eq('id', Number(selectedOrder.id));
 
                                                     if (error) throw error;
+
+                                                    // Deduct Inventory for Pre-paid/Web Orders that skip Payment Modal
+                                                    try {
+                                                        const itemsToDeduct = selectedOrder.items.map(i => ({
+                                                            menu_item_name: i.name,
+                                                            quantity: i.quantity
+                                                        }));
+                                                        await deductInventoryForOrder(itemsToDeduct);
+                                                    } catch (invError) {
+                                                        console.error("Inventory deduction failed for completed order:", invError);
+                                                    }
 
                                                     // 2. Release table if assigned
                                                     if (selectedOrder.tableNo) {
@@ -732,45 +884,79 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                     <TouchableOpacity
                                         style={styles.confirmButton}
                                         onPress={async () => {
-                                            if (orderForAddItem) {
-                                                // Merge new items with existing items
-                                                const updatedItems = [...orderForAddItem.items];
-
-                                                selectedItems.forEach(newItem => {
-                                                    const existingIndex = updatedItems.findIndex(i => i.name === newItem.name);
-                                                    if (existingIndex >= 0) {
-                                                        // Item exists, increase quantity
-                                                        updatedItems[existingIndex] = {
-                                                            ...updatedItems[existingIndex],
-                                                            quantity: updatedItems[existingIndex].quantity + newItem.quantity
-                                                        };
-                                                    } else {
-                                                        // New item, add to list
-                                                        updatedItems.push(newItem);
-                                                    }
-                                                });
-
-                                                const newTotal = updatedItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-
-                                                // Update the order
-                                                const updatedOrder = {
-                                                    ...orderForAddItem,
-                                                    items: updatedItems,
-                                                    totalAmount: newTotal
-                                                };
-
-                                                // Update orders state
-                                                setOrders(prev => prev.map(o =>
-                                                    o.id === orderForAddItem.id ? updatedOrder : o
-                                                ));
-
-                                                // Update selectedOrder if it's the same order
-                                                if (selectedOrder?.id === orderForAddItem.id) {
-                                                    setSelectedOrder(updatedOrder);
-                                                }
-
-                                                // Generate added items receipt
+                                            if (orderForAddItem && selectedItems.length > 0) {
                                                 try {
+                                                    // 1. Prepare Data
+                                                    const newOrderItemsData = selectedItems.map(item => ({
+                                                        order_id: Number(orderForAddItem.id),
+                                                        menu_item_name: item.name,
+                                                        quantity: item.quantity,
+                                                        unit_price: item.price,
+                                                        total_price: item.price * item.quantity
+                                                    }));
+
+                                                    // 2. Insert into DB
+                                                    const { error: insertError } = await supabase
+                                                        .from('order_items')
+                                                        .insert(newOrderItemsData);
+
+                                                    if (insertError) throw insertError;
+
+                                                    // Inventory deduction moved to Payment Success trigger
+
+                                                    // 4. Update Order Total AND Status (if needed)
+                                                    const addedAmount = newOrderItemsData.reduce((sum, item) => sum + item.total_price, 0);
+                                                    const newTotalAmount = orderForAddItem.totalAmount + addedAmount;
+
+                                                    // Force status back to pending if it was ready/served so chef sees it again
+                                                    const shouldResetStatus = ['ready', 'served', 'completed'].includes(orderForAddItem.status);
+                                                    const updatePayload: any = {
+                                                        total_amount: newTotalAmount,
+                                                        updated_at: new Date().toISOString()
+                                                    };
+
+                                                    if (shouldResetStatus) {
+                                                        updatePayload.status = 'pending';
+                                                        updatePayload.is_served = false;
+                                                        // We allow it to go back to active queue
+                                                    }
+
+                                                    const { error: updateError } = await supabase
+                                                        .from('orders')
+                                                        .update(updatePayload)
+                                                        .eq('id', Number(orderForAddItem.id));
+
+                                                    if (updateError) throw updateError;
+
+                                                    // 5. Update Local State
+                                                    const updatedItems = [...orderForAddItem.items];
+                                                    selectedItems.forEach(newItem => {
+                                                        const existingIndex = updatedItems.findIndex(i => i.name === newItem.name);
+                                                        if (existingIndex >= 0) {
+                                                            updatedItems[existingIndex] = {
+                                                                ...updatedItems[existingIndex],
+                                                                quantity: updatedItems[existingIndex].quantity + newItem.quantity
+                                                            };
+                                                        } else {
+                                                            updatedItems.push(newItem);
+                                                        }
+                                                    });
+
+                                                    const updatedOrder = {
+                                                        ...orderForAddItem,
+                                                        items: updatedItems,
+                                                        totalAmount: newTotalAmount
+                                                    };
+
+                                                    setOrders(prev => prev.map(o =>
+                                                        o.id === orderForAddItem.id ? updatedOrder : o
+                                                    ));
+
+                                                    if (selectedOrder?.id === orderForAddItem.id) {
+                                                        setSelectedOrder(updatedOrder);
+                                                    }
+
+                                                    // 6. Print Receipt
                                                     const printResult = await printAddedItemsReceipt(
                                                         orderForAddItem.orderId,
                                                         orderForAddItem.tableNo,
@@ -778,20 +964,19 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                                     );
 
                                                     if (printResult.success && printResult.receipt) {
-                                                        // Show receipt in app
                                                         setCurrentReceipt(printResult.receipt);
                                                         setShowReceipt(true);
-                                                    } else {
-                                                        Alert.alert('Error', printResult.message || t('manager.orders.receiptError'));
                                                     }
-                                                } catch (error) {
-                                                    console.error('Error generating added items receipt:', error);
-                                                    Alert.alert('Error', t('manager.orders.receiptError'));
+
+                                                    Alert.alert(t('common.success'), t('manager.orders.itemsAdded'));
+                                                    setSelectedItems([]);
+                                                    setShowAddItemModal(false);
+
+                                                } catch (e) {
+                                                    console.error("Error adding items:", e);
+                                                    Alert.alert(t('common.error'), t('manager.orders.addItemError'));
                                                 }
                                             }
-
-                                            setSelectedItems([]);
-                                            setShowAddItemModal(false);
                                         }}
                                     >
                                         <Text style={styles.confirmButtonText}>
@@ -844,6 +1029,24 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                         payment_date: new Date().toISOString(),
                                         // processed_by: userData?.id // If we had user context here
                                     }]);
+
+                                if (paymentError) throw paymentError;
+
+                                // 3. Deduct Inventory - AUTOMATIC ADJUSTMENT
+                                try {
+                                    /*
+                                        Map existing order items to the format expected by inventory service.
+                                        selectedOrder.items contains { name, quantity, price }.
+                                        deductInventoryForOrder expects { menu_item_name, quantity }.
+                                    */
+                                    const itemsToDeduct = selectedOrder.items.map(i => ({
+                                        menu_item_name: i.name,
+                                        quantity: i.quantity
+                                    }));
+                                    await deductInventoryForOrder(itemsToDeduct);
+                                } catch (invError) {
+                                    console.error("Inventory deduction failed during payment:", invError);
+                                }
 
                                 if (paymentError) {
                                     console.error('Error recording payment:', paymentError);
@@ -913,6 +1116,101 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                 receipt={currentReceipt}
                 title="Receipt"
             />
+            {/* Filter Modal */}
+            <Modal visible={showFilterModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{t('filters.title')}</Text>
+                            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                                <X size={24} color={Colors.dark.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {/* Status Filter */}
+                            <Text style={styles.filterLabel}>{t('filters.status')}</Text>
+                            <View style={styles.filterRow}>
+                                {['all', 'pending', 'served', 'completed'].map((status: any) => (
+                                    <TouchableOpacity
+                                        key={status}
+                                        style={[styles.filterChip, tempFilters.status === status && styles.filterChipActive]}
+                                        onPress={() => setTempFilters(prev => ({ ...prev, status: status }))}
+                                    >
+                                        <Text style={[styles.filterChipText, tempFilters.status === status && styles.filterChipTextActive]}>
+                                            {t(`manager.orders.status.${status}`, { defaultValue: status })}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Payment Status */}
+                            <Text style={styles.filterLabel}>{t('filters.paymentStatus')}</Text>
+                            <View style={styles.filterRow}>
+                                {['all', 'paid', 'unpaid'].map((status: any) => (
+                                    <TouchableOpacity
+                                        key={status}
+                                        style={[styles.filterChip, tempFilters.paymentStatus === status && styles.filterChipActive]}
+                                        onPress={() => setTempFilters(prev => ({ ...prev, paymentStatus: status }))}
+                                    >
+                                        <Text style={[styles.filterChipText, tempFilters.paymentStatus === status && styles.filterChipTextActive]}>
+                                            {status === 'all' ? t('filters.all') :
+                                                status === 'paid' ? t('manager.orders.paid') : t('manager.orders.unpaid')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Order Type */}
+                            <Text style={styles.filterLabel}>{t('filters.orderType')}</Text>
+                            <View style={styles.filterRow}>
+                                {['all', 'dine-in', 'takeaway'].map((type: any) => (
+                                    <TouchableOpacity
+                                        key={type}
+                                        style={[styles.filterChip, tempFilters.orderType === type && styles.filterChipActive]}
+                                        onPress={() => setTempFilters(prev => ({ ...prev, orderType: type }))}
+                                    >
+                                        <Text style={[styles.filterChipText, tempFilters.orderType === type && styles.filterChipTextActive]}>
+                                            {t(`filters.${type}`) || type}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Date Range - Future Implementation or reuse basic logic */}
+                            {/* ... Date Range UI similar to Purchases ... */}
+
+
+                            <TouchableOpacity
+                                style={styles.applyButton}
+                                onPress={() => {
+                                    setActiveFilters(tempFilters);
+                                    setShowFilterModal(false);
+                                }}
+                            >
+                                <Text style={styles.applyButtonText}>{t('filters.apply')}</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.resetButton}
+                                onPress={() => {
+                                    setTempFilters({
+                                        dateRange: 'all',
+                                        startDate: null,
+                                        endDate: null,
+                                        status: 'all',
+                                        paymentStatus: 'all',
+                                        orderType: 'all'
+                                    });
+                                }}
+                            >
+                                <Text style={styles.resetButtonText}>{t('filters.reset')}</Text>
+                            </TouchableOpacity>
+                            <View style={{ height: 40 }} />
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -971,6 +1269,7 @@ const styles = StyleSheet.create({
         color: Colors.dark.textSecondary,
         textAlign: 'center',
     },
+
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1570,4 +1869,74 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: Colors.dark.primary,
     },
+    // Filter Styles
+    filterButton: {
+        backgroundColor: Colors.dark.secondary,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 50,
+        width: 50,
+    },
+    filterButtonActive: {
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
+    },
+    filterLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.dark.text,
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    filterRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    filterChip: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        backgroundColor: Colors.dark.secondary,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        marginRight: 8,
+    },
+    filterChipActive: {
+        backgroundColor: 'rgba(253, 184, 19, 0.2)',
+        borderColor: Colors.dark.primary,
+    },
+    filterChipText: {
+        fontSize: 13,
+        color: Colors.dark.textSecondary,
+    },
+    filterChipTextActive: {
+        color: Colors.dark.primary,
+        fontWeight: '600',
+    },
+    applyButton: {
+        backgroundColor: Colors.dark.primary,
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginTop: 24,
+    },
+    applyButtonText: {
+        color: '#000000',
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    resetButton: {
+        padding: 16,
+        alignItems: 'center',
+    },
+    resetButtonText: {
+        color: Colors.dark.textSecondary,
+        fontSize: 14,
+    },
+
 });

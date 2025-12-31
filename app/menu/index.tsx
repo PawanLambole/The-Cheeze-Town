@@ -17,6 +17,21 @@ interface MenuItem {
   category: string;
   price: number;
   image?: string;
+  ingredients?: IngredientLink[]; // Joined data if needed
+}
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  unit: string;
+  currentStock: number;
+}
+
+interface IngredientLink {
+  inventoryItemId: string;
+  name: string; // for display
+  unit: string; // for display
+  quantity: number;
 }
 
 export default function MenuScreen() {
@@ -38,6 +53,68 @@ export default function MenuScreen() {
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Ingredient Linking State
+  const [showIngredientSearch, setShowIngredientSearch] = useState(false);
+  const [ingredientSearchQuery, setIngredientSearchQuery] = useState('');
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
+  const [linkedIngredients, setLinkedIngredients] = useState<IngredientLink[]>([]);
+
+  // Fetch Inventory for Suggestions
+  const fetchInventory = async () => {
+    try {
+      const { data, error } = await supabase.from('inventory').select('id, item_name, unit, quantity');
+      if (error) throw error;
+      setInventoryItems(data.map((i: any) => ({
+        id: String(i.id),
+        name: i.item_name,
+        unit: i.unit,
+        currentStock: i.quantity
+      })));
+    } catch (e) {
+      console.error("Error fetching inventory", e);
+    }
+  };
+
+  useEffect(() => {
+    if (showAddModal || showEditModal) {
+      fetchInventory();
+    }
+  }, [showAddModal, showEditModal]);
+
+  useEffect(() => {
+    if (ingredientSearchQuery.trim()) {
+      const query = ingredientSearchQuery.toLowerCase();
+      setFilteredInventory(inventoryItems.filter(i =>
+        i.name.toLowerCase().includes(query) &&
+        !linkedIngredients.some(l => l.inventoryItemId === i.id)
+      ));
+    } else {
+      setFilteredInventory([]);
+    }
+  }, [ingredientSearchQuery, inventoryItems, linkedIngredients]);
+
+  const addIngredientLink = (item: InventoryItem) => {
+    setLinkedIngredients([...linkedIngredients, {
+      inventoryItemId: item.id,
+      name: item.name,
+      unit: item.unit,
+      quantity: 0 // Default, user must edit
+    }]);
+    setIngredientSearchQuery('');
+    setShowIngredientSearch(false);
+  };
+
+  const updateIngredientQuantity = (inventoryId: string, qty: string) => {
+    setLinkedIngredients(prev => prev.map(p =>
+      p.inventoryItemId === inventoryId ? { ...p, quantity: parseFloat(qty) || 0 } : p
+    ));
+  };
+
+  const removeIngredientLink = (inventoryId: string) => {
+    setLinkedIngredients(prev => prev.filter(p => p.inventoryItemId !== inventoryId));
+  };
 
   // Category Autocomplete State
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false);
@@ -116,6 +193,7 @@ export default function MenuScreen() {
     setFormCategory('');
     setFormPrice('');
     setFormImage(undefined);
+    setLinkedIngredients([]);
   };
 
   const pickImage = async () => {
@@ -167,8 +245,19 @@ export default function MenuScreen() {
         image_url: imageUrl
       };
 
-      const { error } = await supabase.from('menu_items').insert([newItem]);
+      const { data: insertedItem, error } = await supabase.from('menu_items').insert([newItem]).select().single();
       if (error) throw error;
+
+      // Link Ingredients
+      if (linkedIngredients.length > 0 && insertedItem) {
+        const ingredientsData = linkedIngredients.map(l => ({
+          menu_item_id: insertedItem.id,
+          inventory_item_id: Number(l.inventoryItemId),
+          quantity: l.quantity
+        }));
+        const { error: ingError } = await supabase.from('menu_item_ingredients' as any).insert(ingredientsData);
+        if (ingError) console.error("Error linking ingredients", ingError);
+      }
 
       fetchMenuItems();
       setShowAddModal(false);
@@ -179,12 +268,39 @@ export default function MenuScreen() {
     }
   };
 
-  const handleOpenEdit = (item: MenuItem) => {
+  const handleOpenEdit = async (item: MenuItem) => {
     setEditItem(item);
     setFormName(item.name);
     setFormCategory(item.category);
     setFormPrice(String(item.price));
     setFormImage(item.image);
+
+    // Fetch existing ingredients
+    try {
+      const { data, error } = await supabase
+        .from('menu_item_ingredients' as any)
+        .select(`
+          inventory_item_id,
+          quantity,
+          inventory:inventory_item_id (item_name, unit)
+        `)
+        .eq('menu_item_id', item.id as any); // Cast as any if TS complains about ID types mismatch
+
+      if (!error && data) {
+        setLinkedIngredients(data.map((d: any) => ({
+          inventoryItemId: String(d.inventory_item_id),
+          name: d.inventory?.item_name || 'Unknown',
+          unit: d.inventory?.unit || '',
+          quantity: d.quantity
+        })));
+      } else {
+        setLinkedIngredients([]);
+      }
+    } catch (e) {
+      console.error("Error fetching linked ingredients", e);
+      setLinkedIngredients([]);
+    }
+
     setShowEditModal(true);
   };
 
@@ -215,6 +331,20 @@ export default function MenuScreen() {
         .eq('id', editItem.id as any);
 
       if (error) throw error;
+
+      // Update Ingredients: Delete all for this item and re-insert
+      // (Simpler than diffing)
+      await supabase.from('menu_item_ingredients' as any).delete().eq('menu_item_id', editItem.id as any);
+
+      if (linkedIngredients.length > 0) {
+        const ingredientsData = linkedIngredients.map(l => ({
+          menu_item_id: editItem.id,
+          inventory_item_id: Number(l.inventoryItemId),
+          quantity: l.quantity
+        }));
+        const { error: ingError } = await supabase.from('menu_item_ingredients' as any).insert(ingredientsData);
+        if (ingError) console.error("Error updating linked ingredients", ingError);
+      }
 
       fetchMenuItems();
       setShowEditModal(false);
@@ -364,7 +494,7 @@ export default function MenuScreen() {
               <View style={styles.categoryInputContainer}>
                 <TextInput
                   style={styles.input}
-                  placeholder="Category"
+                  placeholder={t('menu.management.category')}
                   placeholderTextColor={Colors.dark.textSecondary}
                   value={formCategory}
                   onChangeText={handleCategoryChange}
@@ -395,12 +525,62 @@ export default function MenuScreen() {
               <View style={styles.photoButtons}>
                 <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
                   <Camera size={20} color="#000" />
-                  <Text style={styles.photoButtonText}>Camera</Text>
+                  <Text style={styles.photoButtonText}>{t('menu.management.camera')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
                   <ImageIcon size={20} color="#000" />
-                  <Text style={styles.photoButtonText}>Gallery</Text>
+                  <Text style={styles.photoButtonText}>{t('menu.management.gallery')}</Text>
                 </TouchableOpacity>
+              </View>
+
+              {/* Ingredient Linking Section */}
+              <Text style={styles.sectionLabel}>{t('menu.management.ingredients')}</Text>
+              <View style={styles.ingredientSearchBox}>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('menu.management.searchIngredients')}
+                  placeholderTextColor={Colors.dark.textSecondary}
+                  value={ingredientSearchQuery}
+                  onChangeText={(text) => {
+                    setIngredientSearchQuery(text);
+                    if (text) setShowIngredientSearch(true);
+                  }}
+                  onFocus={() => setShowIngredientSearch(true)}
+                />
+                {showIngredientSearch && filteredInventory.length > 0 && (
+                  <ScrollView style={styles.ingredientResultsList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                    {filteredInventory.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.ingredientResultItem}
+                        onPress={() => addIngredientLink(item)}
+                      >
+                        <Text style={styles.ingredientResultText}>{item.name}</Text>
+                        <Text style={styles.ingredientResultSubtext}>{item.currentStock} {item.unit}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+
+              <View style={styles.linkedIngredientsList}>
+                {linkedIngredients.map((link) => (
+                  <View key={link.inventoryItemId} style={styles.linkedIngredientRow}>
+                    <Text style={styles.linkedIngredientName}>{link.name}</Text>
+                    <TextInput
+                      style={styles.linkedIngredientInput}
+                      value={link.quantity === 0 ? '' : String(link.quantity)}
+                      onChangeText={(text) => updateIngredientQuantity(link.inventoryItemId, text)}
+                      keyboardType="numeric"
+                      placeholder={t('menu.management.qty')}
+                      placeholderTextColor={Colors.dark.textSecondary}
+                    />
+                    <Text style={styles.linkedIngredientUnit}>{link.unit}</Text>
+                    <TouchableOpacity onPress={() => removeIngredientLink(link.inventoryItemId)} style={styles.removeIngredientButton}>
+                      <X size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
 
               {formImage && (
@@ -470,6 +650,56 @@ export default function MenuScreen() {
                   <ImageIcon size={20} color="#000" />
                   <Text style={styles.photoButtonText}>Gallery</Text>
                 </TouchableOpacity>
+              </View>
+
+              {/* Ingredient Linking Section */}
+              <Text style={styles.sectionLabel}>{t('menu.management.ingredients') || "Ingredients"}</Text>
+              <View style={styles.ingredientSearchBox}>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('menu.management.searchIngredients') || "Search ingredients..."}
+                  placeholderTextColor={Colors.dark.textSecondary}
+                  value={ingredientSearchQuery}
+                  onChangeText={(text) => {
+                    setIngredientSearchQuery(text);
+                    if (text) setShowIngredientSearch(true);
+                  }}
+                  onFocus={() => setShowIngredientSearch(true)}
+                />
+                {showIngredientSearch && filteredInventory.length > 0 && (
+                  <ScrollView style={styles.ingredientResultsList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                    {filteredInventory.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.ingredientResultItem}
+                        onPress={() => addIngredientLink(item)}
+                      >
+                        <Text style={styles.ingredientResultText}>{item.name}</Text>
+                        <Text style={styles.ingredientResultSubtext}>{item.currentStock} {item.unit}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+
+              <View style={styles.linkedIngredientsList}>
+                {linkedIngredients.map((link) => (
+                  <View key={link.inventoryItemId} style={styles.linkedIngredientRow}>
+                    <Text style={styles.linkedIngredientName}>{link.name}</Text>
+                    <TextInput
+                      style={styles.linkedIngredientInput}
+                      value={link.quantity === 0 ? '' : String(link.quantity)}
+                      onChangeText={(text) => updateIngredientQuantity(link.inventoryItemId, text)}
+                      keyboardType="numeric"
+                      placeholder="Qty"
+                      placeholderTextColor={Colors.dark.textSecondary}
+                    />
+                    <Text style={styles.linkedIngredientUnit}>{link.unit}</Text>
+                    <TouchableOpacity onPress={() => removeIngredientLink(link.inventoryItemId)} style={styles.removeIngredientButton}>
+                      <X size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
 
               {formImage && (
@@ -791,7 +1021,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.dark.border,
   },
   deleteModalTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.dark.text,
     marginBottom: 12,
@@ -800,7 +1030,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.dark.textSecondary,
     marginBottom: 24,
-    lineHeight: 24,
+    textAlign: 'center',
   },
   deleteModalButtons: {
     flexDirection: 'row',
@@ -812,9 +1042,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: Colors.dark.secondary,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.dark.text,
   },
@@ -826,10 +1058,81 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
   },
+
+  // Ingredient Selector Styles
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.dark.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  ingredientSearchBox: {
+    position: 'relative', // For dropdown positioning if needed
+    zIndex: 10,
+  },
+  ingredientResultsList: {
+    backgroundColor: Colors.dark.secondary,
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 150,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  ingredientResultItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border,
+  },
+  ingredientResultText: {
+    color: Colors.dark.text,
+    fontSize: 14,
+  },
+  ingredientResultSubtext: {
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+  },
+  linkedIngredientsList: {
+    marginTop: 8,
+    gap: 8,
+  },
+  linkedIngredientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.dark.secondary,
+    padding: 8,
+    borderRadius: 8,
+    gap: 8,
+  },
+  linkedIngredientName: {
+    flex: 1,
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  linkedIngredientInput: {
+    backgroundColor: Colors.dark.inputBackground,
+    color: Colors.dark.text,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 4,
+    padding: 4,
+    width: 60,
+    textAlign: 'center',
+  },
+  linkedIngredientUnit: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    width: 30,
+  },
+  removeIngredientButton: {
+    padding: 4,
+  },
+
   suggestionList: {
     position: 'absolute',
     top: '100%',

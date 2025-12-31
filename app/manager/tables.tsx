@@ -177,7 +177,7 @@ export default function TablesScreen() {
 
     } catch (error) {
       console.error('Error fetching tables:', JSON.stringify(error, null, 2));
-      Alert.alert('Error', 'Failed to load tables');
+      Alert.alert(t('common.error'), t('manager.tables.errorLoadTables'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -205,7 +205,7 @@ export default function TablesScreen() {
 
   const handleAddTable = async () => {
     if (!newTableNumber || !newTableCapacity) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('common.fillAllFields'));
       return;
     }
 
@@ -214,7 +214,7 @@ export default function TablesScreen() {
 
     // Check if table number already exists
     if (tables.find(t => t.table_number === tableNumber)) {
-      Alert.alert('Error', 'Table number already exists');
+      Alert.alert(t('common.error'), t('manager.tables.tableExists'));
       return;
     }
 
@@ -243,7 +243,7 @@ export default function TablesScreen() {
 
   const handleEditTable = async () => {
     if (!selectedTable || !editTableNumber || !editTableCapacity) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert(t('common.error'), t('common.fillAllFields'));
       return;
     }
 
@@ -252,7 +252,7 @@ export default function TablesScreen() {
 
     // Check if table number already exists (excluding current table)
     if (tables.find(t => t.table_number === tableNumber && t.id !== selectedTable.id)) {
-      Alert.alert('Error', 'Table number already exists');
+      Alert.alert(t('common.error'), t('manager.tables.tableExists'));
       return;
     }
 
@@ -567,14 +567,11 @@ export default function TablesScreen() {
             </View>
 
             {/* Title */}
-            <Text style={styles.deleteModalTitle}>Delete Table?</Text>
+            <Text style={styles.deleteModalTitle}>{t('manager.tables.deleteTitle')}</Text>
 
             {/* Message */}
             <Text style={styles.deleteModalMessage}>
-              Are you sure you want to delete{' '}
-              <Text style={styles.deleteHighlight}>
-                {t('common.table')} {selectedTable?.table_number}
-              </Text>
+              {t('manager.tables.deleteMessage', { tableNumber: selectedTable?.table_number })}
               {selectedTable?.capacity && (
                 <Text> ({selectedTable.capacity} {t('manager.tables.seats')})</Text>
               )}
@@ -584,7 +581,7 @@ export default function TablesScreen() {
             {/* Warning */}
             <View style={styles.warningBox}>
               <Text style={styles.warningText}>
-                ⚠️ This action cannot be undone
+                ⚠️ {t('common.cannotUndo')}
               </Text>
             </View>
 
@@ -597,7 +594,7 @@ export default function TablesScreen() {
                   setSelectedTable(null);
                 }}
               >
-                <Text style={styles.cancelDeleteText}>Cancel</Text>
+                <Text style={styles.cancelDeleteText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -605,7 +602,7 @@ export default function TablesScreen() {
                 onPress={handleDeleteTable}
               >
                 <Trash2 size={18} color="#FFFFFF" />
-                <Text style={styles.confirmDeleteText}>Delete Table</Text>
+                <Text style={styles.confirmDeleteText}>{t('manager.tables.deleteTable')}</Text>
               </TouchableOpacity>
             </View>
           </View>

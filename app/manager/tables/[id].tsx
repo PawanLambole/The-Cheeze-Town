@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Share } fr
 import { useLocalSearchParams, useRouter, useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Share2, Download, QrCode, Trash2, RefreshCcw } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import QRCode from 'react-native-qrcode-svg';
 import ViewShot from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
@@ -16,6 +17,7 @@ const SECRET_KEY = "CHEEZETOWN_SECRET";
 const BASE_URL = "https://the-cheeze-town.vercel.app";
 
 export default function TableDetailsScreen() {
+    const { t } = useTranslation();
     const router = useRouter();
     const segments = useSegments();
     const insets = useSafeAreaInsets();
@@ -45,7 +47,7 @@ export default function TableDetailsScreen() {
             generateQrCode(data.id);
         } catch (error) {
             console.error('Error fetching table:', error);
-            Alert.alert('Error', 'Failed to load table details');
+            Alert.alert(t('common.error'), t('manager.tables.errorLoadTables'));
         } finally {
             setLoading(false);
         }
@@ -65,14 +67,14 @@ export default function TableDetailsScreen() {
             const uri = await viewShotRef.current.capture();
 
             if (!(await Sharing.isAvailableAsync())) {
-                Alert.alert('Error', 'Sharing is not available on this device');
+                Alert.alert(t('common.error'), t('common.shareError'));
                 return;
             }
 
             await Sharing.shareAsync(uri);
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'Failed to share QR code');
+            Alert.alert(t('common.error'), t('common.shareFailed'));
         }
     };
 
@@ -80,17 +82,17 @@ export default function TableDetailsScreen() {
         if (!table) return;
 
         if (table.status === 'occupied') {
-            Alert.alert('Cannot Delete', 'Table is currently occupied. Please complete the order first.');
+            Alert.alert(t('common.error'), t('manager.tables.deleteOccupiedError'));
             return;
         }
 
         Alert.alert(
-            'Delete Table',
-            `Are you sure you want to delete Table ${table.table_number}? This action cannot be undone.`,
+            t('manager.tables.deleteTitle'),
+            t('manager.tables.deleteMessage', { tableNumber: table.table_number }),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: t('manager.tables.deleteTable'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -100,7 +102,7 @@ export default function TableDetailsScreen() {
                             router.back();
                         } catch (error) {
                             console.error('Error deleting table:', error);
-                            Alert.alert('Error', 'Failed to delete table');
+                            Alert.alert(t('common.error'), t('manager.tables.errorAddTable'));
                             setLoading(false);
                         }
                     }
@@ -115,24 +117,24 @@ export default function TableDetailsScreen() {
             const { status } = await MediaLibrary.requestPermissionsAsync(true);
 
             if (status !== 'granted') {
-                Alert.alert('Permission needed', 'Please grant permission to save the QR code.');
+                Alert.alert(t('common.permissionNeeded'), t('common.permissionMessage'));
                 return;
             }
 
             // @ts-ignore
             const uri = await viewShotRef.current.capture();
             await MediaLibrary.saveToLibraryAsync(uri);
-            Alert.alert('Success', 'QR Code card saved to gallery!');
+            Alert.alert(t('common.success'), t('manager.tables.qrSaved'));
         } catch (error) {
             console.error('Download error:', error);
-            Alert.alert('Error', 'Failed to save image');
+            Alert.alert(t('common.error'), t('common.saveFailed'));
         }
     };
 
     if (loading || !table) {
         return (
             <View style={styles.loadingContainer}>
-                <Text>Loading...</Text>
+                <Text>{t('common.loading')}</Text>
             </View>
         );
     }
@@ -150,7 +152,7 @@ export default function TableDetailsScreen() {
                 }}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Table {table.table_number}</Text>
+                <Text style={styles.headerTitle}>{t('common.table')} {table.table_number}</Text>
                 <TouchableOpacity onPress={handleShare}>
                     <Share2 size={24} color={Colors.dark.primary} />
                 </TouchableOpacity>
@@ -163,7 +165,7 @@ export default function TableDetailsScreen() {
                     <View style={styles.qrCard}>
                         <View style={styles.qrHeader}>
                             <Text style={styles.qrBrand}>The Cheeze Town</Text>
-                            <Text style={styles.qrSubtitle}>Scan to Order</Text>
+                            <Text style={styles.qrSubtitle}>{t('manager.tables.scanToOrder')}</Text>
                         </View>
 
                         <View style={styles.qrContainer}>
@@ -178,13 +180,13 @@ export default function TableDetailsScreen() {
                                 />
                             ) : (
                                 <View style={{ height: 200, justifyContent: 'center', alignItems: 'center' }}>
-                                    <Text style={{ color: '#666' }}>Generating QR...</Text>
+                                    <Text style={{ color: '#666' }}>{t('common.generatingQR')}</Text>
                                 </View>
                             )}
                         </View>
 
                         <View style={styles.qrFooter}>
-                            <Text style={styles.qrTableNumber}>Table {table.table_number}</Text>
+                            <Text style={styles.qrTableNumber}>{t('common.table')} {table.table_number}</Text>
                         </View>
                     </View>
                 </ViewShot>
@@ -192,7 +194,7 @@ export default function TableDetailsScreen() {
                 <View style={styles.actionsContainer}>
                     <TouchableOpacity style={styles.actionButton} onPress={handleDownload}>
                         <Download size={20} color="white" />
-                        <Text style={styles.actionButtonText} numberOfLines={1} adjustsFontSizeToFit>Save</Text>
+                        <Text style={styles.actionButtonText} numberOfLines={1} adjustsFontSizeToFit>{t('common.save')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -200,22 +202,22 @@ export default function TableDetailsScreen() {
                         onPress={() => generateQrCode(table.id)}
                     >
                         <RefreshCcw size={20} color={Colors.dark.text} />
-                        <Text style={styles.secondaryButtonText}>Regenerate</Text>
+                        <Text style={styles.secondaryButtonText}>{t('manager.tables.regenerate')}</Text>
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.infoCard}>
-                    <Text style={styles.infoTitle}>Table Information</Text>
+                    <Text style={styles.infoTitle}>{t('manager.tables.tableInfo')}</Text>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Capacity</Text>
-                        <Text style={styles.infoValue}>{table.capacity} Persons</Text>
+                        <Text style={styles.infoLabel}>{t('manager.tables.seatingCapacity')}</Text>
+                        <Text style={styles.infoValue}>{table.capacity} {t('manager.tables.persons')}</Text>
                     </View>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Status</Text>
+                        <Text style={styles.infoLabel}>{t('common.status')}</Text>
                         <Text style={[styles.infoValue, { textTransform: 'capitalize' }]}>{table.status}</Text>
                     </View>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Location</Text>
+                        <Text style={styles.infoLabel}>{t('manager.profile.location')}</Text>
                         <Text style={[styles.infoValue, { textTransform: 'capitalize' }]}>{table.location || 'Indoor'}</Text>
                     </View>
                 </View>
@@ -225,7 +227,7 @@ export default function TableDetailsScreen() {
                     onPress={handleDelete}
                 >
                     <Trash2 size={20} color="#EF4444" />
-                    <Text style={styles.deleteButtonText}>Delete Table</Text>
+                    <Text style={styles.deleteButtonText}>{t('manager.tables.deleteTable')}</Text>
                 </TouchableOpacity>
 
             </ScrollView>

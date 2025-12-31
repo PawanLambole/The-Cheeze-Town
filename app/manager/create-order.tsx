@@ -9,6 +9,7 @@ import ReceiptViewer from '../../components/ReceiptViewer';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import { supabase } from '@/services/database';
+import { deductInventoryForOrder } from '@/services/inventoryService';
 
 // Add interface
 interface CreateOrderScreenProps {
@@ -238,6 +239,13 @@ function CreateOrderScreen({ redirectPath = '/manager/orders' }: CreateOrderScre
                 .insert(orderItemsData);
 
             if (itemsError) throw itemsError;
+
+            // Deduct Inventory
+            try {
+                await deductInventoryForOrder(orderItemsData);
+            } catch (invError) {
+                console.error("Inventory deduction failed:", invError);
+            }
 
             // Update table status if dine-in
             if (selectedTable) {

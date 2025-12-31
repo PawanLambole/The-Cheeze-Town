@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, RefreshControl, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Plus, Minus, X, Trash } from 'lucide-react-native';
+import { ArrowLeft, AlertCircle, TrendingUp, TrendingDown, Plus, Minus, X, Trash, Edit2, Check } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
 import { database, supabase } from '@/services/database';
 import { useTranslation } from 'react-i18next';
@@ -31,12 +31,25 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [adjustmentAmount, setAdjustmentAmount] = useState('');
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+
   // Add item form fields
   const [newItemName, setNewItemName] = useState('');
   const [newItemCategory, setNewItemCategory] = useState('');
   const [newItemStock, setNewItemStock] = useState('');
   const [newItemMinStock, setNewItemMinStock] = useState('');
   const [newItemUnit, setNewItemUnit] = useState('kg');
+  const [customUnit, setCustomUnit] = useState('');
+  const [isCustomUnit, setIsCustomUnit] = useState(false);
+
+  // Edit item form fields
+  const [editItemName, setEditItemName] = useState('');
+  const [editItemCategory, setEditItemCategory] = useState('');
+  const [editItemMinStock, setEditItemMinStock] = useState('');
+  const [editItemUnit, setEditItemUnit] = useState('');
+  const [editCustomUnit, setEditCustomUnit] = useState('');
+  const [editIsCustomUnit, setEditIsCustomUnit] = useState(false);
 
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,7 +64,7 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
           name: i.item_name,
           category: i.category,
           currentStock: Number(i.quantity),
-          minStock: Number(i.min_stock),
+          minStock: Number(i.reorder_level),
           unit: i.unit,
           lastRestocked: 'Recently'
         })));
@@ -111,8 +124,8 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
         item_name: newItemName.trim(),
         category: newItemCategory.trim(),
         quantity: parseFloat(newItemStock),
-        min_stock: parseFloat(newItemMinStock),
-        unit: newItemUnit
+        reorder_level: parseFloat(newItemMinStock),
+        unit: isCustomUnit ? customUnit : newItemUnit
       };
 
       const { error } = await supabase.from('inventory').insert([newItem]);
@@ -126,6 +139,8 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
       setNewItemStock('');
       setNewItemMinStock('');
       setNewItemUnit('kg');
+      setCustomUnit('');
+      setIsCustomUnit(false);
     } catch (e) {
       console.error("Error adding inventory item", e);
       alert(t('inventory.errors.addFailed'));
@@ -152,6 +167,55 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
     } catch (e) {
       console.error("Error adjusting stock", e);
       alert(t('inventory.errors.adjustFailed'));
+    }
+  };
+
+  const handleEditItem = (item: InventoryItem) => {
+    setEditingItem(item);
+    setEditItemName(item.name);
+    setEditItemCategory(item.category);
+    setEditItemMinStock(String(item.minStock));
+
+    // Check if unit is standard
+    const standardUnits = ['kg', 'g', 'L', 'ml', 'pcs'];
+    if (standardUnits.includes(item.unit)) {
+      setEditItemUnit(item.unit);
+      setEditIsCustomUnit(false);
+      setEditCustomUnit('');
+    } else {
+      setEditItemUnit('Other');
+      setEditIsCustomUnit(true);
+      setEditCustomUnit(item.unit);
+    }
+
+    setShowEditModal(true);
+  };
+
+  const handleUpdateItem = async () => {
+    if (!editingItem || !editItemName.trim() || !editItemCategory.trim() || !editItemMinStock) return;
+
+    try {
+      const finalUnit = editIsCustomUnit ? editCustomUnit : editItemUnit;
+
+      const { error } = await supabase
+        .from('inventory')
+        .update({
+          item_name: editItemName.trim(),
+          category: editItemCategory.trim(),
+          min_stock: undefined, // ensure we don't accidentally send this if type differs
+          reorder_level: parseFloat(editItemMinStock),
+          unit: finalUnit
+        })
+        .eq('id', Number(editingItem.id));
+
+      if (error) throw error;
+
+      fetchInventory();
+      setShowEditModal(false);
+      setEditingItem(null);
+    } catch (e) {
+      console.error("Error updating item", e);
+      alert(t('inventory.errors.updateFailed') || "Update failed");
     }
   };
 
@@ -263,6 +327,12 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
                   onPress={() => handleAdjustStock(item)}
                 >
                   <Text style={styles.adjustButtonText}>{t('inventory.adjust')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => handleEditItem(item)}
+                >
+                  <Edit2 size={20} color={Colors.dark.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.deleteButton}
@@ -380,28 +450,129 @@ export default function InventoryScreen({ showBack = true }: InventoryScreenProp
               </View>
 
               <Text style={styles.inputLabel}>{t('inventory.unit')}:</Text>
+
               <View style={styles.unitSelector}>
-                {['kg', 'g', 'L', 'ml', 'pcs'].map((unit) => (
+                {['kg', 'g', 'L', 'ml', 'pcs', 'Other'].map((unit) => (
                   <TouchableOpacity
                     key={unit}
                     style={[
                       styles.unitOption,
-                      newItemUnit === unit && styles.unitOptionActive
+                      (!isCustomUnit && newItemUnit === unit) || (isCustomUnit && unit === 'Other') ? styles.unitOptionActive : {}
                     ]}
-                    onPress={() => setNewItemUnit(unit)}
+                    onPress={() => {
+                      if (unit === 'Other') {
+                        setIsCustomUnit(true);
+                      } else {
+                        setIsCustomUnit(false);
+                        setNewItemUnit(unit);
+                      }
+                    }}
                   >
                     <Text style={[
                       styles.unitOptionText,
-                      newItemUnit === unit && styles.unitOptionTextActive
+                      (!isCustomUnit && newItemUnit === unit) || (isCustomUnit && unit === 'Other') ? styles.unitOptionTextActive : {}
                     ]}>
-                      {unit}
+                      {unit === 'Other' ? t('inventory.otherUnit') : unit}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
+              {isCustomUnit && (
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('inventory.customUnit')}
+                  placeholderTextColor={Colors.dark.textSecondary}
+                  value={customUnit}
+                  onChangeText={setCustomUnit}
+                />
+              )}
+
               <TouchableOpacity style={styles.saveButton} onPress={handleAddItem}>
                 <Text style={styles.saveButtonText}>{t('inventory.addItem')}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Item Modal */}
+      <Modal visible={showEditModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('inventory.editItem') || "Edit Item"}</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <X size={24} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView>
+              <TextInput
+                style={styles.input}
+                placeholder={t('inventory.itemName')}
+                placeholderTextColor={Colors.dark.textSecondary}
+                value={editItemName}
+                onChangeText={setEditItemName}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder={t('inventory.category')}
+                placeholderTextColor={Colors.dark.textSecondary}
+                value={editItemCategory}
+                onChangeText={setEditItemCategory}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder={t('inventory.minStock')}
+                placeholderTextColor={Colors.dark.textSecondary}
+                keyboardType="numeric"
+                value={editItemMinStock}
+                onChangeText={setEditItemMinStock}
+              />
+
+              <Text style={styles.inputLabel}>{t('inventory.unit')}:</Text>
+              <View style={styles.unitSelector}>
+                {['kg', 'g', 'L', 'ml', 'pcs', 'Other'].map((unit) => (
+                  <TouchableOpacity
+                    key={unit}
+                    style={[
+                      styles.unitOption,
+                      (!editIsCustomUnit && editItemUnit === unit) || (editIsCustomUnit && unit === 'Other') ? styles.unitOptionActive : {}
+                    ]}
+                    onPress={() => {
+                      if (unit === 'Other') {
+                        setEditIsCustomUnit(true);
+                      } else {
+                        setEditIsCustomUnit(false);
+                        setEditItemUnit(unit);
+                      }
+                    }}
+                  >
+                    <Text style={[
+                      styles.unitOptionText,
+                      (!editIsCustomUnit && editItemUnit === unit) || (editIsCustomUnit && unit === 'Other') ? styles.unitOptionTextActive : {}
+                    ]}>
+                      {unit === 'Other' ? t('inventory.otherUnit') : unit}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {editIsCustomUnit && (
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('inventory.customUnit')}
+                  placeholderTextColor={Colors.dark.textSecondary}
+                  value={editCustomUnit}
+                  onChangeText={setEditCustomUnit}
+                />
+              )}
+
+              <TouchableOpacity style={styles.saveButton} onPress={handleUpdateItem}>
+                <Text style={styles.saveButtonText}>{t('inventory.saveChanges')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -611,6 +782,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 12,
+    alignItems: 'center',
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(251, 191, 36, 0.1)', // Amber/Warning color background
+    justifyContent: 'center',
     alignItems: 'center',
   },
   deleteButton: {

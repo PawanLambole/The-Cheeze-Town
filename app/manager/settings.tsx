@@ -73,12 +73,25 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut();
-      router.replace('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    Alert.alert(
+      t('manager.profile.logout'),
+      t('common.logoutConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('manager.profile.logout'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace('/login');
+            } catch (error) {
+              console.error('Error signing out:', error);
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (

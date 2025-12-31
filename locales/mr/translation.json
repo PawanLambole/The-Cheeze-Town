@@ -35,7 +35,16 @@
             "mins": "{{count}} मिनिटांपूर्वी",
             "hours": "{{count}} तासांपूर्वी",
             "days": "{{count}} दिवसांपूर्वी"
-        }
+        },
+        "fillAllFields": "कृपया सर्व फील्ड भरा",
+        "cannotUndo": "ही कृती पूर्ववत करता येणार नाही",
+        "generatingQR": "QR जनरेट होत आहे...",
+        "shareError": "या डिव्हाइसवर शेअरिंग उपलब्ध नाही",
+        "shareFailed": "QR कोड शेअर करण्यास अयशस्वी",
+        "permissionNeeded": "परवानगी आवश्यक",
+        "permissionMessage": "कृपया QR कोड जतन करण्यासाठी परवानगी द्या.",
+        "saveFailed": "प्रतिमा जतन करण्यास अयशस्वी",
+        "logoutConfirm": "तुम्हाला नक्की लॉग आऊट करायचे आहे का?"
     },
     "navigation": {
         "home": "मुख्यपृष्ठ"
@@ -276,7 +285,18 @@
             "confirm": "तपासा",
             "receiptError": "पावती तयार करण्यास अपयश",
             "paymentSuccess": "पेमेंट यशस्वी",
-            "paymentError": "पेमेंट रेकॉर्ड अयशस्वी"
+            "paymentError": "पेमेंट रेकॉर्ड अयशस्वी",
+            "status": {
+                "pending": "प्रलंबित",
+                "served": "वाढले",
+                "completed": "पूर्ण",
+                "cancelled": "रद्द",
+                "ready": "तयार"
+            },
+            "paid": "भरलेले",
+            "unpaid": "बाकी",
+            "itemsAdded": "वस्तू यशस्वीरित्या जोडल्या",
+            "addItemError": "ऑर्डरमध्ये वस्तू जोडण्यास अपयश"
         },
         "categories": {
             "pizza": "पिझ्झा",
@@ -414,7 +434,19 @@
             "addTableQR": "टेबल जोडा आणि QR जनरेट करा",
             "currently": "सद्यस्थिती:",
             "seats": "जागा",
-            "errorAddTable": "टेबल जोडण्यास अपयश"
+            "errorAddTable": "टेबल जोडण्यास अपयश",
+            "tableExists": "टेबल क्रमांक आधीच अस्तित्वात आहे",
+            "deleteTitle": "टेबल हटवायचे?",
+            "deleteMessage": "तुम्हाला खात्री आहे की तुम्ही टेबल {{tableNumber}} हटवू इच्छिता?",
+            "deleteTable": "टेबल हटवा",
+            "scanToOrder": "ऑर्डर करण्यासाठी स्कॅन करा",
+            "tableInfo": "टेबल माहिती",
+            "regenerate": "पुन्हा तयार करा",
+            "errorLoadTables": "टेबल्स लोड करण्यात अयशस्वी",
+            "person": "व्यक्ती",
+            "persons": "व्यक्ती",
+            "qrSaved": "QR कोड कार्ड गॅलरीत जतन केले!",
+            "deleteOccupiedError": "टेबल सध्या व्यापलेले आहे. कृपया आधी ऑर्डर पूर्ण करा."
         },
         "billing": {
             "title": "बिलिंग",
@@ -530,6 +562,9 @@
             "itemPhoto": "आयटम फोटो (पर्यायी)",
             "camera": "कॅमेरा",
             "gallery": "गॅलरी",
+            "ingredients": "साहित्य",
+            "searchIngredients": "साहित्य शोधा...",
+            "qty": "प्रमाण",
             "addItem": "आयटम जोडा",
             "saveChanges": "बदल जतन करा",
             "delete": "हटवा",
@@ -576,5 +611,32 @@
         "emailRegistered": "हा ईमेल आधीच वेगळ्या खात्यासह नोंदणीकृत आहे. कृपया समर्थनाशी संपर्क साधा.",
         "createProfileFailed": "वापरकर्ता प्रोफाइल तयार करू शकलो नाही. कृपया पुन्हा प्रयत्न करा.",
         "unexpected": "एक अनपेक्षित त्रुटी आली."
+    },
+    "filters": {
+        "title": "फिल्टर्स",
+        "apply": "फिल्टर्स लागू करा",
+        "reset": "रिसेट",
+        "dateRange": "तारीख श्रेणी",
+        "today": "आज",
+        "yesterday": "काल",
+        "thisWeek": "हा आठवडा",
+        "thisMonth": "हा महिना",
+        "custom": "सानुकूल श्रेणी",
+        "startDate": "आरंभ तारीख",
+        "endDate": "समाप्ती तारीख",
+        "type": "प्रकार",
+        "category": "श्रेणी",
+        "priceRange": "किंमत श्रेणी",
+        "minPrice": "किमान किंमत",
+        "maxPrice": "कमाल किंमत",
+        "status": "स्थिती",
+        "paymentStatus": "पेमेंट स्थिती",
+        "paid": "भरलेले",
+        "unpaid": "बाकी",
+        "orderType": "ऑर्डर प्रकार",
+        "dineIn": "डाइन-इन",
+        "dine-in": "डाइन-इन",
+        "takeaway": "पार्सल",
+        "all": "सर्व"
     }
 }

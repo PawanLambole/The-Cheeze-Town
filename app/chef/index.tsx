@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotificationSettings } from '@/contexts/NotificationSettingsContext';
 import { notificationService } from '@/services/NotificationService';
 import { soundService } from '@/services/SoundService';
+import { deductInventoryForOrder } from '@/services/inventoryService';
 
 
 interface OrderItem {
@@ -19,6 +20,7 @@ interface OrderItem {
     menu_item_name: string;
     quantity: number;
     special_instructions?: string | null;
+    created_at?: string;
 }
 
 interface Order {
@@ -47,43 +49,65 @@ export default function ChefDashboard() {
     // Notification State
     const [notificationOrder, setNotificationOrder] = useState<any>(null);
     const [showNotification, setShowNotification] = useState(false);
+    const [notificationType, setNotificationType] = useState<'new' | 'update'>('new');
+    const [newItems, setNewItems] = useState<any[]>([]);
 
-    const handleSpeakOrder = async (order: any) => {
+    const handleSpeakOrder = async (order: any, type: 'new' | 'update' = 'new', specificItems: any[] = []) => {
         const tableText = order.table_id ? `Table ${order.table_id}` : 'Takeaway order';
-        const orderNumText = order.order_number ? `Order number ${order.order_number.replace(/\D/g, '')}` : ''; // Removing letters
+        const orderNumText = order.order_number ? `Order number ${order.order_number.replace(/\D/g, '')}` : '';
 
-        // Add pauses and natural phrasing
+        let intro = "";
         let itemsList = "";
-        if (order.order_items && order.order_items.length > 0) {
-            itemsList = order.order_items.map((item: any) =>
-                `${item.quantity} ${item.menu_item_name}`
-            ).join(', and ');
+
+        if (type === 'new') {
+            intro = `Please serve the new order, ${orderNumText}, to ${tableText}.`;
+            if (activeTab === 'completed') return; // Don't speak if looking at completed
+
+            if (order.order_items && order.order_items.length > 0) {
+                itemsList = order.order_items.map((item: any) =>
+                    `${item.quantity} ${item.menu_item_name}`
+                ).join(', and ');
+            } else {
+                itemsList = "No items listed";
+            }
         } else {
-            itemsList = "No items listed";
+            // Update
+            intro = `Attention! Order updated for ${tableText}.`;
+            if (specificItems.length > 0) {
+                itemsList = "New items added: " + specificItems.map((item: any) =>
+                    `${item.quantity} ${item.menu_item_name}`
+                ).join(', and ');
+            } else {
+                itemsList = "New items added.";
+            }
         }
 
-        const speechText = `Please serve the new order of ${itemsList}, to ${tableText}. Thank you`;
+        const speechText = `${intro} ${itemsList}. Thank you`;
 
         Speech.stop();
 
-        // Pick a better voice
         try {
             const voices = await Speech.getAvailableVoicesAsync();
-            const bestVoice = voices.find(v => v.name.includes('en-us-x-sfg#female') || v.quality === 'Enhanced') || voices[0];
+            // Try to find a clear English voice
+            const bestVoice = voices.find(v => v.language.includes('en-US') && v.quality === 'Enhanced') ||
+                voices.find(v => v.language.includes('en-GB')) ||
+                voices[0];
 
             Speech.speak(speechText, {
                 language: 'en-US',
-                pitch: 1.1,
-                rate: 0.85,
+                pitch: 1.0,
+                rate: 0.9,
                 voice: bestVoice?.identifier
             });
         } catch (e) {
-            // Fallback if voice fetch fails
-            Speech.speak(speechText, { language: 'en', pitch: 1.1, rate: 0.9 });
+            Speech.speak(speechText, { language: 'en', pitch: 1.0, rate: 0.9 });
         }
     };
 
-    // Initialize data and real-time subscriptions
+    // Debounce ref for item updates
+    const updateQueue = React.useRef<{ [key: string]: any[] }>({});
+    const updateTimers = React.useRef<{ [key: string]: any }>({});
+
     // Initialize data and real-time subscriptions
     useEffect(() => {
         // Load sound service
@@ -92,141 +116,157 @@ export default function ChefDashboard() {
         // Initial fetch
         fetchOrders();
 
-        // Listen for ALL order changes (New orders, updates, etc)
+        // Listen for NEW ORDERS
         const subOrders = database.subscribe('orders', async (payload: any) => {
-            console.log('⚡ Realtime order update payload:', JSON.stringify(payload, null, 2));
-            console.log('⚡ Event Type:', payload.eventType);
+            console.log('⚡ Orders Event:', payload.eventType);
 
-            // Check for NEW orders
             if (payload.eventType === 'INSERT') {
-                console.log('🔔 INSERT EVENT DETECTED!');
-                console.log('🔔 New Order Data:', payload.new);
-
-                const orderNumber = payload.new.order_number || 'New Order';
-                const tableId = payload.new.table_id ? `Table ${payload.new.table_id}` : 'Takeaway';
-
-                try {
-                    // Small delay to ensure order_items are inserted
-                    await new Promise(resolve => setTimeout(resolve, 500));
-
-                    // Fetch complete order details with items (with retry)
-                    let orderItems = null;
-                    let itemsError = null;
-
-                    // Try fetching items up to 3 times with delays
-                    for (let attempt = 0; attempt < 3; attempt++) {
-                        const result = await supabase
-                            .from('order_items')
-                            .select(`
-                                id,
-                                quantity,
-                                special_instructions,
-                                menu_item_name
-                            `)
-                            .eq('order_id', payload.new.id);
-
-                        orderItems = result.data;
-                        itemsError = result.error;
-
-                        console.log(`📦 Fetch attempt ${attempt + 1}:`, {
-                            itemsCount: orderItems?.length || 0,
-                            items: orderItems,
-                            error: itemsError
-                        });
-
-                        if (orderItems && orderItems.length > 0) {
-                            break; // Success!
-                        }
-
-                        // Wait before retrying (except on last attempt)
-                        if (attempt < 2) {
-                            await new Promise(resolve => setTimeout(resolve, 300));
-                        }
-                    }
-
-                    if (itemsError) {
-                        console.error('❌ Error fetching order items:', itemsError);
-                    }
-
-                    if (!orderItems || orderItems.length === 0) {
-                        console.warn('⚠️ No order items found after retries');
-                    }
-
-                    const completeOrder = {
-                        ...payload.new,
-                        order_items: orderItems || []
-                    };
-
-                    console.log('✅ Complete order for notification:', completeOrder);
-
-                    // Create notification message with items
-                    const itemsList = completeOrder.order_items
-                        .map((item: OrderItem) => `${item.quantity}x ${item.menu_item_name}`)
-                        .join(', ');
-                    const notificationBody = itemsList || 'No items';
-
-                    console.log('📝 Notification body:', notificationBody);
-
-                    // 1. Play Sound (if enabled)
-                    if (soundEnabled) {
-                        console.log('🎵 Attempting to play sound...');
-                        soundService.playNotificationSound().then(() => {
-                            console.log('🎵 Sound played successfully');
-                        });
-                    } else {
-                        console.log('🔇 Sound disabled, skipping...');
-                    }
-
-                    // 2. Show System Notification (if enabled)
-                    if (systemEnabled) {
-                        console.log('🔔 Attempting to show system notification...');
-                        await notificationService.scheduleNotification(
-                            `New Order #${orderNumber} - ${tableId}`,
-                            notificationBody,
-                            { orderId: payload.new.id },
-                            { playSound: soundEnabled }
-                        );
-                        console.log('🔔 System notification scheduled');
-                    } else {
-                        console.log('🔕 System notifications disabled, skipping...');
-                    }
-
-                    // 3. Show In-App Notification Modal (if enabled)
-                    if (popupEnabled) {
-                        console.log('📱 Showing in-app modal with order:', completeOrder);
-                        setNotificationOrder(completeOrder);
-                        setShowNotification(true);
-
-                        // 4. Auto-Speak Order
-                        console.log('🗣️ Auto-speaking order immediately...');
-                        handleSpeakOrder(completeOrder);
-                    } else {
-                        console.log('📵 In-app popup disabled, skipping...');
-                    }
-                } catch (err) {
-                    console.error('❌ Error handling notification:', err);
-                }
-            } else {
-                console.log('ℹ️ Event was not INSERT, ignored for notification.');
+                console.log('🔔 New Order Created');
+                // Allow a moment for items to be inserted before fetching
+                setTimeout(async () => {
+                    // We verify it's a new order by checking if we already have it or if it's very recent
+                    // But strictly speaking, any INSERT to 'orders' is a new order header
+                    handleNewOrderNotification(payload.new);
+                }, 1000);
             }
 
-            // Refresh orders list
             fetchOrders();
         });
 
-        // Listen for order items changes (to handle race condition where items are added after order)
-        const subOrderItems = database.subscribe('order_items', (payload) => {
-            console.log('⚡ Realtime order_items update:', payload.eventType);
+        // Listen for ORDER ITEMS (Updates & New Items)
+        const subOrderItems = database.subscribe('order_items', async (payload: any) => {
+            console.log('⚡ Order Items Event:', payload.eventType);
+
+            if (payload.eventType === 'INSERT') {
+                const newItem = payload.new;
+                const orderId = newItem.order_id;
+
+                // Fetch the parent order to check its age
+                const { data: orderData } = await supabase
+                    .from('orders')
+                    .select('created_at, order_number, table_id, total_amount')
+                    .eq('id', orderId)
+                    .single();
+
+                if (orderData && orderData.created_at) {
+                    const createdAt = new Date(orderData.created_at).getTime();
+                    const now = new Date().getTime();
+                    const ageInSeconds = (now - createdAt) / 1000;
+
+                    // If order is older than 30 seconds, treat items as an UPDATE
+                    if (ageInSeconds > 30) {
+                        console.log(`🔔 Update detected for Order #${orderData.order_number} (+${newItem.quantity} ${newItem.menu_item_name})`);
+
+                        // Batching logic
+                        if (!updateQueue.current[orderId]) {
+                            updateQueue.current[orderId] = [];
+                        }
+                        updateQueue.current[orderId].push(newItem);
+
+                        // Clear existing timer
+                        if (updateTimers.current[orderId]) {
+                            clearTimeout(updateTimers.current[orderId]);
+                        }
+
+                        // Set new timer (Debounce)
+                        updateTimers.current[orderId] = setTimeout(() => {
+                            const items = updateQueue.current[orderId];
+                            delete updateQueue.current[orderId];
+                            delete updateTimers.current[orderId];
+
+                            if (items && items.length > 0) {
+                                handleOrderUpdateNotification(orderData, items);
+                            }
+                        }, 2000); // 2 seconds batch window
+                    } else {
+                        console.log('ℹ️ Item part of new order (ignored for update notification)');
+                    }
+                }
+            }
+
             fetchOrders();
         });
 
         return () => {
             database.unsubscribe(subOrders);
             database.unsubscribe(subOrderItems);
-            // Unload sound when component unmounts
             soundService.unload();
         };
     }, [soundEnabled, popupEnabled, systemEnabled]);
+
+    const handleNewOrderNotification = async (orderData: any) => {
+        try {
+            // Fetch items
+            const { data: items } = await supabase
+                .from('order_items')
+                .select('*')
+                .eq('order_id', orderData.id);
+
+            const completeOrder = { ...orderData, order_items: items || [] };
+
+            // 1. Play Sound
+            if (soundEnabled) await soundService.playNotificationSound();
+
+            // 2. Show System Notification
+            if (systemEnabled) {
+                const itemsList = (items || []).map((i: any) => `${i.quantity}x ${i.menu_item_name}`).join(', ');
+                await notificationService.scheduleNotification(
+                    `New Order #${orderData.order_number || ''}`,
+                    itemsList || 'No items',
+                    { orderId: orderData.id },
+                    { playSound: false } // Already played
+                );
+            }
+
+            // 3. In-App Modal
+            if (popupEnabled) {
+                setNotificationType('new');
+                setNewItems([]);
+                setNotificationOrder(completeOrder);
+                setShowNotification(true);
+                handleSpeakOrder(completeOrder, 'new');
+            }
+        } catch (e) {
+            console.error('Error in new order notification:', e);
+        }
+    };
+
+    const handleOrderUpdateNotification = async (orderData: any, newItemsList: any[]) => {
+        try {
+            console.log('🚨 DISPATCHING UPDATE NOTIFICATION', newItemsList.length);
+
+            // 1. Play Sound (maybe different sound? for now same)
+            if (soundEnabled) await soundService.playNotificationSound();
+
+            // 2. System Notification
+            if (systemEnabled) {
+                const itemsList = newItemsList.map((i: any) => `${i.quantity}x ${i.menu_item_name}`).join(', ');
+                await notificationService.scheduleNotification(
+                    `Order Updated #${orderData.order_number}`,
+                    `Added: ${itemsList}`,
+                    { orderId: orderData.id },
+                    { playSound: false }
+                );
+            }
+
+            // 3. In-App Modal
+            if (popupEnabled) {
+                const completeOrder = { ...orderData, order_items: newItemsList }; // Display ONLY new items in the modal list effectively?
+                // Actually, we probably want to show the full order but HIGHLIGHT the new ones.
+                // For simplified UX, let's show the order info + the LIST of new items specifically.
+
+                setNotificationType('update');
+                setNewItems(newItemsList);
+                setNotificationOrder(orderData); // This is just the header info essentially
+                setShowNotification(true);
+
+                handleSpeakOrder(orderData, 'update', newItemsList);
+            }
+
+        } catch (e) {
+            console.error('Error in order update notification:', e);
+        }
+    };
 
     // Helper: today's range in local time, converted to UTC ISO for Supabase.
     // Use [startOfDay, startOfNextDay) to avoid millisecond edge cases.
@@ -279,7 +319,7 @@ export default function ChefDashboard() {
             if (allIds.length > 0) {
                 const { data: itemsData, error: itemsError } = await supabase
                     .from('order_items')
-                    .select('id, order_id, menu_item_name, quantity, special_instructions')
+                    .select('id, order_id, menu_item_name, quantity, special_instructions, created_at')
                     .in('order_id', allIds);
 
                 if (itemsError) {
@@ -292,6 +332,7 @@ export default function ChefDashboard() {
                             menu_item_name: (row as any).menu_item_name,
                             quantity: Number((row as any).quantity) || 0,
                             special_instructions: (row as any).special_instructions ?? null,
+                            created_at: (row as any).created_at // Added timestamp
                         };
                         const existing = itemsByOrderId.get(orderId) || [];
                         existing.push(item);
@@ -336,6 +377,20 @@ export default function ChefDashboard() {
                 // If completing, set completed_time as well
                 if (newStatus === 'completed') {
                     updateData.completed_time = new Date().toISOString();
+
+                    // AUTOMATIC INVENTORY DEDUCTION (For Pre-paid/Web Orders)
+                    if (isPaid && selectedOrder.order_items && selectedOrder.order_items.length > 0) {
+                        try {
+                            const itemsToDeduct = selectedOrder.order_items.map((item: any) => ({
+                                menu_item_name: item.menu_item_name,
+                                quantity: item.quantity
+                            }));
+                            await deductInventoryForOrder(itemsToDeduct);
+                            console.log('✅ Inventory deducted for prepaid order:', selectedOrder.order_number);
+                        } catch (invError) {
+                            console.error('❌ Error deducting inventory for prepaid order:', invError);
+                        }
+                    }
                 }
 
                 await database.update('orders', selectedOrder.id, updateData);
@@ -496,21 +551,87 @@ export default function ChefDashboard() {
 
                                 {/* Items List */}
                                 <View style={styles.itemsList}>
-                                    {order.order_items?.map((item, index) => (
-                                        <View key={index} style={styles.orderItemCard}>
-                                            <View style={styles.orderItemHeader}>
-                                                <View style={styles.quantityBadge}>
-                                                    <Text style={styles.quantityText}>{item.quantity}</Text>
+                                    {(() => {
+                                        // Logic to determine visible items:
+                                        // 1. Group items by creation time (batches)
+                                        // 2. If multiple batches, assume older ones are done and show only the LATEST batch.
+                                        // 3. If single batch (New Order), show all.
+
+                                        const items = order.order_items || [];
+                                        if (items.length === 0) return null;
+
+                                        // Helper to parse safe date
+                                        const getTime = (dateStr?: string) => dateStr ? new Date(dateStr).getTime() : 0;
+
+                                        // Sort by creation time
+                                        const sortedItems = [...items].sort((a, b) => getTime(a.created_at) - getTime(b.created_at));
+
+                                        // If no timestamps available (legacy), show all
+                                        if (!sortedItems[0].created_at) {
+                                            return sortedItems.map((item, index) => (
+                                                <View key={index} style={styles.orderItemCard}>
+                                                    <View style={styles.orderItemHeader}>
+                                                        <View style={styles.quantityBadge}>
+                                                            <Text style={styles.quantityText}>{item.quantity}</Text>
+                                                        </View>
+                                                        <Text style={styles.itemName} numberOfLines={2}>{item.menu_item_name}</Text>
+                                                    </View>
+                                                    {item.special_instructions && (
+                                                        <Text style={styles.itemNotes}>
+                                                            📝 {item.special_instructions}
+                                                        </Text>
+                                                    )}
                                                 </View>
-                                                <Text style={styles.itemName} numberOfLines={2}>{item.menu_item_name}</Text>
+                                            ));
+                                        }
+
+                                        // Group into batches (~2 min threshold)
+                                        const batches: any[][] = [];
+                                        let currentBatch: any[] = [];
+                                        let batchStartTime = getTime(sortedItems[0].created_at);
+
+                                        sortedItems.forEach((item) => {
+                                            const itemTime = getTime(item.created_at);
+                                            if (itemTime - batchStartTime > 2 * 60 * 1000) {
+                                                // New batch
+                                                batches.push(currentBatch);
+                                                currentBatch = [item];
+                                                batchStartTime = itemTime;
+                                            } else {
+                                                currentBatch.push(item);
+                                            }
+                                        });
+                                        if (currentBatch.length > 0) batches.push(currentBatch);
+
+                                        // Show only the LATEST batch
+                                        const visibleItems = batches[batches.length - 1];
+                                        const isUpdate = batches.length > 1;
+
+                                        return visibleItems.map((item, index) => (
+                                            <View key={index} style={[
+                                                styles.orderItemCard,
+                                                isUpdate && { borderColor: '#F59E0B', borderWidth: 1 } // Highlight updates
+                                            ]}>
+                                                <View style={styles.orderItemHeader}>
+                                                    <View style={[
+                                                        styles.quantityBadge,
+                                                        isUpdate && { backgroundColor: '#F59E0B' }
+                                                    ]}>
+                                                        <Text style={[
+                                                            styles.quantityText,
+                                                            isUpdate && { color: '#000' }
+                                                        ]}>{item.quantity}</Text>
+                                                    </View>
+                                                    <Text style={styles.itemName} numberOfLines={2}>{item.menu_item_name}</Text>
+                                                </View>
+                                                {item.special_instructions && (
+                                                    <Text style={styles.itemNotes}>
+                                                        📝 {item.special_instructions}
+                                                    </Text>
+                                                )}
                                             </View>
-                                            {item.special_instructions && (
-                                                <Text style={styles.itemNotes}>
-                                                    📝 {item.special_instructions}
-                                                </Text>
-                                            )}
-                                        </View>
-                                    ))}
+                                        ));
+                                    })()}
                                 </View>
 
                                 {/* Order Notes */}
@@ -624,10 +745,17 @@ export default function ChefDashboard() {
                         <View style={styles.notificationHeader}>
                             <View style={styles.notificationHeaderLeft}>
                                 <Bell size={32} color={Colors.dark.primary} />
-                                <Text style={styles.notificationTitle}>{t('chef.newOrder')}</Text>
+                                <View>
+                                    <Text style={styles.notificationTitle}>
+                                        {notificationType === 'new' ? t('chef.newOrder') : 'Order Updated!'}
+                                    </Text>
+                                    {notificationType === 'update' && (
+                                        <Text style={{ color: '#F59E0B', fontWeight: 'bold' }}>New Items Added</Text>
+                                    )}
+                                </View>
                             </View>
                             <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-                                <TouchableOpacity onPress={() => handleSpeakOrder(notificationOrder)}>
+                                <TouchableOpacity onPress={() => handleSpeakOrder(notificationOrder, notificationType, newItems)}>
                                     <Volume2 size={24} color={Colors.dark.primary} />
                                 </TouchableOpacity>
                                 <TouchableOpacity onPress={() => setShowNotification(false)}>
@@ -663,11 +791,14 @@ export default function ChefDashboard() {
                         </View>
 
                         {/* Items Section */}
-                        {notificationOrder?.order_items && notificationOrder.order_items.length > 0 && (
-                            <View style={styles.notificationSection}>
-                                <Text style={styles.notificationSectionTitle}>Order Items</Text>
-                                <ScrollView style={styles.notificationItemsList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                                    {notificationOrder.order_items.map((item: any, index: number) => (
+                        <View style={styles.notificationSection}>
+                            <Text style={styles.notificationSectionTitle}>
+                                {notificationType === 'new' ? 'Order Items' : 'New Items Added'}
+                            </Text>
+                            <ScrollView style={styles.notificationItemsList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                                {notificationType === 'new' ? (
+                                    // Show ALL items for new order
+                                    notificationOrder?.order_items?.map((item: any, index: number) => (
                                         <View key={index} style={styles.notificationItemCard}>
                                             <View style={styles.notificationItemHeader}>
                                                 <View style={styles.notificationQtyBadge}>
@@ -683,10 +814,29 @@ export default function ChefDashboard() {
                                                 </Text>
                                             )}
                                         </View>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        )}
+                                    ))
+                                ) : (
+                                    // Show ONLY new items for update
+                                    newItems.map((item: any, index: number) => (
+                                        <View key={index} style={[styles.notificationItemCard, { borderColor: '#F59E0B', borderWidth: 1 }]}>
+                                            <View style={styles.notificationItemHeader}>
+                                                <View style={[styles.notificationQtyBadge, { backgroundColor: '#F59E0B' }]}>
+                                                    <Text style={[styles.notificationQtyText, { color: '#000' }]}>{item.quantity}</Text>
+                                                </View>
+                                                <Text style={styles.notificationItemName} numberOfLines={2}>
+                                                    {item.menu_item_name}
+                                                </Text>
+                                            </View>
+                                            {item.special_instructions && (
+                                                <Text style={styles.notificationItemNotes} numberOfLines={2}>
+                                                    📝 {item.special_instructions}
+                                                </Text>
+                                            )}
+                                        </View>
+                                    ))
+                                )}
+                            </ScrollView>
+                        </View>
 
                         {/* Action Button */}
                         <TouchableOpacity
