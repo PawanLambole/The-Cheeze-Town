@@ -595,7 +595,10 @@
             "deleteMessage": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
             "addFailed": "Failed to add item",
             "updateFailed": "Failed to update item",
-            "deleteFailed": "Failed to delete item"
+            "deleteFailed": "Failed to delete item",
+            "itemDetails": "Item Details",
+            "recipe": "Recipe / Ingredients",
+            "noIngredients": "No ingredients linked."
         }
     },
     "time": {

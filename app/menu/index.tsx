@@ -61,6 +61,37 @@ export default function MenuScreen() {
   const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
   const [linkedIngredients, setLinkedIngredients] = useState<IngredientLink[]>([]);
 
+  // Details Modal State
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [detailsItem, setDetailsItem] = useState<MenuItem | null>(null);
+  const [detailsIngredients, setDetailsIngredients] = useState<IngredientLink[]>([]);
+
+  // Reusable Ingredient Fetcher
+  const fetchIngredientsForMenuItem = async (itemId: string): Promise<IngredientLink[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('menu_item_ingredients' as any)
+        .select(`
+          inventory_item_id,
+          quantity,
+          inventory:inventory_item_id (item_name, unit)
+        `)
+        .eq('menu_item_id', itemId as any);
+
+      if (!error && data) {
+        return data.map((d: any) => ({
+          inventoryItemId: String(d.inventory_item_id),
+          name: d.inventory?.item_name || 'Unknown',
+          unit: d.inventory?.unit || '',
+          quantity: d.quantity
+        }));
+      }
+    } catch (e) {
+      console.error("Error fetching linked ingredients", e);
+    }
+    return [];
+  };
+
   // Fetch Inventory for Suggestions
   const fetchInventory = async () => {
     try {
@@ -275,33 +306,18 @@ export default function MenuScreen() {
     setFormPrice(String(item.price));
     setFormImage(item.image);
 
-    // Fetch existing ingredients
-    try {
-      const { data, error } = await supabase
-        .from('menu_item_ingredients' as any)
-        .select(`
-          inventory_item_id,
-          quantity,
-          inventory:inventory_item_id (item_name, unit)
-        `)
-        .eq('menu_item_id', item.id as any); // Cast as any if TS complains about ID types mismatch
-
-      if (!error && data) {
-        setLinkedIngredients(data.map((d: any) => ({
-          inventoryItemId: String(d.inventory_item_id),
-          name: d.inventory?.item_name || 'Unknown',
-          unit: d.inventory?.unit || '',
-          quantity: d.quantity
-        })));
-      } else {
-        setLinkedIngredients([]);
-      }
-    } catch (e) {
-      console.error("Error fetching linked ingredients", e);
-      setLinkedIngredients([]);
-    }
+    // Fetch existing ingredients using reusable function
+    const ingredients = await fetchIngredientsForMenuItem(item.id);
+    setLinkedIngredients(ingredients);
 
     setShowEditModal(true);
+  };
+
+  const handleOpenDetails = async (item: MenuItem) => {
+    setDetailsItem(item);
+    setShowDetailsModal(true);
+    const ingredients = await fetchIngredientsForMenuItem(item.id);
+    setDetailsIngredients(ingredients);
   };
 
   const handleSaveEdit = async () => {
@@ -445,36 +461,43 @@ export default function MenuScreen() {
         >
           <View style={styles.cardsGrid}>
             {filteredItems.map(item => (
-              <View key={item.id} style={styles.card}>
-                {item.image ? (
-                  <Image source={{ uri: item.image }} style={styles.cardImage} />
-                ) : (
-                  <View style={styles.cardImagePlaceholder}>
-                    <ImageIcon size={40} color={Colors.dark.textSecondary} />
-                  </View>
-                )}
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.cardCategory} numberOfLines={1}>{item.category}</Text>
-                  <View style={styles.cardFooter}>
-                    <Text style={styles.cardPrice}>₹{item.price}</Text>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <TouchableOpacity
-                        style={{ padding: 6, backgroundColor: Colors.dark.secondary, borderRadius: 6 }}
-                        onPress={() => handleOpenEdit(item)}
-                      >
-                        <Edit2 size={16} color={Colors.dark.text} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={{ padding: 6, backgroundColor: '#EF4444', borderRadius: 6 }}
-                        onPress={() => handleDelete(item)}
-                      >
-                        <Trash2 size={16} color="#FFFFFF" />
-                      </TouchableOpacity>
+              <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.9}
+                onPress={() => handleOpenDetails(item)}
+                style={styles.card}
+              >
+                <View>
+                  {item.image ? (
+                    <Image source={{ uri: item.image }} style={styles.cardImage} />
+                  ) : (
+                    <View style={styles.cardImagePlaceholder}>
+                      <ImageIcon size={40} color={Colors.dark.textSecondary} />
+                    </View>
+                  )}
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.cardCategory} numberOfLines={1}>{item.category}</Text>
+                    <View style={styles.cardFooter}>
+                      <Text style={styles.cardPrice}>₹{item.price}</Text>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity
+                          style={{ padding: 6, backgroundColor: Colors.dark.secondary, borderRadius: 6 }}
+                          onPress={() => handleOpenEdit(item)}
+                        >
+                          <Edit2 size={16} color={Colors.dark.text} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{ padding: 6, backgroundColor: '#EF4444', borderRadius: 6 }}
+                          onPress={() => handleDelete(item)}
+                        >
+                          <Trash2 size={16} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </ScrollView>
@@ -613,7 +636,7 @@ export default function MenuScreen() {
               <View style={styles.categoryInputContainer}>
                 <TextInput
                   style={styles.input}
-                  placeholder="Category"
+                  placeholder={t('menu.management.category')}
                   placeholderTextColor={Colors.dark.textSecondary}
                   value={formCategory}
                   onChangeText={handleCategoryChange}
@@ -644,20 +667,20 @@ export default function MenuScreen() {
               <View style={styles.photoButtons}>
                 <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
                   <Camera size={20} color="#000" />
-                  <Text style={styles.photoButtonText}>Camera</Text>
+                  <Text style={styles.photoButtonText}>{t('menu.management.camera')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
                   <ImageIcon size={20} color="#000" />
-                  <Text style={styles.photoButtonText}>Gallery</Text>
+                  <Text style={styles.photoButtonText}>{t('menu.management.gallery')}</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Ingredient Linking Section */}
-              <Text style={styles.sectionLabel}>{t('menu.management.ingredients') || "Ingredients"}</Text>
+              <Text style={styles.sectionLabel}>{t('menu.management.ingredients')}</Text>
               <View style={styles.ingredientSearchBox}>
                 <TextInput
                   style={styles.input}
-                  placeholder={t('menu.management.searchIngredients') || "Search ingredients..."}
+                  placeholder={t('menu.management.searchIngredients')}
                   placeholderTextColor={Colors.dark.textSecondary}
                   value={ingredientSearchQuery}
                   onChangeText={(text) => {
@@ -691,7 +714,7 @@ export default function MenuScreen() {
                       value={link.quantity === 0 ? '' : String(link.quantity)}
                       onChangeText={(text) => updateIngredientQuantity(link.inventoryItemId, text)}
                       keyboardType="numeric"
-                      placeholder="Qty"
+                      placeholder={t('menu.management.qty')}
                       placeholderTextColor={Colors.dark.textSecondary}
                     />
                     <Text style={styles.linkedIngredientUnit}>{link.unit}</Text>
@@ -735,6 +758,61 @@ export default function MenuScreen() {
                 <Text style={styles.deleteButtonText}>{t('menu.management.delete')}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Details Modal */}
+      <Modal visible={showDetailsModal} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('menu.management.itemDetails')}</Text>
+              <TouchableOpacity onPress={() => setShowDetailsModal(false)}>
+                <X size={24} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            {detailsItem && (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {detailsItem.image ? (
+                  <Image source={{ uri: detailsItem.image }} style={styles.detailsImage} />
+                ) : (
+                  <View style={[styles.detailsImage, styles.detailsCardImagePlaceholder]}>
+                    <ImageIcon size={60} color={Colors.dark.textSecondary} />
+                  </View>
+                )}
+
+                <View style={styles.detailsInfoContainer}>
+                  <Text style={styles.detailsName}>{detailsItem.name}</Text>
+                  <Text style={styles.detailsCategory}>{detailsItem.category}</Text>
+                  <Text style={styles.detailsPrice}>₹{detailsItem.price}</Text>
+                </View>
+
+                <View style={styles.detailsDivider} />
+
+                <Text style={styles.sectionLabel}>{t('menu.management.recipe')}</Text>
+
+                {detailsIngredients.length > 0 ? (
+                  <View style={styles.detailsIngredientsList}>
+                    {detailsIngredients.map((ing, index) => (
+                      <View key={index} style={styles.detailsIngredientRow}>
+                        <Text style={styles.detailsIngredientName}>{ing.name}</Text>
+                        <Text style={styles.detailsIngredientQty}>{ing.quantity} {ing.unit}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.noIngredientsText}>{t('menu.management.noIngredients')}</Text>
+                )}
+
+                <TouchableOpacity
+                  style={styles.closeDetailsButton}
+                  onPress={() => setShowDetailsModal(false)}
+                >
+                  <Text style={styles.closeDetailsButtonText}>{t('common.close')}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
@@ -798,8 +876,8 @@ const styles = StyleSheet.create({
   categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: Colors.dark.secondary,
     borderRadius: 20,
+    backgroundColor: Colors.dark.secondary,
     marginRight: 8,
     borderWidth: 1,
     borderColor: Colors.dark.border,
@@ -817,6 +895,87 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: 'bold',
   },
+
+  // Details Modal Styles
+  detailsImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 16,
+    resizeMode: 'cover',
+  },
+  detailsCardImagePlaceholder: {
+    backgroundColor: Colors.dark.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailsInfoContainer: {
+    marginBottom: 16,
+  },
+  detailsName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.dark.text,
+    marginBottom: 4,
+  },
+  detailsCategory: {
+    fontSize: 16,
+    color: Colors.dark.textSecondary,
+    marginBottom: 8,
+  },
+  detailsPrice: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.dark.primary,
+  },
+  detailsDivider: {
+    height: 1,
+    backgroundColor: Colors.dark.border,
+    marginVertical: 16,
+  },
+  detailsIngredientsList: {
+    backgroundColor: Colors.dark.secondary,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+  },
+  detailsIngredientRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.dark.border + '40', // transparent border
+  },
+  detailsIngredientName: {
+    fontSize: 16,
+    color: Colors.dark.text,
+  },
+  detailsIngredientQty: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.dark.text,
+  },
+  noIngredientsText: {
+    color: Colors.dark.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  closeDetailsButton: {
+    marginTop: 24,
+    backgroundColor: Colors.dark.secondary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  closeDetailsButtonText: {
+    color: Colors.dark.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
   itemsList: {
     flex: 1,
   },
@@ -1082,6 +1241,12 @@ const styles = StyleSheet.create({
     maxHeight: 150,
     borderWidth: 1,
     borderColor: Colors.dark.border,
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    elevation: 5,
   },
   ingredientResultItem: {
     padding: 12,
@@ -1097,40 +1262,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   linkedIngredientsList: {
-    marginTop: 8,
-    gap: 8,
+    marginTop: 12,
+    gap: 12,
   },
   linkedIngredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.dark.secondary,
-    padding: 8,
-    borderRadius: 8,
-    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   linkedIngredientName: {
     flex: 1,
     color: Colors.dark.text,
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
   },
   linkedIngredientInput: {
     backgroundColor: Colors.dark.inputBackground,
     color: Colors.dark.text,
     borderWidth: 1,
     borderColor: Colors.dark.border,
-    borderRadius: 4,
-    padding: 4,
-    width: 60,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    width: 80,
+    fontSize: 16,
     textAlign: 'center',
   },
   linkedIngredientUnit: {
     color: Colors.dark.textSecondary,
-    fontSize: 12,
-    width: 30,
+    fontSize: 14,
+    fontWeight: '500',
+    width: 40,
   },
   removeIngredientButton: {
-    padding: 4,
+    padding: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 8,
   },
 
   suggestionList: {

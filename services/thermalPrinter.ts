@@ -305,7 +305,7 @@ export function previewAddedItemsReceipt(
  * Creates a text-based receipt suitable for 58mm thermal printers
  */
 export function formatPaymentReceipt(payment: PaymentReceipt): string {
-    const width = 28; // Optimized for 57mm thermal paper
+    const width = 32; // Optimized for 58mm thermal paper (standard)
     const timestamp = payment.timestamp || new Date();
 
     // Helper functions
@@ -339,12 +339,13 @@ export function formatPaymentReceipt(payment: PaymentReceipt): string {
     receipt += line('=') + '\n';
 
     // Order Info
-    receipt += leftRight('Order #:', payment.orderId) + '\n';
+    receipt += leftRight('Order #:', payment.orderId.substring(0, 10)) + '\n';
 
     if (payment.tableNo) {
         const tableText = typeof payment.tableNo === 'number'
             ? `Table ${payment.tableNo}`
             : payment.tableNo;
+        // Ensure table text fits
         receipt += leftRight('Table:', tableText.toString()) + '\n';
     }
 
@@ -395,30 +396,19 @@ export function formatPaymentReceipt(payment: PaymentReceipt): string {
     receipt += line('-') + '\n';
     receipt += leftRight('Method:', payment.paymentMethod) + '\n';
 
-    // Smart handling for Trans ID
-    // 1. If short enough, one line
-    // 2. If long, split or show last chars
-    if (payment.transactionId.length <= (width - 10)) {
-        receipt += leftRight('Trans ID:', payment.transactionId) + '\n';
+    // Trans ID handling
+    const transId = payment.transactionId || 'N/A';
+    if (transId.length > 20) {
+        receipt += leftRight('Trans ID:', '') + '\n';
+        receipt += center(transId) + '\n';
     } else {
-        receipt += 'Trans ID:' + '\n';
-        receipt += payment.transactionId + '\n';
+        receipt += leftRight('Trans ID:', transId) + '\n';
     }
 
     receipt += leftRight('Status:', 'PAID') + '\n';
-    receipt += line('-') + '\n';
-
-    // Footer
-    receipt += '\n';
-    receipt += center('Thank you! Visit again') + '\n';
-    receipt += '\n';
-
-    // Order Type
-    if (payment.orderType) {
-        receipt += center(`[ ${payment.orderType.toUpperCase()} ]`) + '\n';
-    }
 
     receipt += '\n';
+    receipt += center('*** Thank You ***') + '\n';
     receipt += '\n\n';
 
     return receipt;
@@ -457,4 +447,3 @@ export async function printPaymentReceipt(
         };
     }
 }
-

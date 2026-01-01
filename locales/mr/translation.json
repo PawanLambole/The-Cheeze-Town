@@ -103,7 +103,7 @@
             "pendingOrders": "प्रलंबित ऑर्डर",
             "todaysRevenue": "आजचे उत्पन्न",
             "todaysExpense": "आजचा खर्च",
-            "financialOverview": "आर्थिक विहंगावलोकन (आज)",
+            "financialOverview": "आर्थिक व्यवहार (आज)",
             "totalSales": "एकूण विक्री",
             "totalExpense": "एकूण खर्च",
             "netProfit": "निव्वळ नफा",
@@ -116,7 +116,7 @@
         "owner": {
             "title": "मालक प्रशासन डॅशबोर्ड",
             "businessOverview": "व्यवसाय विहंगावलोकन",
-            "financialOverview": "आर्थिक विहंगावलोकन (आज)",
+            "financialOverview": "आर्थिक व्यवहार (आज)",
             "todaysRevenue": "आजचा महसूल",
             "todaysEarnings": "आजची कमाई",
             "todaysOrders": "आजच्या ऑर्डर्स",
@@ -572,7 +572,10 @@
             "deleteMessage": "तुम्हाला खात्री आहे की तुम्ही \"{{name}}\" हटवू इच्छिता? ही क्रिया पूर्ववत करता येणार नाही.",
             "addFailed": "आयटम जोडण्यास अयशस्वी",
             "updateFailed": "आयटम अपडेट करण्यास अयशस्वी",
-            "deleteFailed": "आयटम हटवण्यास अयशस्वी"
+            "deleteFailed": "आयटम हटवण्यास अयशस्वी",
+            "itemDetails": "आयटम तपशील",
+            "recipe": "रेसिपी / साहित्य",
+            "noIngredients": "कोणतेही साहित्य जोडलेले नाही."
         }
     },
     "time": {

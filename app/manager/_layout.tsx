@@ -1,4 +1,4 @@
-import { View, Platform, Text } from 'react-native';
+import { View, Platform, Text, Image } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Home, User, UtensilsCrossed, PlusCircle, Users } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -87,8 +87,12 @@ export default function TabLayout() {
                 ...(Platform.OS === 'web' && {
                   boxShadow: `0 4px 8px rgba(251, 191, 36, 0.3)`,
                 }),
+                overflow: 'hidden',
               }}>
-              <PlusCircle size={30} color="#000000" />
+              <Image
+                source={require('../../assets/images/logo.png')}
+                style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+              />
             </View>
           ),
         }}

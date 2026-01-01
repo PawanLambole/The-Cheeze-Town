@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Share, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Share, Platform, ActivityIndicator, Alert, Image } from 'react-native';
 import { X, Share2, Printer } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import intentPrinterService from '@/services/IntentPrinterService';
+import { formatPaymentReceipt } from '@/services/thermalPrinter';
+import * as FileSystem from 'expo-file-system';
+import { Asset } from 'expo-asset';
+
+
 
 interface ReceiptViewerProps {
     visible: boolean;
     onClose: () => void;
     receipt: string;
+    receiptData?: any; // Start optional to avoid strict type refactor across all files immediately
     title?: string;
     onConfirm?: () => Promise<void> | void;
 }
@@ -18,7 +24,7 @@ interface ReceiptViewerProps {
  * Displays formatted thermal printer receipt in the app
  * Uses external printer apps for printing (e.g., RawBT Print Service)
  */
-export default function ReceiptViewer({ visible, onClose, receipt, title, onConfirm }: ReceiptViewerProps) {
+export default function ReceiptViewer({ visible, onClose, receipt, receiptData, title, onConfirm }: ReceiptViewerProps) {
     const { t } = useTranslation();
     const [loading, setLoading] = useState(false);
     const [printing, setPrinting] = useState(false);
@@ -41,16 +47,22 @@ export default function ReceiptViewer({ visible, onClose, receipt, title, onConf
                 return;
             }
 
-            // Directly open external printer app
-            try {
+            if (receiptData) {
+                try {
+                    const formattedReceipt = formatPaymentReceipt(receiptData);
+                    await intentPrinterService.printViaRawBT(formattedReceipt);
+                } catch (err: any) {
+                    console.error('Print Failed:', err);
+                    await intentPrinterService.printViaRawBT(receipt);
+                }
+            } else {
+                // Simple Text Printing (Kitchen or others without explicit data structure)
                 await intentPrinterService.printViaRawBT(receipt);
-            } catch (err: any) {
-                Alert.alert('Print Error', err.message || 'Failed to print. Make sure RawBT Print Service or similar app is installed.');
-            } finally {
-                setPrinting(false);
             }
+
         } catch (error: any) {
             Alert.alert('Print Error', error.message || 'Failed to print receipt');
+        } finally {
             setPrinting(false);
         }
     };
@@ -108,7 +120,46 @@ export default function ReceiptViewer({ visible, onClose, receipt, title, onConf
                         showsVerticalScrollIndicator={true}
                     >
                         <View style={styles.receiptPaper}>
-                            <Text style={styles.receiptText}>{receipt}</Text>
+                            {(() => {
+                                // Split receipt into lines
+                                const lines = receipt.split('\n');
+                                // Assuming first 3 non-empty lines are header (Name, Title, Date)
+                                // We need to be careful with empty lines if any.
+                                // formatPaymentReceipt starts with \n, so line 0 is empty.
+                                // line 1: THE CHEEZE TOWN, line 2: Title, line 3: Date.
+
+                                // Let's find index where divider starts
+                                const dividerIndex = lines.findIndex(l => l.includes('=====') || l.includes('-----'));
+
+                                let headerLines: string[] = [];
+                                let bodyText = receipt;
+
+                                if (dividerIndex > 0) {
+                                    // Extract header lines (trimming whitespace/centering)
+                                    headerLines = lines.slice(0, dividerIndex).filter(l => l.trim().length > 0).map(l => l.trim());
+                                    // Reconstruct body
+                                    bodyText = lines.slice(dividerIndex).join('\n');
+                                }
+
+                                return (
+                                    <>
+                                        <View style={styles.headerContainer}>
+                                            {/* Logo removed as per request */}
+                                            <View style={styles.headerTextContainer}>
+                                                {headerLines.map((line, index) => (
+                                                    <Text key={index} style={[
+                                                        styles.receiptHeaderText,
+                                                        index === 0 && styles.receiptRestaurantName
+                                                    ]}>
+                                                        {line}
+                                                    </Text>
+                                                ))}
+                                            </View>
+                                        </View>
+                                        <Text style={styles.receiptText}>{bodyText}</Text>
+                                    </>
+                                );
+                            })()}
                         </View>
                     </ScrollView>
 
@@ -224,14 +275,43 @@ const styles = StyleSheet.create({
         width: '100%',
         maxWidth: 380,
     },
-    receiptText: {
+    headerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        gap: 12,
+    },
+    logo: {
+        width: 45,
+        height: 45,
+    },
+    headerTextContainer: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    receiptHeaderText: {
         fontFamily: Platform.select({
             ios: 'Courier',
             android: 'monospace',
             default: 'monospace',
         }),
         fontSize: 12,
-        lineHeight: 16,
+        color: '#1F2937',
+        textAlign: 'center',
+        marginBottom: 2,
+    },
+    receiptRestaurantName: {
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    receiptText: {
+        fontFamily: Platform.select({
+            ios: 'Courier',
+            android: 'monospace',
+            default: 'monospace',
+        }),
+        fontSize: 10,
+        lineHeight: 14,
         color: '#1F2937',
         textAlign: 'left',
     },

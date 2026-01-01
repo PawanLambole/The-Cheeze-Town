@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard, Plus, Filter } from 'lucide-react-native';
+import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard, Plus, Filter, Printer } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import PaymentModal from '@/components/PaymentModal';
 import { printAddedItemsReceipt, printPaymentReceipt } from '../../services/thermalPrinter';
@@ -64,6 +64,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showReceipt, setShowReceipt] = useState(false);
     const [currentReceipt, setCurrentReceipt] = useState('');
+    const [currentReceiptData, setCurrentReceiptData] = useState<any>(null);
 
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [activeFilters, setActiveFilters] = useState<OrderFilterState>({
@@ -314,6 +315,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
         setShowOrderModal(true);
     };
 
+
     const toggleOrderStatus = async (orderId: string) => {
         const order = orders.find(o => o.id === orderId);
         if (!order || order.isCompleted) return;
@@ -340,6 +342,34 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
         } catch (e) {
             console.error("Error updating order status:", e);
             alert("Failed to update status");
+        }
+    };
+
+    const handlePrintBill = async (order: Order) => {
+        try {
+            const paymentReceiptData = {
+                orderId: order.orderId,
+                tableNo: order.tableNo,
+                customerName: order.customerName,
+                items: order.items,
+                subtotal: order.totalAmount,
+                totalAmount: order.totalAmount,
+                paymentMethod: order.paymentMethod || 'Cash',
+                transactionId: order.transactionId || 'N/A',
+                timestamp: new Date(order.createdAt),
+                orderType: order.tableNo ? 'dine-in' : 'takeaway' as 'dine-in' | 'takeaway'
+            };
+
+            const result = await printPaymentReceipt(paymentReceiptData);
+
+            if (result.success && result.receipt) {
+                setCurrentReceipt(result.receipt);
+                setCurrentReceiptData(paymentReceiptData);
+                setShowReceipt(true);
+            }
+        } catch (error) {
+            console.error('Error printing bill:', error);
+            Alert.alert(t('common.error'), t('manager.orders.receiptError'));
         }
     };
 
@@ -519,7 +549,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                 </View>
 
                                 <View style={styles.footerRight}>
-                                    {!order.isCompleted && (
+                                    {!order.isCompleted ? (
                                         <TouchableOpacity
                                             style={styles.addItemButtonCard}
                                             onPress={(e) => {
@@ -530,6 +560,17 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                         >
                                             <Plus size={14} color="#000000" />
                                             <Text style={styles.addItemButtonCardText}>{t('manager.orders.addItem')}</Text>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={styles.billButton}
+                                            onPress={(e) => {
+                                                e.stopPropagation();
+                                                handlePrintBill(order);
+                                            }}
+                                        >
+                                            <Printer size={14} color="#000000" />
+                                            <Text style={styles.billButtonText}>{t('manager.orders.printBill')}</Text>
                                         </TouchableOpacity>
                                     )}
                                     <Text style={styles.totalAmount}>₹{order.totalAmount.toFixed(2)}</Text>
@@ -1114,6 +1155,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                 visible={showReceipt}
                 onClose={() => setShowReceipt(false)}
                 receipt={currentReceipt}
+                receiptData={currentReceiptData}
                 title="Receipt"
             />
             {/* Filter Modal */}
@@ -1447,7 +1489,23 @@ const styles = StyleSheet.create({
     },
     addItemButtonCardText: {
         fontSize: 12,
-        fontWeight: '600',
+        fontWeight: '500',
+        color: '#000000',
+    },
+    billButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E5E7EB',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+        gap: 6,
+        borderWidth: 1,
+        borderColor: '#D1D5DB'
+    },
+    billButtonText: {
+        fontSize: 12,
+        fontWeight: '500',
         color: '#000000',
     },
     totalAmount: {

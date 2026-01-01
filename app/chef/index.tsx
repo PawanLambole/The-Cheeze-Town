@@ -141,10 +141,10 @@ export default function ChefDashboard() {
                 const newItem = payload.new;
                 const orderId = newItem.order_id;
 
-                // Fetch the parent order to check its age
+                // Fetch the parent order to check its age and status
                 const { data: orderData } = await supabase
                     .from('orders')
-                    .select('created_at, order_number, table_id, total_amount')
+                    .select('created_at, order_number, table_id, total_amount, status')
                     .eq('id', orderId)
                     .single();
 
@@ -156,6 +156,20 @@ export default function ChefDashboard() {
                     // If order is older than 30 seconds, treat items as an UPDATE
                     if (ageInSeconds > 30) {
                         console.log(`🔔 Update detected for Order #${orderData.order_number} (+${newItem.quantity} ${newItem.menu_item_name})`);
+
+                        // If the order was already completed/ready, move it back to pending so chef sees it
+                        if (['ready', 'served', 'completed'].includes(orderData.status || '')) {
+                            await supabase
+                                .from('orders')
+                                .update({
+                                    status: 'pending',
+                                    is_served: false,
+                                    prepared_time: null, // Reset prepared time so it's not sorted as old? Maybe optional.
+                                    completed_time: null
+                                })
+                                .eq('id', orderId);
+                            console.log('↺ Reverted order status to pending for update');
+                        }
 
                         // Batching logic
                         if (!updateQueue.current[orderId]) {
