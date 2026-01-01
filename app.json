@@ -2,7 +2,7 @@
   "expo": {
     "name": "The Cheese Town",
     "slug": "the-cheese-town",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "myapp",
@@ -12,7 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#121212"
     },
-    "runtimeVersion": "1.1.0",
+    "runtimeVersion": "1.1.1",
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
@@ -28,7 +28,7 @@
       }
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 3,
       "package": "com.cheesetown.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
