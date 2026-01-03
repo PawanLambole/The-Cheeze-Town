@@ -43,8 +43,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setUserData(profile as AppUser);
                     }
                 }
-            } catch (error) {
-                console.error('Unexpected error during session check:', error);
+            } catch (error: any) {
+                console.error('Session check error:', error);
+
+                // Handle invalid refresh token specifically
+                if (error?.message?.includes('Refresh Token Not Found') ||
+                    error?.name === 'AuthApiError' ||
+                    JSON.stringify(error).includes('Invalid Refresh Token')) {
+                    console.log('🔄 Invalid refresh token detected, signing out...');
+                    await supabase.auth.signOut();
+                    setUserData(null);
+                }
             } finally {
                 setLoading(false);
             }

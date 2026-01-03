@@ -86,7 +86,7 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
                         }
                     }
 
-                    // Show update dialog
+                    // Show update dialog (Runtime updates are always treated as optional/dismissible)
                     setShowUpdateDialog(true);
                 }
             } catch (error) {
@@ -120,7 +120,7 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
     };
 
     const handleDismissUpdate = async () => {
-        if (updateResult?.latestVersion && !updateResult.isMandatory) {
+        if (updateResult?.latestVersion) {
             await updateService.dismissUpdate(updateResult.latestVersion.version_code);
             setShowUpdateDialog(false);
         }
@@ -129,12 +129,7 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
     // Check for updates on mount
     useEffect(() => {
         if (checkOnMount) {
-            // Delay initial check by 2 seconds to let app initialize
-            const timer = setTimeout(() => {
-                checkForUpdate();
-            }, 2000);
-
-            return () => clearTimeout(timer);
+            checkForUpdate();
         }
     }, [checkOnMount, checkForUpdate]);
 
@@ -171,10 +166,10 @@ export const UpdateProvider: React.FC<UpdateProviderProps> = ({
                 <UpdateDialog
                     visible={showUpdateDialog}
                     version={updateResult.latestVersion}
-                    isMandatory={updateResult.isMandatory}
+                    isMandatory={false} // Runtime updates are never mandatory
                     currentVersion={currentVersion}
                     onUpdate={handleUpdate}
-                    onDismiss={updateResult.isMandatory ? undefined : handleDismissUpdate}
+                    onDismiss={handleDismissUpdate}
                 />
             )}
         </UpdateContext.Provider>

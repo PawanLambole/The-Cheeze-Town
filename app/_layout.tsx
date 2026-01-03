@@ -79,19 +79,22 @@ function RootLayoutNav() {
 }
 
 import AnimatedSplashScreen from '@/components/AnimatedSplashScreen';
+import { BootUpdateGate } from '@/components/BootUpdateGate';
 
 export default function RootLayout() {
   useFrameworkReady();
 
   return (
-    <AnimatedSplashScreen>
-      <AuthProvider>
-        <NotificationSettingsProvider>
-          <UpdateProvider checkOnMount={true} checkOnResume={true} checkInterval={24}>
-            <RootLayoutNav />
-          </UpdateProvider>
-        </NotificationSettingsProvider>
-      </AuthProvider>
-    </AnimatedSplashScreen>
+    <BootUpdateGate>
+      <AnimatedSplashScreen>
+        <AuthProvider>
+          <NotificationSettingsProvider>
+            <UpdateProvider checkOnMount={false} checkOnResume={true} checkInterval={24}>
+              <RootLayoutNav />
+            </UpdateProvider>
+          </NotificationSettingsProvider>
+        </AuthProvider>
+      </AnimatedSplashScreen>
+    </BootUpdateGate>
   );
 }
