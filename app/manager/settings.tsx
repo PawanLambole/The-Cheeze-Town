@@ -146,7 +146,7 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
               icon={<Globe size={20} color={Colors.dark.primary} />}
               title={t('manager.settings.restaurantInfo')}
               subtitle={t('manager.settings.restaurantInfoSubtitle')}
-              onPress={() => Alert.alert(t('manager.settings.comingSoon'), t('manager.settings.featureComingSoon'))}
+              onPress={() => router.push('/manager/restaurant-info')}
             />
             {!isOwner && (
               <SettingItem

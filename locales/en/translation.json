@@ -237,7 +237,15 @@
             "featureComingSoon": "This feature will be available in the next update.",
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy",
-            "termsAndConditions": "Terms and Conditions"
+            "termsAndConditions": "Terms and Conditions",
+            "restaurantDetails": {
+                "title": "Restaurant Information",
+                "phone": "Phone",
+                "email": "Email",
+                "location": "Location",
+                "callUs": "Call us for immediate assistance",
+                "emailUs": "Send us an email anytime"
+            }
         },
         "orders": {
             "title": "Orders",

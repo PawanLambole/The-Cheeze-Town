@@ -28,7 +28,17 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
 
     useEffect(() => {
         checkBootUpdates();
-    }, []);
+
+        // Failsafe: Force ready after 8 seconds if checks hang
+        const failsafeTimeout = setTimeout(() => {
+            if (!isReady) {
+                console.warn('Boot checks timed out, forcing app load...');
+                setIsReady(true);
+            }
+        }, 8000);
+
+        return () => clearTimeout(failsafeTimeout);
+    }, [isReady]);
 
     // Block back button if regular Mandatory Update is active
     useEffect(() => {

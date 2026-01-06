@@ -26,9 +26,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const checkSession = async () => {
             try {
-                const { data: userResult } = await supabase.auth.getUser();
+                // Create a timeout promise that rejects after 5 seconds
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Session check timed out')), 5000)
+                );
 
-                if (userResult.user) {
+                // Race the session check against the timeout
+                const { data: userResult } = await Promise.race([
+                    supabase.auth.getUser(),
+                    timeoutPromise
+                ]) as any;
+
+                if (userResult?.user) {
                     const { data: profile, error } = await supabase
                         .from('users')
                         .select('id, email, name, role, phone')
@@ -44,7 +53,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
                 }
             } catch (error: any) {
-                console.error('Session check error:', error);
+                if (error.message === 'Session check timed out') {
+                    console.warn('⚠️ Session check timed out - defaulting to signed out state.');
+                } else {
+                    console.error('Session check error:', error);
+                }
 
                 // Handle invalid refresh token specifically
                 if (error?.message?.includes('Refresh Token Not Found') ||

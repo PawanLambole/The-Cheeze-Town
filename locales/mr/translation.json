@@ -237,7 +237,15 @@
             "featureComingSoon": "हे वैशिष्ट्य पुढील अपडेटमध्ये उपलब्ध होईल.",
             "termsOfService": "सेवा अटी",
             "privacyPolicy": "गोपनीयता धोरण",
-            "termsAndConditions": "अटी व शर्ती"
+            "termsAndConditions": "अटी व शर्ती",
+            "restaurantDetails": {
+                "title": "रेस्टॉरंट माहिती",
+                "phone": "फोन",
+                "email": "ईमेल",
+                "location": "स्थान",
+                "callUs": "तातडीच्या मदतीसाठी आम्हाला कॉल करा",
+                "emailUs": "आम्हाला कधीही ईमेल पाठवा"
+            }
         },
         "orders": {
             "title": "ऑर्डर",

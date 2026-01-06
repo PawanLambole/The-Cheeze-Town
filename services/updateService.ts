@@ -124,11 +124,18 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
 
     try {
         // Call Supabase function to check for updates
+        // Call Supabase function to check for updates with timeout
         // @ts-ignore - Type will be available after database migration
-        const { data, error } = await (supabase.rpc as any)('check_update_required', {
+        const rpcPromise = (supabase.rpc as any)('check_update_required', {
             p_current_version_code: currentVersion.code,
             p_platform: platform,
         });
+
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Update check timed out')), 5000)
+        );
+
+        const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
 
         if (error) {
             console.error('Error checking for update:', error);
@@ -167,8 +174,12 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
             } : null,
             currentVersion,
         };
-    } catch (error) {
-        console.error('Error in checkForUpdate:', error);
+    } catch (error: any) {
+        if (error.message === 'Update check timed out') {
+            console.warn('⚠️ Update check timed out - skipping update check.');
+        } else {
+            console.error('Error in checkForUpdate:', error);
+        }
         return {
             updateRequired: false,
             isMandatory: false,

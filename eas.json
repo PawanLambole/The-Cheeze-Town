@@ -22,7 +22,14 @@
             "android": {
                 "buildType": "apk"
             },
-            "channel": "production"
+            "channel": "production",
+            "cache": {
+                "key": "production-cache",
+                "cacheDefaultPaths": true,
+                "customPaths": [
+                    "node_modules"
+                ]
+            }
         }
     },
     "submit": {
