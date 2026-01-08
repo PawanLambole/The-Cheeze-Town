@@ -26,16 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const checkSession = async () => {
             try {
-                // Create a timeout promise that rejects after 5 seconds
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Session check timed out')), 5000)
-                );
-
-                // Race the session check against the timeout
-                const { data: userResult } = await Promise.race([
-                    supabase.auth.getUser(),
-                    timeoutPromise
-                ]) as any;
+                // Direct session check without timeout
+                const { data: userResult } = await supabase.auth.getUser();
 
                 if (userResult?.user) {
                     const { data: profile, error } = await supabase
@@ -53,11 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
                 }
             } catch (error: any) {
-                if (error.message === 'Session check timed out') {
-                    console.warn('⚠️ Session check timed out - defaulting to signed out state.');
-                } else {
-                    console.error('Session check error:', error);
-                }
+                console.error('Session check error:', error);
 
                 // Handle invalid refresh token specifically
                 if (error?.message?.includes('Refresh Token Not Found') ||
@@ -99,31 +87,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const signIn = async (email: string, password: string) => {
         console.log('🔐 Attempting sign in for:', email);
-        const result = await supabase.auth.signInWithPassword({ email, password });
+        const startTotal = Date.now();
 
-        console.log('Auth result:', result.error ? '❌ Error: ' + result.error.message : '✅ Success');
+        try {
+            // 1. Auth Login
+            console.log('⏳ Starting Supabase Auth...');
+            const startAuth = Date.now();
 
-        if (result.data?.user) {
-            console.log('👤 User ID:', result.data.user.id);
-            const { data: profile, error: profileError } = await supabase
-                .from('users')
-                .select('id, email, name, role, phone')
-                .eq('id', result.data.user.id)
-                .maybeSingle();
+            const result = await supabase.auth.signInWithPassword({ email, password });
 
-            console.log('Profile fetch:', profileError ? '❌ Error: ' + profileError.message : profile ? '✅ Found' : '⚠️ Not found');
+            const endAuth = Date.now();
+            console.log(`✅ Supabase Auth completed in ${endAuth - startAuth}ms`);
 
-            if (profile) {
-                setUserData(profile as AppUser);
+            console.log('Auth result:', result.error ? '❌ Error: ' + result.error.message : '✅ Success');
+
+            if (result.data?.user) {
+                console.log('👤 User ID:', result.data.user.id);
+
+                // 2. Profile Fetch
+                console.log('⏳ Fetching user profile...');
+                const startProfile = Date.now();
+
+                const { data: profile, error: profileError } = await supabase
+                    .from('users')
+                    .select('id, email, name, role, phone')
+                    .eq('id', result.data.user.id)
+                    .maybeSingle();
+
+                const endProfile = Date.now();
+                console.log(`✅ Profile fetch completed in ${endProfile - startProfile}ms`);
+
+                console.log('Profile fetch:', profileError ? '❌ Error: ' + profileError.message : profile ? '✅ Found' : '⚠️ Not found');
+
+                if (profile) {
+                    setUserData(profile as AppUser);
+                }
             }
-        }
 
-        return result;
+            console.log(`🏁 Total Login Process took ${Date.now() - startTotal}ms`);
+            return result;
+        } catch (error: any) {
+            console.error('Sign in exception:', error);
+            // Return error format matching Supabase response so UI handles it
+            return { data: { user: null, session: null }, error: error };
+        }
     };
 
     const signOut = async () => {
-        await supabase.auth.signOut();
-        setUserData(null);
+        try {
+            await supabase.auth.signOut();
+        } catch (error) {
+            console.error('Error signing out from Supabase:', error);
+        } finally {
+            setUserData(null);
+        }
     };
 
     return (

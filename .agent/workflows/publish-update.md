@@ -44,15 +44,13 @@ git commit -m "feat: your feature description"
 git push
 ```
 
-### 4. Update version in app.json (for tracking)
-Update the version field in `app.json` if you want to track the change:
-```json
-{
-  "expo": {
-    "version": "1.0.1"
-  }
-}
-```
+### 4. Update version in .env (for tracking)
+This repo reads version/runtimeVersion from `.env` via `app.config.js`.
+
+Update these in your `.env` (single source of truth):
+- `EXPO_PUBLIC_APP_VERSION`
+- `EXPO_PUBLIC_ANDROID_VERSION_CODE` (Android build number)
+- `EXPO_PUBLIC_IOS_BUILD_NUMBER` (iOS build number, if used)
 
 ### 5. Publish OTA update
 ```bash
@@ -80,9 +78,9 @@ INSERT INTO app_versions (
   release_notes,
   update_message
 ) VALUES (
-  '1.0.1',  -- Match app.json version
-  101,      -- Increment version code
-  '1.0.0',  -- Must match app.json runtimeVersion
+  'YOUR_APP_VERSION',
+  YOUR_VERSION_CODE,
+  'YOUR_RUNTIME_VERSION',
   'all',    -- 'android', 'ios', or 'all'
   'ota',
   false,    -- Set to true for mandatory updates
@@ -92,8 +90,8 @@ INSERT INTO app_versions (
 
 -- Update current version config
 UPDATE app_config SET
-  current_version_name = '1.0.1',
-  current_version_code = 101,
+  current_version_name = 'YOUR_APP_VERSION',
+  current_version_code = YOUR_VERSION_CODE,
   updated_at = NOW()
 WHERE id = 1;
 ```
@@ -112,22 +110,12 @@ Make the necessary code/configuration changes.
 
 ### 2. Update version numbers
 
-In `app.json`:
-```json
-{
-  "expo": {
-    "version": "1.1.0",
-    "runtimeVersion": "1.1.0"  // Increment if native changes
-  }
-}
-```
+This repo uses `.env` as the single source of truth for versioning (via `app.config.js`).
 
-In `package.json` (optional but recommended):
-```json
-{
-  "version": "1.1.0"
-}
-```
+Update these in your `.env`:
+- `EXPO_PUBLIC_APP_VERSION` (drives both `expo.version` and `expo.runtimeVersion`)
+- `EXPO_PUBLIC_ANDROID_VERSION_CODE` (Android `versionCode`)
+- `EXPO_PUBLIC_IOS_BUILD_NUMBER` (iOS `buildNumber`, if used)
 
 ### 3. Test locally
 ```bash
@@ -177,22 +165,22 @@ INSERT INTO app_versions (
   release_notes,
   update_message
 ) VALUES (
-  '1.1.0',
-  110,
-  '1.1.0',  -- Match app.json runtimeVersion
+  'YOUR_APP_VERSION',
+  YOUR_VERSION_CODE,
+  'YOUR_RUNTIME_VERSION',
   'android',
   'native',
   true,  -- Usually true for native updates
-  'https://your-domain.com/downloads/cheeze-town-v1.1.0.apk',
+  'https://your-domain.com/downloads/cheeze-town-vYOUR_APP_VERSION.apk',
   'Major update with new features and improvements',
   'A major update is available! Please download and install.'
 );
 
 -- Update current version config and force update
 UPDATE app_config SET
-  current_version_name = '1.1.0',
-  current_version_code = 110,
-  min_supported_version_code = 110,  -- Force users below this to update
+  current_version_name = 'YOUR_APP_VERSION',
+  current_version_code = YOUR_VERSION_CODE,
+  min_supported_version_code = YOUR_VERSION_CODE,  -- Force users below this to update
   force_update_enabled = true,
   updated_at = NOW()
 WHERE id = 1;

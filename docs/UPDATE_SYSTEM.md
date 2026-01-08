@@ -22,7 +22,7 @@ The app update system has been implemented with support for both:
 
 ### 4. Configuration
 - `eas.json`: EAS Build and Update configuration
-- `app.json`: Runtime version and update settings updated
+- `app.config.js`: Reads version/runtimeVersion/build numbers from `.env`
 
 ## Setup Instructions
 
@@ -122,9 +122,9 @@ INSERT INTO app_versions (
   release_notes,
   update_message
 ) VALUES (
-  '1.0.1',
-  101,
-  '1.0.0',  -- Must match app.json runtimeVersion
+  'YOUR_APP_VERSION',
+  YOUR_VERSION_CODE,
+  'YOUR_RUNTIME_VERSION',  -- Must match the app's runtimeVersion (same value used by Expo Updates)
   'all',
   'ota',
   false,
@@ -133,23 +133,18 @@ INSERT INTO app_versions (
 );
 
 UPDATE app_config SET
-  current_version_name = '1.0.1',
-  current_version_code = 101
+  current_version_name = 'YOUR_APP_VERSION',
+  current_version_code = YOUR_VERSION_CODE
 WHERE id = 1;
 ```
 
 ### Native Updates (APK changes)
 
-1. Update version in app.json:
-```json
-{
-  "expo": {
-    "version": "1.1.0"
-  }
-}
-```
+1. Update version/build numbers in your `.env` (single source of truth):
 
-2. Update version in package.json if needed
+- `EXPO_PUBLIC_APP_VERSION` (used for both `expo.version` and `expo.runtimeVersion` via `app.config.js`)
+- `EXPO_PUBLIC_ANDROID_VERSION_CODE` (maps to `android.versionCode`)
+- `EXPO_PUBLIC_IOS_BUILD_NUMBER` (maps to `ios.buildNumber`, if/when iOS is used)
 
 3. Build APK:
 ```bash
@@ -171,21 +166,21 @@ INSERT INTO app_versions (
   release_notes,
   update_message
 ) VALUES (
-  '1.1.0',
-  110,
-  '1.1.0',
+  'YOUR_APP_VERSION',
+  YOUR_VERSION_CODE,
+  'YOUR_RUNTIME_VERSION',
   'android',
   'native',
   true,  -- Mandatory if breaking changes
-  'https://your-website.com/downloads/app-v1.1.0.apk',
+  'https://your-website.com/downloads/app-vYOUR_APP_VERSION.apk',
   'Major update with new features',
   'A major update is available with exciting new features!'
 );
 
 UPDATE app_config SET
-  current_version_name = '1.1.0',
-  current_version_code = 110,
-  min_supported_version_code = 110  -- Force update
+  current_version_name = 'YOUR_APP_VERSION',
+  current_version_code = YOUR_VERSION_CODE,
+  min_supported_version_code = YOUR_VERSION_CODE  -- Force update
 WHERE id = 1;
 ```
 
@@ -198,6 +193,8 @@ WHERE id = 1;
   - Changing native code
   - Updating Expo SDK
   - Changing permissions
+
+Note: This repo uses `app.config.js` to set `runtimeVersion` from `EXPO_PUBLIC_APP_VERSION`, so bumping `EXPO_PUBLIC_APP_VERSION` is what changes the runtime version.
 
 ## Testing Updates
 

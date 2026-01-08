@@ -2,7 +2,7 @@
   "expo": {
     "name": "The Cheese Town",
     "slug": "the-cheese-town",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "myapp",
@@ -12,7 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#121212"
     },
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": "1.1.0",
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",

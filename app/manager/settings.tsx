@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, ChevronRight, Lock, Globe, IndianRupee, Printer, Database, Info, LogOut, Languages } from 'lucide-react-native';
@@ -73,25 +73,36 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      t('manager.profile.logout'),
-      t('common.logoutConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('manager.profile.logout'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-              router.replace('/login');
-            } catch (error) {
-              console.error('Error signing out:', error);
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('manager.profile.logout') + '\n\n' + t('common.logoutConfirm'))) {
+        try {
+          await signOut();
+          // Root layout will handle redirect
+        } catch (error) {
+          console.error('Error signing out:', error);
+        }
+      }
+    } else {
+      Alert.alert(
+        t('manager.profile.logout'),
+        t('common.logoutConfirm'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('manager.profile.logout'),
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await signOut();
+                // Root layout will handle redirect
+              } catch (error) {
+                console.error('Error signing out:', error);
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   return (

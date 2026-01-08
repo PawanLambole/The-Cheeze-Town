@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, RefreshControl, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, RefreshControl, Switch, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LogOut, Clock, CheckCircle, Settings, Bell, X, Volume2 } from 'lucide-react-native';
+import * as Notifications from 'expo-notifications';
 import * as Speech from 'expo-speech';
 import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
@@ -113,6 +114,39 @@ export default function ChefDashboard() {
         // Load sound service
         soundService.loadSound();
 
+        // DEBUG: Check Notification Channel Status
+        if (Platform.OS === 'android') {
+            Notifications.getNotificationChannelsAsync().then(channels => {
+                const channel = channels.find(c => c.id === 'Orders_v4');
+                if (channel) {
+                    console.log('✅ Channel Status:', channel);
+                    if (channel.importance !== Notifications.AndroidImportance.MAX) {
+                        Alert.alert(
+                            '⚠️ Notification Issue',
+                            `Channel 'Orders_v4' found but Importance is ${channel.importance} (Expected 5). Please check Phone Settings > Notifications.`
+                        );
+                    }
+                } else {
+                    Alert.alert('❌ Error', "Channel 'Orders_v4' not created! Please restart app or check logs.");
+                }
+            });
+        }
+
+        // Register for Push Notifications
+        if (userData?.id) {
+            notificationService.registerForPushNotificationsAsync().then(async (token: string | null) => {
+                if (token) {
+                    const { error } = await supabase
+                        .from('users')
+                        .update({ expo_push_token: token } as any) // Cast to any to avoid type error before invalidating types
+                        .eq('id', userData.id);
+
+                    if (error) console.error('Failed to update push token:', error);
+                    else console.log('✅ Push token synced to user profile');
+                }
+            });
+        }
+
         // Initial fetch
         fetchOrders();
 
@@ -153,8 +187,8 @@ export default function ChefDashboard() {
                     const now = new Date().getTime();
                     const ageInSeconds = (now - createdAt) / 1000;
 
-                    // If order is older than 30 seconds, treat items as an UPDATE
-                    if (ageInSeconds > 30) {
+                    // If order is older than 1 second, treat items as an UPDATE
+                    if (ageInSeconds > 1) {
                         console.log(`🔔 Update detected for Order #${orderData.order_number} (+${newItem.quantity} ${newItem.menu_item_name})`);
 
                         // If the order was already completed/ready, move it back to pending so chef sees it
@@ -201,10 +235,39 @@ export default function ChefDashboard() {
             fetchOrders();
         });
 
+        // Listen for notification interactions (taps)
+        const responseListener = Notifications.addNotificationResponseReceivedListener(async response => {
+            const data = response.notification.request.content.data;
+            if (data?.orderId) {
+                console.log('🔔 Notification Tapped:', data);
+                // Fetch full order details
+                const { data: orderData } = await supabase
+                    .from('orders')
+                    .select('*, order_items(*)')
+                    .eq('id', Number(data.orderId)) // Ensure it's a number
+                    .single();
+
+                if (orderData) {
+                    if (popupEnabled) {
+                        setNotificationOrder(orderData);
+                        setNewItems(orderData.order_items || []);
+                        setNotificationType('new');
+                        setShowNotification(true);
+                    }
+
+                    // Optional: Speak immediately on tap if sound is enabled
+                    if (soundEnabled) {
+                        await handleSpeakOrder(orderData, 'new');
+                    }
+                }
+            }
+        });
+
         return () => {
             database.unsubscribe(subOrders);
             database.unsubscribe(subOrderItems);
             soundService.unload();
+            responseListener.remove(); // Use .remove() method
         };
     }, [soundEnabled, popupEnabled, systemEnabled]);
 
@@ -606,7 +669,8 @@ export default function ChefDashboard() {
 
                                         sortedItems.forEach((item) => {
                                             const itemTime = getTime(item.created_at);
-                                            if (itemTime - batchStartTime > 2 * 60 * 1000) {
+                                            // Reduced batch window to 100ms to separate manual immediate updates
+                                            if (itemTime - batchStartTime > 100) {
                                                 // New batch
                                                 batches.push(currentBatch);
                                                 currentBatch = [item];
