@@ -10,11 +10,13 @@ import {
     Alert,
     ActivityIndicator,
 } from 'react-native';
-import { X, CreditCard, Wallet, CheckCircle, Download, Share2, Clock, Smartphone } from 'lucide-react-native';
+import { X, CreditCard, Wallet, CheckCircle, Download, Share2, Clock, Smartphone, TicketPercent } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { useTranslation } from 'react-i18next';
 import { PhonePeGateway, ManualPayment } from '../services/phonepeService';
 import QRPaymentModal from './QRPaymentModal';
 import { PaymentStatus } from '../services/razorpayService';
+import { supabase } from '@/services/database';
 
 interface PaymentModalProps {
     visible: boolean;
@@ -47,6 +49,7 @@ export default function PaymentModal({
     customerPhone,
     onPaymentSuccess,
 }: PaymentModalProps) {
+    const { t } = useTranslation();
     const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(null);
     const [currentStep, setCurrentStep] = useState<PaymentStep>('select');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -57,6 +60,15 @@ export default function PaymentModal({
     const [qrValue, setQrValue] = useState('');
     const [showRazorpayModal, setShowRazorpayModal] = useState(false);
 
+    // Discount State
+    const [couponCode, setCouponCode] = useState('');
+    const [discountReceived, setDiscountReceived] = useState(0);
+    const [discountType, setDiscountType] = useState('');
+    const [isCouponApplied, setIsCouponApplied] = useState(false);
+    const [appliedOfferId, setAppliedOfferId] = useState<string | null>(null);
+
+    const finalAmount = Math.max(0, amount - discountReceived);
+
     const resetState = () => {
         setSelectedMethod(null);
         setCurrentStep('select');
@@ -66,6 +78,11 @@ export default function PaymentModal({
         setPaymentMethod('');
         setCheckingStatus(false);
         setQrValue('');
+        setCouponCode('');
+        setDiscountReceived(0);
+        setDiscountType('');
+        setIsCouponApplied(false);
+        setAppliedOfferId(null);
     };
 
     const handleClose = () => {
@@ -86,7 +103,7 @@ export default function PaymentModal({
         setIsProcessing(true);
         try {
             // Generate SuperMoney UPI string with the actual amount
-            const upiString = generateSuperMoneyUPI(amount);
+            const upiString = generateSuperMoneyUPI(finalAmount);
 
             // Generate a simple transaction ID
             const txnId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -141,7 +158,7 @@ export default function PaymentModal({
         try {
             const response = await ManualPayment.recordCashPayment({
                 orderId,
-                amount,
+                amount: finalAmount,
                 customerName,
             });
 
@@ -177,22 +194,148 @@ export default function PaymentModal({
         );
     };
 
+    const handleApplyCoupon = async () => {
+        if (!couponCode.trim()) {
+            Alert.alert(t('common.error'), t('payment.enterCoupon'));
+            return;
+        }
+
+        setIsProcessing(true);
+        try {
+            const now = new Date().toISOString();
+            const { data: offerResult, error } = await supabase
+                .from('offers' as any)
+                .select('*')
+                .eq('code', couponCode.toUpperCase())
+                .eq('is_active', true)
+                .lte('valid_from', now)
+                .gte('valid_to', now)
+                .single();
+
+            const offer = offerResult as any;
+
+            if (error || !offer) {
+                Alert.alert(t('common.error'), t('payment.invalidCoupon'));
+                setIsProcessing(false);
+                return;
+            }
+
+            if (offer.min_bill_amount && amount < offer.min_bill_amount) {
+                Alert.alert(t('common.error'), `Minimum bill amount of ₹${offer.min_bill_amount} required`);
+                setIsProcessing(false);
+                return;
+            }
+
+            let discount = 0;
+            if (offer.type === 'percentage_bill') {
+                discount = (amount * offer.value) / 100;
+            } else if (offer.type === 'percentage_item') {
+                // Assuming amount is sum of items, treating same as bill % for now as per simpler request logic
+                // For stricter item-level, we'd need order items passed in props. 
+                // Using bill % logic for "10% on each item" effectively equals 10% on total.
+                discount = (amount * offer.value) / 100;
+            } else {
+                // Item specific logic would go here if we had item details
+                Alert.alert(t('common.error'), 'Item-specific offers not fully supported in this view yet.');
+                setIsProcessing(false);
+                return;
+            }
+
+            if (offer.max_discount_amount && discount > offer.max_discount_amount) {
+                discount = offer.max_discount_amount;
+            }
+
+            setDiscountReceived(discount);
+            setDiscountType(offer.code);
+            setIsCouponApplied(true);
+            setAppliedOfferId(offer.id);
+            Alert.alert(t('common.success'), t('payment.couponApplied'));
+
+        } catch (err) {
+            console.error(err);
+            Alert.alert(t('common.error'), t('payment.unexpected'));
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const [offers, setOffers] = useState<any[]>([]);
+    const [showOffersModal, setShowOffersModal] = useState(false);
+
+    useEffect(() => {
+        if (visible) {
+            fetchActiveOffers();
+        }
+    }, [visible]);
+
+    const fetchActiveOffers = async () => {
+        try {
+            const now = new Date().toISOString();
+            const { data, error } = await supabase
+                .from('offers' as any)
+                .select('*')
+                .eq('is_active', true)
+                .lte('valid_from', now)
+                .gte('valid_to', now);
+
+            if (data) setOffers(data);
+        } catch (error) {
+            console.error('Error fetching offers:', error);
+        }
+    };
+
+    const handleSelectOffer = (code: string) => {
+        setCouponCode(code);
+        setShowOffersModal(false);
+    };
+
     const renderSelectPayment = () => (
         <ScrollView showsVerticalScrollIndicator={false}>
             {/* Order Summary */}
             <View style={styles.orderSummary}>
                 <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Order ID</Text>
+                    <Text style={styles.summaryLabel}>{t('payment.orderId')}</Text>
                     <Text style={styles.summaryValue}>#{orderId}</Text>
                 </View>
                 <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Amount to Pay</Text>
-                    <Text style={styles.summaryAmount}>₹{amount.toFixed(2)}</Text>
+                    <Text style={styles.summaryLabel}>{t('payment.amountToPay')}</Text>
+                    <Text style={styles.summaryValue}>₹{amount.toFixed(2)}</Text>
+                </View>
+                {isCouponApplied && (
+                    <View style={styles.summaryRow}>
+                        <Text style={[styles.summaryLabel, { color: '#10B981' }]}>{t('payment.discount')} ({discountType})</Text>
+                        <Text style={[styles.summaryValue, { color: '#10B981' }]}>-₹{discountReceived.toFixed(2)}</Text>
+                    </View>
+                )}
+                <View style={[styles.summaryRow, { marginTop: 8, borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 8 }]}>
+                    <Text style={[styles.summaryLabel, { fontWeight: '700', color: '#1F2937' }]}>{t('common.total')}</Text>
+                    <Text style={styles.summaryAmount}>₹{finalAmount.toFixed(2)}</Text>
                 </View>
             </View>
 
+            {/* Coupon Section */}
+            {!isCouponApplied && (
+                <View style={styles.couponContainer}>
+                    <View style={styles.couponInputWrapper}>
+                        <TextInput
+                            style={styles.couponInput}
+                            placeholder={t('payment.haveCoupon')}
+                            value={couponCode}
+                            onChangeText={setCouponCode}
+                            autoCapitalize="characters"
+                        />
+                        <TouchableOpacity style={styles.offersButton} onPress={() => setShowOffersModal(true)}>
+                            <TicketPercent size={20} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity style={styles.applyButton} onPress={handleApplyCoupon} disabled={isProcessing}>
+                        <Text style={styles.applyButtonText}>{t('payment.apply')}</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
             {/* Payment Methods */}
-            <Text style={styles.sectionTitle}>Select Payment Method</Text>
+            <Text style={styles.sectionTitle}>{t('payment.method')}</Text>
 
             {/* PhonePe Gateway */}
             <TouchableOpacity
@@ -206,8 +349,8 @@ export default function PaymentModal({
                     <CreditCard size={24} color={selectedMethod === 'gateway' ? '#FDB813' : '#6B7280'} />
                 </View>
                 <View style={styles.paymentMethodInfo}>
-                    <Text style={styles.paymentMethodTitle}>PhonePe / UPI</Text>
-                    <Text style={styles.paymentMethodDesc}>Scan QR code to pay via any UPI app</Text>
+                    <Text style={styles.paymentMethodTitle}>{t('payment.phonePe')}</Text>
+                    <Text style={styles.paymentMethodDesc}>{t('payment.phonePeDesc')}</Text>
                 </View>
                 {selectedMethod === 'gateway' && (
                     <CheckCircle size={20} color="#FDB813" />
@@ -226,8 +369,8 @@ export default function PaymentModal({
                     <Wallet size={24} color={selectedMethod === 'cash' ? '#FDB813' : '#6B7280'} />
                 </View>
                 <View style={styles.paymentMethodInfo}>
-                    <Text style={styles.paymentMethodTitle}>Cash Payment</Text>
-                    <Text style={styles.paymentMethodDesc}>Record cash payment manually</Text>
+                    <Text style={styles.paymentMethodTitle}>{t('payment.cash')}</Text>
+                    <Text style={styles.paymentMethodDesc}>{t('payment.cashDesc')}</Text>
                 </View>
                 {selectedMethod === 'cash' && (
                     <CheckCircle size={20} color="#FDB813" />
@@ -246,8 +389,8 @@ export default function PaymentModal({
                     <Smartphone size={24} color={selectedMethod === 'razorpay' ? '#FDB813' : '#6B7280'} />
                 </View>
                 <View style={styles.paymentMethodInfo}>
-                    <Text style={styles.paymentMethodTitle}>Razorpay UPI</Text>
-                    <Text style={styles.paymentMethodDesc}>Automated QR payment verification</Text>
+                    <Text style={styles.paymentMethodTitle}>{t('payment.razorpay')}</Text>
+                    <Text style={styles.paymentMethodDesc}>{t('payment.razorpayDesc')}</Text>
                 </View>
                 {selectedMethod === 'razorpay' && (
                     <CheckCircle size={20} color="#FDB813" />
@@ -259,7 +402,7 @@ export default function PaymentModal({
                 <View style={styles.paymentDetailsSection}>
                     <View style={styles.cashInfoBox}>
                         <Text style={styles.cashInfoText}>
-                            Click below to generate a UPI QR code. Customer can scan and pay ₹{amount.toFixed(2)}.
+                            Click below to generate a UPI QR code. Customer can scan and pay ₹{finalAmount.toFixed(2)}.
                         </Text>
                     </View>
                     <TouchableOpacity
@@ -272,7 +415,7 @@ export default function PaymentModal({
                         ) : (
                             <>
                                 <CreditCard size={18} color="#FFFFFF" />
-                                <Text style={styles.proceedButtonText}>Generate QR Code</Text>
+                                <Text style={styles.proceedButtonText}>{t('payment.generateQR')}</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -283,7 +426,7 @@ export default function PaymentModal({
                 <View style={styles.paymentDetailsSection}>
                     <View style={styles.cashInfoBox}>
                         <Text style={styles.cashInfoText}>
-                            Confirm that you have received ₹{amount.toFixed(2)} in cash from the customer.
+                            Confirm that you have received ₹{finalAmount.toFixed(2)} in cash from the customer.
                         </Text>
                     </View>
                     <TouchableOpacity
@@ -296,7 +439,7 @@ export default function PaymentModal({
                         ) : (
                             <>
                                 <Wallet size={18} color="#FFFFFF" />
-                                <Text style={styles.proceedButtonText}>Confirm Cash Payment</Text>
+                                <Text style={styles.proceedButtonText}>{t('payment.confirmCash')}</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -320,7 +463,7 @@ export default function PaymentModal({
                         ) : (
                             <>
                                 <Smartphone size={18} color="#FFFFFF" />
-                                <Text style={styles.proceedButtonText}>Generate Razorpay QR</Text>
+                                <Text style={styles.proceedButtonText}>{t('payment.generateRazorpay')}</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -334,14 +477,14 @@ export default function PaymentModal({
     const renderQRCode = () => (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.qrContainer}>
             <View style={styles.qrHeader}>
-                <Text style={styles.qrTitle}>Scan to Pay</Text>
-                <Text style={styles.qrSubtitle}>Use any UPI app to scan and pay</Text>
+                <Text style={styles.qrTitle}>{t('payment.scanToPay')}</Text>
+                <Text style={styles.qrSubtitle}>{t('payment.scanToPaySubtitle')}</Text>
             </View>
 
             {/* Amount Display */}
             <View style={styles.qrAmountBox}>
-                <Text style={styles.qrAmountLabel}>Amount to Pay</Text>
-                <Text style={styles.qrAmountValue}>₹{amount.toFixed(2)}</Text>
+                <Text style={styles.qrAmountLabel}>{t('payment.amountToPay')}</Text>
+                <Text style={styles.qrAmountValue}>₹{finalAmount.toFixed(2)}</Text>
                 <Text style={styles.qrOrderId}>Order #{orderId}</Text>
             </View>
 
@@ -359,15 +502,15 @@ export default function PaymentModal({
                         <ActivityIndicator size="large" color="#FDB813" />
                     )}
                 </View>
-                <Text style={styles.qrCodeHint}>Scan with PhonePe, Google Pay, Paytm, or any UPI app</Text>
+                <Text style={styles.qrCodeHint}>{t('payment.scanHint')}</Text>
             </View>
 
             {/* Payment Status */}
             {checkingStatus && (
                 <View style={styles.statusBox}>
                     <ActivityIndicator size="small" color="#F59E0B" />
-                    <Text style={styles.statusText}>Waiting for payment...</Text>
-                    <Text style={styles.statusSubtext}>This will automatically update once payment is received</Text>
+                    <Text style={styles.statusText}>{t('payment.waiting')}</Text>
+                    <Text style={styles.statusSubtext}>{t('payment.waitingDesc')}</Text>
                 </View>
             )}
 
@@ -377,14 +520,14 @@ export default function PaymentModal({
                     style={styles.verifyButton}
                     onPress={handleManualVerification}
                 >
-                    <Text style={styles.verifyButtonText}>Payment Confirmed</Text>
+                    <Text style={styles.verifyButtonText}>{t('payment.confirmed')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={styles.cancelButton}
                     onPress={() => setCurrentStep('select')}
                 >
-                    <Text style={styles.cancelButtonText}>Change Payment Method</Text>
+                    <Text style={styles.cancelButtonText}>{t('payment.changeMethod')}</Text>
                 </TouchableOpacity>
             </View>
         </ScrollView>
@@ -406,48 +549,48 @@ export default function PaymentModal({
                     <View style={styles.successIconCircle}>
                         <CheckCircle size={60} color="#10B981" />
                     </View>
-                    <Text style={styles.successTitle}>Payment Successful!</Text>
-                    <Text style={styles.successSubtitle}>Thank you for your payment</Text>
+                    <Text style={styles.successTitle}>{t('payment.success')}!</Text>
+                    <Text style={styles.successSubtitle}>{t('payment.successSubtitle')}</Text>
                 </View>
 
                 {/* Receipt Details */}
                 <View style={styles.receiptCard}>
-                    <Text style={styles.receiptTitle}>Payment Receipt</Text>
+                    <Text style={styles.receiptTitle}>{t('payment.receiptTitle')}</Text>
 
                     <View style={styles.receiptDivider} />
 
                     <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>Order ID</Text>
+                        <Text style={styles.receiptLabel}>{t('payment.orderId')}</Text>
                         <Text style={styles.receiptValue}>#{orderId}</Text>
                     </View>
 
                     <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>Transaction ID</Text>
+                        <Text style={styles.receiptLabel}>{t('payment.transactionId')}</Text>
                         <Text style={styles.receiptValue}>{transactionId}</Text>
                     </View>
 
                     <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>Payment Method</Text>
+                        <Text style={styles.receiptLabel}>{t('payment.method')}</Text>
                         <Text style={styles.receiptValue}>{paymentMethod}</Text>
                     </View>
 
                     {customerName && (
                         <View style={styles.receiptRow}>
-                            <Text style={styles.receiptLabel}>Customer Name</Text>
+                            <Text style={styles.receiptLabel}>{t('payment.customerName')}</Text>
                             <Text style={styles.receiptValue}>{customerName}</Text>
                         </View>
                     )}
 
                     <View style={styles.receiptRow}>
-                        <Text style={styles.receiptLabel}>Date & Time</Text>
+                        <Text style={styles.receiptLabel}>{t('payment.dateTime')}</Text>
                         <Text style={styles.receiptValue}>{currentDate}</Text>
                     </View>
 
                     <View style={styles.receiptDivider} />
 
                     <View style={styles.receiptTotalRow}>
-                        <Text style={styles.receiptTotalLabel}>Amount Paid</Text>
-                        <Text style={styles.receiptTotalValue}>₹{amount.toFixed(2)}</Text>
+                        <Text style={styles.receiptTotalLabel}>{t('payment.amountPaid')}</Text>
+                        <Text style={styles.receiptTotalValue}>₹{finalAmount.toFixed(2)}</Text>
                     </View>
                 </View>
 
@@ -455,17 +598,17 @@ export default function PaymentModal({
                 <View style={styles.receiptActions}>
                     <TouchableOpacity style={styles.doneButton} onPress={handleClose}>
                         <CheckCircle size={18} color="#FFFFFF" />
-                        <Text style={styles.doneButtonText}>Done</Text>
+                        <Text style={styles.doneButtonText}>{t('payment.done')}</Text>
                     </TouchableOpacity>
 
                     <View style={styles.receiptSecondaryActions}>
                         <TouchableOpacity style={styles.iconButton}>
                             <Download size={20} color="#6B7280" />
-                            <Text style={styles.iconButtonText}>Download</Text>
+                            <Text style={styles.iconButtonText}>{t('payment.download')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.iconButton}>
                             <Share2 size={20} color="#6B7280" />
-                            <Text style={styles.iconButtonText}>Share</Text>
+                            <Text style={styles.iconButtonText}>{t('payment.share')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -500,7 +643,7 @@ export default function PaymentModal({
             <QRPaymentModal
                 visible={showRazorpayModal}
                 onClose={() => setShowRazorpayModal(false)}
-                amount={amount}
+                amount={finalAmount}
                 description={`Order #${orderId}`}
                 orderId={orderId}
                 onPaymentSuccess={(paymentDetails: PaymentStatus) => {
@@ -515,6 +658,41 @@ export default function PaymentModal({
                     onPaymentSuccess(paymentDetails.id, 'Razorpay UPI');
                 }}
             />
+
+            {/* Offer Selection Modal */}
+            <Modal visible={showOffersModal} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{t('payment.selectOffer')}</Text>
+                            <TouchableOpacity onPress={() => setShowOffersModal(false)}>
+                                <X size={24} color="#6B7280" />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {offers.filter(o => !o.min_bill_amount || amount >= o.min_bill_amount).length === 0 ? (
+                                <Text style={{ textAlign: 'center', color: '#6B7280', marginTop: 20 }}>{t('payment.noApplicableOffers')}</Text>
+                            ) : (
+                                offers.filter(o => !o.min_bill_amount || amount >= o.min_bill_amount).map(offer => (
+                                    <TouchableOpacity
+                                        key={offer.id}
+                                        style={styles.offerCard}
+                                        onPress={() => handleSelectOffer(offer.code)}
+                                    >
+                                        <View>
+                                            <Text style={styles.offerHeading}>{offer.heading || 'Offer'}</Text>
+                                            <Text style={styles.offerCode}>{offer.code}</Text>
+                                        </View>
+                                        <View style={styles.offerValueBadge}>
+                                            <Text style={styles.offerValueText}>{offer.value}% OFF</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </Modal>
     );
 }
@@ -582,6 +760,34 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#1F2937',
         marginBottom: 12,
+    },
+    couponContainer: {
+        flexDirection: 'row',
+        marginBottom: 20,
+        gap: 10,
+    },
+    couponInput: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#D1D5DB',
+        borderRadius: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        fontSize: 14,
+        color: '#1F2937',
+    },
+    applyButton: {
+        backgroundColor: '#1F2937',
+        paddingHorizontal: 20,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    applyButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 14,
     },
     paymentMethodCard: {
         flexDirection: 'row',
@@ -926,5 +1132,52 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#6B7280',
         fontWeight: '500',
+    },
+    couponInputWrapper: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#D1D5DB',
+        borderRadius: 10,
+        paddingRight: 8,
+    },
+    offersButton: {
+        padding: 8,
+    },
+    offerCard: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    offerHeading: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        marginBottom: 4,
+    },
+    offerCode: {
+        fontSize: 14,
+        color: '#6B7280',
+        fontWeight: '700',
+        letterSpacing: 1,
+    },
+    offerValueBadge: {
+        backgroundColor: '#D1FAE5',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    offerValueText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#065F46',
     },
 });

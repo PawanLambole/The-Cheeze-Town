@@ -53,14 +53,15 @@ export default function RevenueScreen() {
     const fetchRevenueData = async () => {
         if (!loading && !refreshing) setRefreshing(true);
         try {
-            // Get start and end of today
+            // Get today's range in local time, then convert to UTC ISO strings for Supabase.
             const now = new Date();
-            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
-            const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+            const startOfDayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+            const startOfTomorrowLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+            const startOfDay = startOfDayLocal.toISOString();
+            const startOfTomorrow = startOfTomorrowLocal.toISOString();
 
-            // Revenue should reflect actual payments collected.
-            // Query `payments` table for completed payments within today and join the related order and order_items for context.
-            const { data: paymentsData, error } = await supabase
+            // 1. Fetch Payments (Completed)
+            const { data: paymentsData, error: paymentsError } = await supabase
                 .from('payments')
                 .select(`
                     id,
@@ -82,37 +83,123 @@ export default function RevenueScreen() {
                 `)
                 .eq('status', 'completed')
                 .gte('payment_date', startOfDay)
-                .lte('payment_date', endOfDay)
+                .lt('payment_date', startOfTomorrow)
                 .order('payment_date', { ascending: false });
 
-            if (error) throw error;
+            if (paymentsError) throw paymentsError;
 
-            // Transform data for revenue items
-            const items: RevenueItem[] = (paymentsData || []).map((payment: any) => {
-                const order = payment.orders?.[0];
-                // Get the first item's category or use 'other' as fallback
-                const firstItem = order?.order_items?.[0]?.menu_item_name || 'Other';
+            // 2. Fetch Orders (Completed/Paid) for the same period
+            // This covers orders that might not have a payment record (e.g. legacy or glitch)
+            const { data: ordersData, error: ordersError } = await supabase
+                .from('orders')
+                .select(`
+                    id,
+                    order_number,
+                    total_amount,
+                    status,
+                    created_at,
+                    updated_at,
+                    completed_time,
+                    order_items (
+                        menu_item_name,
+                        quantity
+                    )
+                `)
+                .in('status', ['paid', 'completed'])
+                .gte('created_at', startOfDay) // Using created_at or completed_time? created_at is safer for "Today's Revenue" if we mean "Orders from Today"
+                .lt('created_at', startOfTomorrow);
+
+            if (ordersError) throw ordersError;
+
+            // 3. Merge and Deduplicate
+            // Strategy: Use Payment records as primary. Add Orders ONLY if they don't have a corresponding payment record in the fetched payments.
+
+            const revenueMap = new Map<string, RevenueItem>();
+
+            // Process Payments first
+            (paymentsData || []).forEach((payment: any) => {
+                const order = payment.orders?.[0] || payment.orders; // Handle array or single object depending on relationship (usually single for order_id FK)
+                // Note: In Supabase join, if it's one-to-many from payments->orders (unlikely, usually payments.order_id -> orders.id), it returns objects differently.
+                // Based on previous code: `payment.orders` seems to be the joined object.
+                // Let's verify the shape from previous code: `payment.orders` was used.
+                // Warning: `orders` in select is plural but it references `order_id` so it might be a single object or array depending on Supabase client version/setup. 
+                // The previous code operated on `payment.orders` directly, but then did `const order = payment.orders?.[0];` which implies it might be returned as an array?
+                // Actually previous code: `const order = payment.orders?.[0];` 
+                // Let's stick to safe access.
+
+                const orderObj = Array.isArray(payment.orders) ? payment.orders[0] : payment.orders;
+
+                const firstItem = orderObj?.order_items?.[0]?.menu_item_name || 'Other';
                 const category = firstItem.includes('Pizza') ? 'pizza' :
                     firstItem.includes('Burger') ? 'burgers' :
                         firstItem.includes('Drink') || firstItem.includes('Beverage') ? 'beverages' :
                             firstItem.includes('Dessert') ? 'desserts' : 'mainCourse';
 
-                const orderItems = order?.order_items?.map((item: any) => ({
+                const orderItems = orderObj?.order_items?.map((item: any) => ({
                     name: item.menu_item_name,
                     quantity: item.quantity
                 })) || [];
 
-                return {
-                    id: String(payment.id),
-                    orderId: order?.order_number || String(payment.order_id),
+                const item: RevenueItem = {
+                    id: String(payment.id), // Payment ID
+                    orderId: orderObj?.order_number || String(payment.order_id),
                     category: category,
                     amount: Number(payment.amount),
                     time: formatTime(payment.payment_date || payment.created_at || new Date().toISOString()),
-                    createdAt: payment.payment_date || order?.created_at || new Date().toISOString(),
-                    items: order?.order_items?.length || 0,
+                    createdAt: payment.payment_date || orderObj?.created_at || new Date().toISOString(),
+                    items: orderObj?.order_items?.length || 0,
                     orderItems: orderItems
                 };
+
+                // Use order ID as key to prevent duplication if we check orders next, 
+                // BUT one order could have multiple partial payments (rare here).
+                // Existing logic assumes one payment per order roughly? 
+                // Let's use a unique key. If we want to check duplication by order, we key by Order ID.
+                // If an order has a payment, we used the payment.
+                if (payment.order_id) {
+                    revenueMap.set(String(payment.order_id), item);
+                } else {
+                    // Fallback if no order_id (standalone payment?), unlikely but keep it.
+                    revenueMap.set(`payment-${payment.id}`, item);
+                }
             });
+
+            // Process Orders (only if not already in revenueMap via payment)
+            (ordersData || []).forEach((order: any) => {
+                if (!revenueMap.has(String(order.id))) {
+                    // This order has NO payment record in our fetch, so add it.
+                    const firstItem = order.order_items?.[0]?.menu_item_name || 'Other';
+                    const category = firstItem.includes('Pizza') ? 'pizza' :
+                        firstItem.includes('Burger') ? 'burgers' :
+                            firstItem.includes('Drink') || firstItem.includes('Beverage') ? 'beverages' :
+                                firstItem.includes('Dessert') ? 'desserts' : 'mainCourse';
+
+                    const orderItems = order.order_items?.map((item: any) => ({
+                        name: item.menu_item_name,
+                        quantity: item.quantity
+                    })) || [];
+
+                    // Use completed_time or created_at for time
+                    const timeRef = order.completed_time || order.updated_at || order.created_at;
+
+                    const item: RevenueItem = {
+                        id: `ord-${order.id}`, // specific prefix to distinguish
+                        orderId: order.order_number,
+                        category: category,
+                        amount: Number(order.total_amount),
+                        time: formatTime(timeRef),
+                        createdAt: timeRef,
+                        items: order.order_items?.length || 0,
+                        orderItems: orderItems
+                    };
+
+                    revenueMap.set(String(order.id), item);
+                }
+            });
+
+            const items = Array.from(revenueMap.values()).sort((a, b) =>
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
 
             setRevenueItems(items);
 

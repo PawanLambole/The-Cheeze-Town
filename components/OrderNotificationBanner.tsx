@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Dimensions } from 'react-native';
 import { Bell, X } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
+import { useTranslation } from 'react-i18next';
+
 
 interface OrderNotificationBannerProps {
     visible: boolean;
@@ -11,6 +13,7 @@ interface OrderNotificationBannerProps {
 }
 
 export default function OrderNotificationBanner({ visible, order, onDismiss, onTap }: OrderNotificationBannerProps) {
+    const { t } = useTranslation();
     const [slideAnim] = useState(new Animated.Value(-100));
 
     useEffect(() => {
@@ -78,7 +81,7 @@ export default function OrderNotificationBanner({ visible, order, onDismiss, onT
                 </View>
 
                 <View style={styles.textContainer}>
-                    <Text style={styles.title}>🔔 New Order Arrived!</Text>
+                    <Text style={styles.title}>{t('notifications.newOrderArrived')}</Text>
                     <Text style={styles.message}>
                         {order.customer_name ? `${order.customer_name} - ` : ''}
                         Table {order.table_id || 'N/A'}

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert, AppState, Linking } from 'react-native';
 import { notificationService } from '@/services/NotificationService';
 
 interface NotificationSettingsContextType {
@@ -24,6 +25,34 @@ export function NotificationSettingsProvider({ children }: { children: ReactNode
         loadSettings();
     }, []);
 
+    // When app becomes active again, re-check permission and re-request if needed.
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', async (state) => {
+            if (state !== 'active') return;
+            if (!systemEnabled) return;
+
+            try {
+                const permission = await notificationService.ensureNotificationPermissionsAsync();
+                if (permission.granted) return;
+
+                if (!permission.canAskAgain) {
+                    Alert.alert(
+                        'Notifications Disabled',
+                        'System notifications are disabled for this app. Enable them in Settings to receive order alerts.',
+                        [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                        ]
+                    );
+                }
+            } catch (error) {
+                console.error('Error re-checking notification permissions:', error);
+            }
+        });
+
+        return () => sub.remove();
+    }, [systemEnabled]);
+
     const loadSettings = async () => {
         try {
             const sound = await AsyncStorage.getItem('chef_sound_enabled');
@@ -40,8 +69,8 @@ export function NotificationSettingsProvider({ children }: { children: ReactNode
 
             // If system notifications are enabled, ensure we have permissions/channel.
             if (systemValue) {
-                const granted = await notificationService.registerForPushNotificationsAsync();
-                if (!granted) {
+                const token = await notificationService.registerForPushNotificationsAsync();
+                if (!token) {
                     setSystemEnabled(false);
                     await AsyncStorage.setItem('chef_system_enabled', 'false');
                 }
@@ -55,8 +84,8 @@ export function NotificationSettingsProvider({ children }: { children: ReactNode
         try {
             // Special handling: when enabling system notifications, request permission first.
             if (key === 'chef_system_enabled' && value) {
-                const granted = await notificationService.registerForPushNotificationsAsync();
-                if (!granted) {
+                const token = await notificationService.registerForPushNotificationsAsync();
+                if (!token) {
                     setter(false);
                     await AsyncStorage.setItem(key, 'false');
                     return;

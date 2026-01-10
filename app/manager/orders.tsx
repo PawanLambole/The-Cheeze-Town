@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, CreditCard, Plus, Filter, Printer } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import PaymentModal from '@/components/PaymentModal';
@@ -53,6 +53,7 @@ interface OrderFilterState {
 
 export default function OrdersScreen({ createOrderPath = '/manager/create-order' }: OrdersScreenProps) {
     const router = useRouter();
+    const params = useLocalSearchParams();
     const { t } = useTranslation();
     const [selectedStatus, setSelectedStatus] = useState<'all' | 'pending' | 'served' | 'completed'>('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -67,11 +68,16 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
     const [currentReceiptData, setCurrentReceiptData] = useState<any>(null);
 
     const [showFilterModal, setShowFilterModal] = useState(false);
+
+    // Initialize filters based on URL params
+    const initialDateRange = (params.dateRange as OrderFilterState['dateRange']) || 'all';
+    const initialStatus = (params.status as OrderFilterState['status']) || 'all';
+
     const [activeFilters, setActiveFilters] = useState<OrderFilterState>({
-        dateRange: 'all',
+        dateRange: initialDateRange,
         startDate: null,
         endDate: null,
-        status: 'all',
+        status: initialStatus,
         paymentStatus: 'all',
         orderType: 'all'
     });
@@ -89,10 +95,10 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
         const past = new Date(dateString);
         const diffMs = now.getTime() - past.getTime();
         const diffMins = Math.round(diffMs / 60000);
-        if (diffMins < 60) return `${diffMins} mins ago`;
+        if (diffMins < 60) return `${diffMins} ${t('common.minsAgo', { defaultValue: 'mins ago' })}`;
         const diffHours = Math.round(diffMins / 60);
-        if (diffHours < 24) return `${diffHours} hours ago`;
-        return `${Math.round(diffHours / 24)} days ago`;
+        if (diffHours < 24) return `${diffHours} ${t('common.hoursAgo', { defaultValue: 'hours ago' })}`;
+        return `${Math.round(diffHours / 24)} ${t('common.daysAgo', { defaultValue: 'days ago' })}`;
     };
 
     const fetchOrders = async () => {
@@ -170,6 +176,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
             setOrders(ordersWithItems);
         } catch (error) {
             console.error('Error fetching orders:', error);
+            Alert.alert(t('common.error'), t('manager.orders.fetchError', { defaultValue: 'Error fetching orders' }));
         } finally {
             setRefreshing(false);
         }
@@ -306,9 +313,15 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
 
     const filteredOrders = getFilteredOrders();
 
-    const pendingOrdersCount = orders.filter(o => !o.isServed && !o.isCompleted).length;
-    const servedOrdersCount = orders.filter(o => o.isServed && !o.isCompleted).length;
-    const completedOrdersCount = orders.filter(o => o.isCompleted).length;
+    const todaysOrders = orders.filter(o => {
+        const orderDate = new Date(o.createdAt);
+        const today = new Date();
+        return orderDate.toDateString() === today.toDateString();
+    });
+
+    const pendingOrdersCount = todaysOrders.filter(o => !o.isServed && !o.isCompleted).length;
+    const servedOrdersCount = todaysOrders.filter(o => o.isServed && !o.isCompleted).length;
+    const completedOrdersCount = todaysOrders.filter(o => o.isCompleted).length;
 
     const handleOrderClick = (order: Order) => {
         setSelectedOrder(order);
@@ -341,7 +354,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
             }
         } catch (e) {
             console.error("Error updating order status:", e);
-            alert("Failed to update status");
+            Alert.alert(t('common.error'), t('manager.orders.updateStatusError', { defaultValue: 'Failed to update status' }));
         }
     };
 
@@ -406,7 +419,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                 {/* Stats Cards */}
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
-                        <Text style={styles.statValue}>{orders.length}</Text>
+                        <Text style={styles.statValue}>{todaysOrders.length}</Text>
                         <Text style={styles.statLabel} numberOfLines={1}>{t('manager.orders.stats.total')}</Text>
                     </View>
                     <View style={styles.statCard}>
@@ -1536,24 +1549,35 @@ const styles = StyleSheet.create({
     },
     modalContent: {
         backgroundColor: Colors.dark.card,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        padding: 20,
-        maxHeight: '90%',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        padding: 24,
+        maxHeight: '85%',
         minHeight: '60%',
-        borderWidth: 1,
-        borderColor: Colors.dark.border,
+        borderWidth: 0,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: -4,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 28,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.dark.border,
     },
     modalTitle: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: '700',
         color: Colors.dark.text,
+        letterSpacing: -0.5,
     },
     orderSummaryHeader: {
         backgroundColor: Colors.dark.secondary,
@@ -1943,12 +1967,41 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.dark.primary,
         borderColor: Colors.dark.primary,
     },
+    modalKeyboardAvoidingView: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+    },
+    filterScrollContent: {
+        paddingBottom: 20,
+    },
+    filterSection: {
+        marginBottom: 24,
+        backgroundColor: 'rgba(255,255,255,0.02)',
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    filterFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: Colors.dark.border,
+        gap: 16,
+        marginTop: 'auto',
+    },
     filterLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.dark.text,
-        marginTop: 16,
-        marginBottom: 8,
+        fontSize: 12,
+        fontWeight: '700',
+        color: Colors.dark.textSecondary,
+        marginBottom: 12,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginTop: 0,
     },
     filterRow: {
         flexDirection: 'row',
@@ -1956,45 +2009,74 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     filterChip: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        backgroundColor: Colors.dark.secondary,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: Colors.dark.secondary, // Light bg for inactive
         borderWidth: 1,
         borderColor: Colors.dark.border,
-        marginRight: 8,
+        marginBottom: 8,
     },
     filterChipActive: {
-        backgroundColor: 'rgba(253, 184, 19, 0.2)',
+        backgroundColor: Colors.dark.primary,
         borderColor: Colors.dark.primary,
+        shadowColor: Colors.dark.primary,
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 3,
     },
     filterChipText: {
-        fontSize: 13,
+        fontSize: 14,
         color: Colors.dark.textSecondary,
+        fontWeight: '500',
     },
     filterChipTextActive: {
-        color: Colors.dark.primary,
-        fontWeight: '600',
+        color: '#000000',
+        fontWeight: '700',
     },
     applyButton: {
         backgroundColor: Colors.dark.primary,
-        padding: 16,
+        paddingVertical: 16,
         borderRadius: 12,
         alignItems: 'center',
-        marginTop: 24,
+        flex: 1,
+        marginTop: 0,
+        shadowColor: Colors.dark.primary,
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 6,
     },
     applyButtonText: {
         color: '#000000',
-        fontWeight: '600',
+        fontWeight: '700',
         fontSize: 16,
+        letterSpacing: 0.5,
     },
     resetButton: {
-        padding: 16,
+        paddingVertical: 16,
         alignItems: 'center',
+        flex: 1,
+        marginTop: 0,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        borderRadius: 12,
     },
     resetButtonText: {
         color: Colors.dark.textSecondary,
         fontSize: 14,
+        fontWeight: '600',
     },
-
+    dateInputContainer: {
+        flexDirection: 'row',
+        gap: 16,
+        marginTop: 16,
+    },
 });

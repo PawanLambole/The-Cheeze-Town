@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+﻿import { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, ActivityIndicator, Alert, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Plus, X, Camera, User, Package, IndianRupee, Calendar, Image as ImageIcon, Trash, Check, Filter } from 'lucide-react-native';
@@ -413,7 +413,7 @@ export default function PurchasesScreen() {
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <Text style={[styles.statValue, { color: Colors.dark.primary }]}>₹{totalSpent.toLocaleString()}</Text>
+                        <Text style={[styles.statValue, { color: Colors.dark.primary }]}>â‚¹{totalSpent.toLocaleString()}</Text>
                         <Text style={styles.statLabel}>{t('manager.purchases.totalSpent')}</Text>
                     </View>
                 </View>
@@ -474,7 +474,7 @@ export default function PurchasesScreen() {
                                     </View>
                                 </View>
                             </View>
-                            <Text style={styles.purchasePrice}>₹{purchase.totalPrice.toLocaleString()}</Text>
+                            <Text style={styles.purchasePrice}>â‚¹{purchase.totalPrice.toLocaleString()}</Text>
                         </View>
 
                         <View style={styles.purchaseDetails}>
@@ -700,7 +700,7 @@ export default function PurchasesScreen() {
                                 <View style={styles.totalAmountDisplay}>
                                     <Text style={styles.totalAmountLabel}>{t('manager.purchases.totalAmount')}:</Text>
                                     <Text style={styles.totalAmountValue}>
-                                        ₹{(parseFloat(formPrice) * parseFloat(formQuantity)).toFixed(2)}
+                                        â‚¹{(parseFloat(formPrice) * parseFloat(formQuantity)).toFixed(2)}
                                     </Text>
                                 </View>
                             )}
@@ -815,7 +815,7 @@ export default function PurchasesScreen() {
                                     <View style={styles.heroIconCircle}>
                                         <Package size={32} color={Colors.dark.primary} />
                                     </View>
-                                    <Text style={styles.heroAmount}>₹{selectedPurchase.totalPrice.toLocaleString()}</Text>
+                                    <Text style={styles.heroAmount}>â‚¹{selectedPurchase.totalPrice.toLocaleString()}</Text>
                                     <Text style={styles.heroName}>{selectedPurchase.itemName}</Text>
 
                                     <View style={[
@@ -915,157 +915,180 @@ export default function PurchasesScreen() {
             {/* Filter Modal */}
             <Modal visible={showFilterModal} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{t('filters.title')}</Text>
-                            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                                <X size={24} color={Colors.dark.textSecondary} />
-                            </TouchableOpacity>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        style={styles.modalKeyboardAvoidingView}
+                    >
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>{t('filters.title')}</Text>
+                                <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                                    <X size={24} color={Colors.dark.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+                                {/* Date Range */}
+                                <View style={styles.filterSection}>
+                                    <Text style={styles.filterLabel}>{t('filters.dateRange')}</Text>
+                                    <View style={styles.filterRow}>
+                                        {['all', 'today', 'yesterday', 'week', 'month', 'custom'].map((range: any) => (
+                                            <TouchableOpacity
+                                                key={range}
+                                                style={[styles.filterChip, tempFilters.dateRange === range && styles.filterChipActive]}
+                                                onPress={() => setTempFilters(prev => ({ ...prev, dateRange: range }))}
+                                            >
+                                                <Text style={[styles.filterChipText, tempFilters.dateRange === range && styles.filterChipTextActive]}>
+                                                    {range === 'all' ? t('filters.all') :
+                                                        range === 'week' ? t('filters.thisWeek') :
+                                                            range === 'month' ? t('filters.thisMonth') :
+                                                                t(`filters.${range}`)}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+
+                                    {/* Custom Date Range Inputs */}
+                                    {tempFilters.dateRange === 'custom' && (
+                                        <View style={styles.dateInputContainer}>
+                                            <View style={styles.dateInputWrapper}>
+                                                <Text style={styles.dateInputLabel}>{t('filters.startDate') || 'Start Date'}</Text>
+                                                <TextInput
+                                                    style={styles.dateInput}
+                                                    placeholder="YYYY-MM-DD"
+                                                    placeholderTextColor={Colors.dark.textSecondary}
+                                                    value={tempFilters.startDate ? tempFilters.startDate.toISOString().split('T')[0] : ''}
+                                                    onChangeText={(text) => {
+                                                        const date = new Date(text);
+                                                        if (!isNaN(date.getTime())) {
+                                                            setTempFilters(prev => ({ ...prev, startDate: date }));
+                                                        }
+                                                    }}
+                                                />
+                                            </View>
+                                            <View style={styles.dateInputWrapper}>
+                                                <Text style={styles.dateInputLabel}>{t('filters.endDate') || 'End Date'}</Text>
+                                                <TextInput
+                                                    style={styles.dateInput}
+                                                    placeholder="YYYY-MM-DD"
+                                                    placeholderTextColor={Colors.dark.textSecondary}
+                                                    value={tempFilters.endDate ? tempFilters.endDate.toISOString().split('T')[0] : ''}
+                                                    onChangeText={(text) => {
+                                                        const date = new Date(text);
+                                                        if (!isNaN(date.getTime())) {
+                                                            setTempFilters(prev => ({ ...prev, endDate: date }));
+                                                        }
+                                                    }}
+                                                />
+                                            </View>
+                                        </View>
+                                    )}
+                                </View>
+
+                                {/* Purchase Type */}
+                                <View style={styles.filterSection}>
+                                    <Text style={styles.filterLabel}>{t('filters.type')}</Text>
+                                    <View style={styles.filterRow}>
+                                        {['all', 'inventory', 'other'].map((type: any) => (
+                                            <TouchableOpacity
+                                                key={type}
+                                                style={[styles.filterChip, tempFilters.type === type && styles.filterChipActive]}
+                                                onPress={() => setTempFilters(prev => ({ ...prev, type: type }))}
+                                            >
+                                                <Text style={[styles.filterChipText, tempFilters.type === type && styles.filterChipTextActive]}>
+                                                    {type === 'all' ? t('filters.all') :
+                                                        type === 'inventory' ? t('manager.purchases.inventoryType') :
+                                                            t('manager.purchases.otherPurchase')}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+
+                                {/* Categories */}
+                                <View style={styles.filterSection}>
+                                    <Text style={styles.filterLabel}>{t('filters.category')}</Text>
+                                    <View style={styles.filterRow}>
+                                        {categories.map(cat => (
+                                            <TouchableOpacity
+                                                key={cat}
+                                                style={[styles.filterChip, tempFilters.categories.includes(cat) && styles.filterChipActive]}
+                                                onPress={() => {
+                                                    const newCats = tempFilters.categories.includes(cat)
+                                                        ? tempFilters.categories.filter(c => c !== cat)
+                                                        : [...tempFilters.categories, cat];
+                                                    setTempFilters(prev => ({ ...prev, categories: newCats }));
+                                                }}
+                                            >
+                                                <Text style={[styles.filterChipText, tempFilters.categories.includes(cat) && styles.filterChipTextActive]}>
+                                                    {t(`manager.categories.${cat.toLowerCase()}`, { defaultValue: cat })}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+
+                                {/* Price Range */}
+                                <View style={styles.filterSection}>
+                                    <Text style={styles.filterLabel}>{t('filters.priceRange')}</Text>
+                                    <View style={styles.dateInputContainer}>
+                                        <View style={styles.dateInputWrapper}>
+                                            <Text style={styles.dateInputLabel}>{t('filters.minPrice') || 'Min Price'}</Text>
+                                            <TextInput
+                                                style={styles.dateInput}
+                                                placeholder="0"
+                                                placeholderTextColor={Colors.dark.textSecondary}
+                                                keyboardType="numeric"
+                                                value={tempFilters.minPrice}
+                                                onChangeText={text => setTempFilters(prev => ({ ...prev, minPrice: text }))}
+                                            />
+                                        </View>
+                                        <View style={styles.dateInputWrapper}>
+                                            <Text style={styles.dateInputLabel}>{t('filters.maxPrice') || 'Max Price'}</Text>
+                                            <TextInput
+                                                style={styles.dateInput}
+                                                placeholder="10000"
+                                                placeholderTextColor={Colors.dark.textSecondary}
+                                                keyboardType="numeric"
+                                                value={tempFilters.maxPrice}
+                                                onChangeText={text => setTempFilters(prev => ({ ...prev, maxPrice: text }))}
+                                            />
+                                        </View>
+                                    </View>
+                                </View>
+
+                            </ScrollView>
+
+                            <View style={styles.filterFooter}>
+                                <TouchableOpacity
+                                    style={styles.resetButton}
+                                    onPress={() => {
+                                        setTempFilters({
+                                            dateRange: 'all',
+                                            startDate: null,
+                                            endDate: null,
+                                            type: 'all',
+                                            categories: [],
+                                            minPrice: '',
+                                            maxPrice: ''
+                                        });
+                                    }}
+                                >
+                                    <Text style={styles.resetButtonText}>{t('filters.reset')}</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.applyButton}
+                                    onPress={() => {
+                                        setActiveFilters(tempFilters);
+                                        setShowFilterModal(false);
+                                    }}
+                                >
+                                    <Text style={styles.applyButtonText}>{t('filters.apply')}</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-
-                        <ScrollView showsVerticalScrollIndicator={false}>
-                            {/* Date Range */}
-                            <Text style={styles.filterLabel}>{t('filters.dateRange')}</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChipsScroll}>
-                                <View style={styles.filterRow}>
-                                    {['all', 'today', 'yesterday', 'week', 'month', 'custom'].map((range: any) => (
-                                        <TouchableOpacity
-                                            key={range}
-                                            style={[styles.filterChip, tempFilters.dateRange === range && styles.filterChipActive]}
-                                            onPress={() => setTempFilters(prev => ({ ...prev, dateRange: range }))}
-                                        >
-                                            <Text style={[styles.filterChipText, tempFilters.dateRange === range && styles.filterChipTextActive]}>
-                                                {range === 'all' ? t('filters.all') :
-                                                    range === 'week' ? t('filters.thisWeek') :
-                                                        range === 'month' ? t('filters.thisMonth') :
-                                                            t(`filters.${range}`)}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </ScrollView>
-
-                            {/* Custom Date Range Inputs */}
-                            {tempFilters.dateRange === 'custom' && (
-                                <View style={styles.filterInputsRow}>
-                                    <TextInput
-                                        style={styles.filterInput}
-                                        placeholder="YYYY-MM-DD"
-                                        placeholderTextColor={Colors.dark.textSecondary}
-                                        value={tempFilters.startDate ? tempFilters.startDate.toISOString().split('T')[0] : ''}
-                                        onChangeText={(text) => {
-                                            const date = new Date(text);
-                                            if (!isNaN(date.getTime())) {
-                                                setTempFilters(prev => ({ ...prev, startDate: date }));
-                                            }
-                                        }}
-                                    />
-                                    <Text style={{ color: Colors.dark.text }}>-</Text>
-                                    <TextInput
-                                        style={styles.filterInput}
-                                        placeholder="YYYY-MM-DD"
-                                        placeholderTextColor={Colors.dark.textSecondary}
-                                        value={tempFilters.endDate ? tempFilters.endDate.toISOString().split('T')[0] : ''}
-                                        onChangeText={(text) => {
-                                            const date = new Date(text);
-                                            if (!isNaN(date.getTime())) {
-                                                setTempFilters(prev => ({ ...prev, endDate: date }));
-                                            }
-                                        }}
-                                    />
-                                </View>
-                            )}
-
-                            {/* Purchase Type */}
-                            <Text style={styles.filterLabel}>{t('filters.type')}</Text>
-                            <View style={styles.filterRow}>
-                                {['all', 'inventory', 'other'].map((type: any) => (
-                                    <TouchableOpacity
-                                        key={type}
-                                        style={[styles.filterChip, tempFilters.type === type && styles.filterChipActive]}
-                                        onPress={() => setTempFilters(prev => ({ ...prev, type: type }))}
-                                    >
-                                        <Text style={[styles.filterChipText, tempFilters.type === type && styles.filterChipTextActive]}>
-                                            {type === 'all' ? t('filters.all') :
-                                                type === 'inventory' ? t('manager.purchases.inventoryType') :
-                                                    t('manager.purchases.otherPurchase')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-
-                            {/* Categories */}
-                            <Text style={styles.filterLabel}>{t('filters.category')}</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChipsScroll}>
-                                {categories.map(cat => (
-                                    <TouchableOpacity
-                                        key={cat}
-                                        style={[styles.filterChip, tempFilters.categories.includes(cat) && styles.filterChipActive]}
-                                        onPress={() => {
-                                            const newCats = tempFilters.categories.includes(cat)
-                                                ? tempFilters.categories.filter(c => c !== cat)
-                                                : [...tempFilters.categories, cat];
-                                            setTempFilters(prev => ({ ...prev, categories: newCats }));
-                                        }}
-                                    >
-                                        <Text style={[styles.filterChipText, tempFilters.categories.includes(cat) && styles.filterChipTextActive]}>
-                                            {t(`manager.categories.${cat.toLowerCase()}`, { defaultValue: cat })}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-
-                            {/* Price Range */}
-                            <Text style={styles.filterLabel}>{t('filters.priceRange')}</Text>
-                            <View style={styles.filterInputsRow}>
-                                <TextInput
-                                    style={styles.filterInput}
-                                    placeholder={t('filters.minPrice')}
-                                    placeholderTextColor={Colors.dark.textSecondary}
-                                    keyboardType="numeric"
-                                    value={tempFilters.minPrice}
-                                    onChangeText={text => setTempFilters(prev => ({ ...prev, minPrice: text }))}
-                                />
-                                <Text style={{ color: Colors.dark.textSecondary }}>-</Text>
-                                <TextInput
-                                    style={styles.filterInput}
-                                    placeholder={t('filters.maxPrice')}
-                                    placeholderTextColor={Colors.dark.textSecondary}
-                                    keyboardType="numeric"
-                                    value={tempFilters.maxPrice}
-                                    onChangeText={text => setTempFilters(prev => ({ ...prev, maxPrice: text }))}
-                                />
-                            </View>
-
-                            <TouchableOpacity
-                                style={styles.applyButton}
-                                onPress={() => {
-                                    setActiveFilters(tempFilters);
-                                    setShowFilterModal(false);
-                                }}
-                            >
-                                <Text style={styles.applyButtonText}>{t('filters.apply')}</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={styles.resetButton}
-                                onPress={() => {
-                                    setTempFilters({
-                                        dateRange: 'all',
-                                        startDate: null,
-                                        endDate: null,
-                                        type: 'all',
-                                        categories: [],
-                                        minPrice: '',
-                                        maxPrice: ''
-                                    });
-                                }}
-                            >
-                                <Text style={styles.resetButtonText}>{t('filters.reset')}</Text>
-                            </TouchableOpacity>
-                            <View style={{ height: 40 }} />
-                        </ScrollView>
-                    </View>
+                    </KeyboardAvoidingView>
                 </View>
             </Modal>
         </View>
@@ -1123,6 +1146,13 @@ const styles = StyleSheet.create({
         width: 1,
         backgroundColor: Colors.dark.border,
         marginHorizontal: 16,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 16,
+        marginTop: 16,
     },
     searchInput: {
         flex: 1,
@@ -1323,149 +1353,7 @@ const styles = StyleSheet.create({
         color: Colors.dark.text,
         fontWeight: '600',
     },
-    deleteButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-        padding: 16,
-        borderRadius: 12,
-        gap: 8,
-        marginTop: 20,
-    },
-    deleteButtonText: {
-        color: '#EF4444',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    unitSelector: {
-        flex: 1,
-    },
-    unitButton: {
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-        backgroundColor: Colors.dark.inputBackground,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: Colors.dark.border,
-        marginRight: 8,
-    },
-    unitButtonActive: {
-        backgroundColor: Colors.dark.primary,
-        borderColor: Colors.dark.primary,
-    },
-    unitText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: Colors.dark.textSecondary,
-    },
-    unitTextActive: {
-        color: '#000000',
-    },
-    textArea: {
-        height: 80,
-        textAlignVertical: 'top',
-    },
-    photoButtons: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 16,
-    },
-    photoButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: Colors.dark.primary,
-        paddingVertical: 14,
-        paddingHorizontal: 12,
-        borderRadius: 8,
-        gap: 8,
-    },
-    photoButtonText: {
-        color: '#000000',
-        fontWeight: '600',
-        fontSize: 13,
-        flexShrink: 1,
-        textAlign: 'center',
-    },
-    previewContainer: {
-        position: 'relative',
-        marginBottom: 16,
-    },
-    previewImage: {
-        width: '100%',
-        height: 200,
-        borderRadius: 8,
-    },
-    previewImageWrapper: {
-        width: '100%',
-    },
-    removePhotoButton: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        padding: 4,
-        borderRadius: 12,
-    },
-    submitButton: {
-        backgroundColor: Colors.dark.primary,
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    submitButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#000000',
-    },
-    typeBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 4,
-    },
-    typeBadgeText: {
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    purchaseTypeContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 16,
-    },
-    purchaseTypeButton: {
-        flex: 1,
-        padding: 16,
-        backgroundColor: Colors.dark.inputBackground,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: Colors.dark.border,
-        alignItems: 'center',
-    },
-    purchaseTypeButtonActive: {
-        backgroundColor: Colors.dark.primary,
-        borderColor: Colors.dark.primary,
-    },
-    purchaseTypeText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: Colors.dark.textSecondary,
-        marginTop: 8,
-        marginBottom: 4,
-    },
-    purchaseTypeTextActive: {
-        color: '#000000',
-    },
-    purchaseTypeDesc: {
-        fontSize: 11,
-        color: Colors.dark.textSecondary,
-        textAlign: 'center',
-    },
-    purchaseTypeDescActive: {
-        color: 'rgba(0,0,0,0.7)',
-    },
+    // Autocomplete Styles
     autocompleteContainer: {
         zIndex: 10,
         marginBottom: 12,
@@ -1541,6 +1429,10 @@ const styles = StyleSheet.create({
         color: Colors.dark.primary,
     },
     // New Modal Styles
+    modalKeyboardAvoidingView: {
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
     modalScrollContent: {
         paddingBottom: 20,
     },
@@ -1723,14 +1615,151 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
-    // Filter Styles
-    searchContainer: {
+    deleteButton: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        padding: 16,
+        borderRadius: 12,
+        gap: 8,
+        marginTop: 20,
+    },
+    deleteButtonText: {
+        color: '#EF4444',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    unitSelector: {
+        flex: 1,
+    },
+    unitButton: {
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        backgroundColor: Colors.dark.inputBackground,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        marginRight: 8,
+    },
+    unitButtonActive: {
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
+    },
+    unitText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: Colors.dark.textSecondary,
+    },
+    unitTextActive: {
+        color: '#000000',
+    },
+    textArea: {
+        height: 80,
+        textAlignVertical: 'top',
+    },
+    photoButtons: {
+        flexDirection: 'row',
         gap: 12,
         marginBottom: 16,
-        marginTop: 16,
     },
+    photoButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Colors.dark.primary,
+        paddingVertical: 14,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        gap: 8,
+    },
+    photoButtonText: {
+        color: '#000000',
+        fontWeight: '600',
+        fontSize: 13,
+        flexShrink: 1,
+        textAlign: 'center',
+    },
+    previewContainer: {
+        position: 'relative',
+        marginBottom: 16,
+    },
+    previewImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+    },
+    previewImageWrapper: {
+        width: '100%',
+    },
+    removePhotoButton: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        padding: 4,
+        borderRadius: 12,
+    },
+    submitButton: {
+        backgroundColor: Colors.dark.primary,
+        paddingVertical: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    submitButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#000000',
+    },
+    typeBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    typeBadgeText: {
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    purchaseTypeContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 16,
+    },
+    purchaseTypeButton: {
+        flex: 1,
+        padding: 16,
+        backgroundColor: Colors.dark.inputBackground,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        alignItems: 'center',
+    },
+    purchaseTypeButtonActive: {
+        backgroundColor: Colors.dark.primary,
+        borderColor: Colors.dark.primary,
+    },
+    purchaseTypeText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: Colors.dark.textSecondary,
+        marginTop: 8,
+        marginBottom: 4,
+    },
+    purchaseTypeTextActive: {
+        color: '#000000',
+    },
+    purchaseTypeDesc: {
+        fontSize: 11,
+        color: Colors.dark.textSecondary,
+        textAlign: 'center',
+    },
+    purchaseTypeDescActive: {
+        color: 'rgba(0,0,0,0.7)',
+    },
+
+    // Filter Styles
     filterButton: {
         backgroundColor: Colors.dark.card,
         padding: 12,
@@ -1746,15 +1775,49 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.dark.primary,
         borderColor: Colors.dark.primary,
     },
+    filterScrollContent: {
+        paddingBottom: 20,
+    },
+    filterSection: {
+        marginBottom: 24,
+    },
+    filterSectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: Colors.dark.text,
+        marginBottom: 12,
+    },
     filterLabel: {
         fontSize: 14,
         fontWeight: '600',
         color: Colors.dark.text,
-        marginTop: 16,
         marginBottom: 8,
     },
     filterChipsScroll: {
         marginBottom: 8,
+    },
+    dateInputContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 12,
+    },
+    dateInputWrapper: {
+        flex: 1,
+    },
+    dateInputLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.dark.textSecondary,
+        marginBottom: 8,
+    },
+    dateInput: {
+        backgroundColor: Colors.dark.inputBackground,
+        padding: 12,
+        borderRadius: 8,
+        color: Colors.dark.text,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        fontSize: 14,
     },
     filterRow: {
         flexDirection: 'row',
@@ -1796,24 +1859,40 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: Colors.dark.border,
     },
-    applyButton: {
-        backgroundColor: Colors.dark.primary,
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 24,
-    },
-    applyButtonText: {
-        color: '#000000',
-        fontWeight: '600',
-        fontSize: 16,
+    filterFooter: {
+        flexDirection: 'row',
+        gap: 12,
+        padding: 20,
+        backgroundColor: Colors.dark.card,
+        borderTopWidth: 1,
+        borderTopColor: Colors.dark.border,
     },
     resetButton: {
-        padding: 16,
+        flex: 1,
+        paddingVertical: 16,
         alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Colors.dark.inputBackground,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
     },
     resetButtonText: {
-        color: Colors.dark.textSecondary,
-        fontSize: 14,
-    }
+        fontSize: 16,
+        fontWeight: '600',
+        color: Colors.dark.text,
+    },
+    applyButton: {
+        flex: 1,
+        paddingVertical: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Colors.dark.primary,
+        borderRadius: 12,
+    },
+    applyButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#000000',
+    },
 });

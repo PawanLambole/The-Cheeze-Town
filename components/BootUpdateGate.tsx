@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform, BackHandler, StatusBar } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as SplashScreen from 'expo-splash-screen';
@@ -22,6 +23,7 @@ interface BootUpdateGateProps {
  * 4. Only renders children if safe to proceed
  */
 export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
+    const { t } = useTranslation();
     const [isReady, setIsReady] = useState(false);
     const [blockingUpdate, setBlockingUpdate] = useState<AppVersion | null>(null);
     const [checkingMessage, setCheckingMessage] = useState<string>('');
@@ -31,14 +33,16 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
 
         // Failsafe: Force ready after 8 seconds if checks hang
         const failsafeTimeout = setTimeout(() => {
-            if (!isReady) {
-                console.warn('Boot checks timed out, forcing app load...');
-                setIsReady(true);
-            }
+            setIsReady((prev) => {
+                if (!prev) {
+                    console.warn('Boot checks timed out, forcing app load...');
+                }
+                return true;
+            });
         }, 8000);
 
         return () => clearTimeout(failsafeTimeout);
-    }, [isReady]);
+    }, []);
 
     // Block back button if regular Mandatory Update is active
     useEffect(() => {
@@ -114,15 +118,15 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
                         <TriangleAlert size={64} color="#EF4444" />
                     </View>
 
-                    <Text style={styles.title}>Update Required</Text>
+                    <Text style={styles.title}>{t('update.updateRequired')}</Text>
 
                     <Text style={styles.message}>
-                        A mandatory update is required to continue using The Cheeze Town.
+                        {t('update.mandatoryUpdateMessage')}
                     </Text>
 
                     {blockingUpdate.version_name && (
                         <Text style={styles.version}>
-                            Version {blockingUpdate.version_name}
+                            {t('update.version')} {blockingUpdate.version_name}
                         </Text>
                     )}
 
@@ -138,7 +142,7 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
                         activeOpacity={0.8}
                     >
                         <Download size={24} color="#000" />
-                        <Text style={styles.buttonText}>Download Update</Text>
+                        <Text style={styles.buttonText}>{t('update.downloadUpdate')}</Text>
                     </TouchableOpacity>
                 </View>
             </View>

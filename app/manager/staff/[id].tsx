@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, User, Mail, Phone, Calendar, Clock, CheckCircle, IndianRupee, Wallet, CreditCard, Plus, X } from 'lucide-react-native';
 import { Colors } from '@/constants/Theme';
 
@@ -50,6 +51,7 @@ interface StaffDetailsScreenProps {
 
 export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps) {
     const router = useRouter();
+    const { t } = useTranslation();
     const { id } = useLocalSearchParams<{ id: string }>();
     const isOwnerView = isOwner ?? false;
     const [staff, setStaff] = useState<StaffMember | null>(null);
@@ -133,7 +135,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
 
     const handleAddPayment = () => {
         if (!amount) {
-            Alert.alert('Error', 'Please enter an amount');
+            Alert.alert(t('common.error'), t('manager.staff.errorEnterAmount', { defaultValue: 'Please enter an amount' }));
             return;
         }
 
@@ -150,13 +152,13 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
         setShowPaymentModal(false);
         setAmount('');
         setNote('');
-        Alert.alert('Success', 'Payment recorded successfully');
+        Alert.alert(t('common.success'), t('manager.staff.paymentRecordedSuccess', { defaultValue: 'Payment recorded successfully' }));
     };
 
     if (loading) {
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <Text style={{ color: Colors.dark.text }}>Loading...</Text>
+                <Text style={{ color: Colors.dark.text }}>{t('common.loading', { defaultValue: 'Loading...' })}</Text>
             </View>
         );
     }
@@ -168,11 +170,11 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                     <TouchableOpacity onPress={handleBack}>
                         <ArrowLeft size={24} color={Colors.dark.text} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Staff Details</Text>
+                    <Text style={styles.headerTitle}>{t('manager.staff.detailsTitle', { defaultValue: 'Staff Details' })}</Text>
                     <View style={{ width: 24 }} />
                 </View>
                 <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>Staff member not found</Text>
+                    <Text style={styles.errorText}>{t('manager.staff.notFound', { defaultValue: 'Staff member not found' })}</Text>
                 </View>
             </View>
         );
@@ -198,7 +200,7 @@ export default function StaffDetailsScreen({ isOwner }: StaffDetailsScreenProps)
                 <TouchableOpacity onPress={handleBack}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Staff Details</Text>
+                <Text style={styles.headerTitle}>{t('manager.staff.detailsTitle', { defaultValue: 'Staff Details' })}</Text>
                 <View style={{ width: 24 }} />
             </View>
 

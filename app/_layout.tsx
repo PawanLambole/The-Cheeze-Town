@@ -23,6 +23,7 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { NotificationSettingsProvider } from '@/contexts/NotificationSettingsContext';
 import { UpdateProvider } from '@/contexts/UpdateContext';
+import { OrderNotificationProvider } from '@/contexts/OrderNotificationContext';
 import '@/i18n'; // Initialize i18n
 
 function RootLayoutNav() {
@@ -89,9 +90,11 @@ export default function RootLayout() {
       <AnimatedSplashScreen>
         <AuthProvider>
           <NotificationSettingsProvider>
-            <UpdateProvider checkOnMount={false} checkOnResume={true} checkInterval={24}>
-              <RootLayoutNav />
-            </UpdateProvider>
+            <OrderNotificationProvider>
+              <UpdateProvider checkOnMount={false} checkOnResume={true} checkInterval={24}>
+                <RootLayoutNav />
+              </UpdateProvider>
+            </OrderNotificationProvider>
           </NotificationSettingsProvider>
         </AuthProvider>
       </AnimatedSplashScreen>

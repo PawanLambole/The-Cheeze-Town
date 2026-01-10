@@ -1,5 +1,21 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/config/supabase';
+import { notificationService } from '@/services/NotificationService';
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    });
+
+    try {
+        return await Promise.race([promise, timeoutPromise]);
+    } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
+};
 
 export interface AppUser {
     id: string;
@@ -23,26 +39,135 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [userData, setUserData] = useState<AppUser | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const mountedRef = useRef(false);
+    const latestProfileRequestRef = useRef(0);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
+
+    const fetchAndSetProfile = useCallback(async (userId: string) => {
+        const requestId = ++latestProfileRequestRef.current;
+        const maxAttempts = 3;
+        const timeoutMs = 15000;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            if (!mountedRef.current || requestId !== latestProfileRequestRef.current) return;
+
+            try {
+                const profilePromise = supabase
+                    .from('users')
+                    .select('id, email, name, role, phone')
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                const result = await withTimeout(
+                    profilePromise as any,
+                    timeoutMs,
+                    'Profile fetch'
+                );
+
+                const { data: profile, error } = result as any;
+
+                if (requestId !== latestProfileRequestRef.current || !mountedRef.current) return;
+
+                if (error) {
+                    console.error('Error fetching user profile:', error);
+                    return;
+                }
+
+                if (profile) {
+                    setUserData((prev) => (prev ? ({ ...prev, ...(profile as AppUser) }) : (profile as AppUser)));
+                }
+
+                return;
+            } catch (error: any) {
+                const message = error?.message ?? '';
+                const isTimeout = typeof message === 'string' && message.includes('Profile fetch timed out');
+
+                if (isTimeout && attempt < maxAttempts) {
+                    await sleep(750 * attempt * attempt);
+                    continue;
+                }
+
+                // On final timeout or non-timeout errors, log once and stop.
+                if (isTimeout) {
+                    console.warn('Profile fetch timeout (giving up):', error);
+                } else {
+                    console.error('Profile fetch error:', error);
+                }
+                return;
+            }
+        }
+    }, []);
+
+    const pushTokenSyncInFlightRef = useRef(false);
+
+    const syncChefPushToken = useCallback(async (userId: string) => {
+        if (pushTokenSyncInFlightRef.current) return;
+        pushTokenSyncInFlightRef.current = true;
+
+        try {
+            const token = await notificationService.registerForPushNotificationsAsync();
+            if (!token) return;
+
+            const { error } = await supabase
+                .from('users')
+                .update({ expo_push_token: token } as any)
+                .eq('id', userId);
+
+            if (error) {
+                console.error('Failed to update push token:', error);
+            } else {
+                console.log('✅ Push token synced to user profile');
+            }
+        } catch (e) {
+            console.warn('Push token sync failed:', e);
+        } finally {
+            pushTokenSyncInFlightRef.current = false;
+        }
+    }, []);
+
+    // When profile loads and user is a chef, ensure push token is registered/synced.
+    useEffect(() => {
+        if (!userData?.id) return;
+        if (userData.role !== 'chef') return;
+        void syncChefPushToken(userData.id);
+    }, [userData?.id, userData?.role, syncChefPushToken]);
+
     useEffect(() => {
         const checkSession = async () => {
             try {
-                // Direct session check without timeout
-                const { data: userResult } = await supabase.auth.getUser();
+                // Prefer getSession() on boot: it's local storage based and avoids hanging on network.
+                const { data: sessionResult, error: sessionError } = await withTimeout(
+                    supabase.auth.getSession(),
+                    5000,
+                    'Session check'
+                );
 
-                if (userResult?.user) {
-                    const { data: profile, error } = await supabase
-                        .from('users')
-                        .select('id, email, name, role, phone')
-                        .eq('id', userResult.user.id)
-                        .maybeSingle();
+                if (sessionError) {
+                    console.error('Session check error:', sessionError);
+                }
 
-                    if (error) {
-                        console.error('Error fetching user profile:', error);
-                    }
+                const sessionUser = sessionResult?.session?.user;
 
-                    if (profile) {
-                        setUserData(profile as AppUser);
-                    }
+                if (sessionUser) {
+                    // Allow app to proceed immediately; profile can load in background.
+                    setUserData({
+                        id: sessionUser.id,
+                        email: sessionUser.email ?? '',
+                        name: null,
+                        role: null,
+                        phone: null,
+                    });
+
+                    // Fetch full profile (bounded) without blocking loading.
+                    void fetchAndSetProfile(sessionUser.id);
+                } else {
+                    setUserData(null);
                 }
             } catch (error: any) {
                 console.error('Session check error:', error);
@@ -65,17 +190,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user) {
-                // If we have a session but no userData, fetch it (e.g. after login or refresh)
-                if (!userData || userData.id !== session.user.id) {
-                    const { data: profile } = await supabase
-                        .from('users')
-                        .select('id, email, name, role, phone')
-                        .eq('id', session.user.id)
-                        .maybeSingle();
-                    if (profile) setUserData(profile as AppUser);
-                }
+                // Seed minimal userData quickly; then fetch profile in background.
+                setUserData((prev) => prev?.id === session.user.id ? prev : ({
+                    id: session.user.id,
+                    email: session.user.email ?? '',
+                    name: null,
+                    role: null,
+                    phone: null,
+                }));
+
+                void fetchAndSetProfile(session.user.id);
             } else {
-                // Signed out
                 setUserData(null);
             }
         });
@@ -83,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => {
             subscription.unsubscribe();
         };
-    }, []);
+    }, [fetchAndSetProfile]);
 
     const signIn = async (email: string, password: string) => {
         console.log('🔐 Attempting sign in for:', email);
@@ -104,24 +229,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (result.data?.user) {
                 console.log('👤 User ID:', result.data.user.id);
 
+                // Seed minimal auth state immediately; profile loads in background.
+                setUserData({
+                    id: result.data.user.id,
+                    email: result.data.user.email ?? email,
+                    name: null,
+                    role: null,
+                    phone: null,
+                });
+
                 // 2. Profile Fetch
                 console.log('⏳ Fetching user profile...');
                 const startProfile = Date.now();
 
-                const { data: profile, error: profileError } = await supabase
-                    .from('users')
-                    .select('id, email, name, role, phone')
-                    .eq('id', result.data.user.id)
-                    .maybeSingle();
-
-                const endProfile = Date.now();
-                console.log(`✅ Profile fetch completed in ${endProfile - startProfile}ms`);
-
-                console.log('Profile fetch:', profileError ? '❌ Error: ' + profileError.message : profile ? '✅ Found' : '⚠️ Not found');
-
-                if (profile) {
-                    setUserData(profile as AppUser);
-                }
+                void fetchAndSetProfile(result.data.user.id).finally(() => {
+                    const endProfile = Date.now();
+                    console.log(`✅ Profile fetch finished in ${endProfile - startProfile}ms`);
+                });
             }
 
             console.log(`🏁 Total Login Process took ${Date.now() - startTotal}ms`);

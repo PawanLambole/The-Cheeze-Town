@@ -11,6 +11,7 @@ import { useSupabaseRealtimeQuery } from '@/hooks/useSupabase';
 import { database, supabase } from '@/services/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotificationSettings } from '@/contexts/NotificationSettingsContext';
+import { useOrderNotification } from '@/contexts/OrderNotificationContext';
 import { notificationService } from '@/services/NotificationService';
 import { soundService } from '@/services/SoundService';
 import { deductInventoryForOrder } from '@/services/inventoryService';
@@ -41,6 +42,7 @@ export default function ChefDashboard() {
     const { t } = useTranslation();
     const { userData } = useAuth();
     const { soundEnabled, popupEnabled, systemEnabled } = useNotificationSettings();
+    const { pending: pendingOrderNotification, consume: consumePendingOrderNotification } = useOrderNotification();
     const [orders, setOrders] = useState<Order[]>([]);
     const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
@@ -109,6 +111,31 @@ export default function ChefDashboard() {
     const updateQueue = React.useRef<{ [key: string]: any[] }>({});
     const updateTimers = React.useRef<{ [key: string]: any }>({});
 
+    // Keep Expo push token synced for background notifications.
+    useEffect(() => {
+        if (!systemEnabled) return;
+        if (!userData?.id) return;
+
+        let cancelled = false;
+
+        notificationService.registerForPushNotificationsAsync().then(async (token: string | null) => {
+            if (cancelled) return;
+            if (!token) return;
+
+            const { error } = await supabase
+                .from('users')
+                .update({ expo_push_token: token } as any)
+                .eq('id', userData.id);
+
+            if (error) console.error('Failed to update push token:', error);
+            else console.log('✅ Push token synced to user profile');
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [systemEnabled, userData?.id]);
+
     // Initialize data and real-time subscriptions
     useEffect(() => {
         // Load sound service
@@ -132,20 +159,6 @@ export default function ChefDashboard() {
             });
         }
 
-        // Register for Push Notifications
-        if (userData?.id) {
-            notificationService.registerForPushNotificationsAsync().then(async (token: string | null) => {
-                if (token) {
-                    const { error } = await supabase
-                        .from('users')
-                        .update({ expo_push_token: token } as any) // Cast to any to avoid type error before invalidating types
-                        .eq('id', userData.id);
-
-                    if (error) console.error('Failed to update push token:', error);
-                    else console.log('✅ Push token synced to user profile');
-                }
-            });
-        }
 
         // Initial fetch
         fetchOrders();
@@ -235,41 +248,54 @@ export default function ChefDashboard() {
             fetchOrders();
         });
 
-        // Listen for notification interactions (taps)
-        const responseListener = Notifications.addNotificationResponseReceivedListener(async response => {
-            const data = response.notification.request.content.data;
-            if (data?.orderId) {
-                console.log('🔔 Notification Tapped:', data);
-                // Fetch full order details
+        return () => {
+            database.unsubscribe(subOrders);
+            database.unsubscribe(subOrderItems);
+            soundService.unload();
+        };
+    }, [soundEnabled, popupEnabled, systemEnabled]);
+
+    // When the user taps a system push notification (including cold-start), show the same in-app popup.
+    useEffect(() => {
+        if (!pendingOrderNotification?.orderId) return;
+
+        let cancelled = false;
+
+        (async () => {
+            try {
+                console.log('🔔 Notification Tapped (global):', pendingOrderNotification);
+
                 const { data: orderData } = await supabase
                     .from('orders')
                     .select('*, order_items(*)')
-                    .eq('id', Number(data.orderId)) // Ensure it's a number
+                    .eq('id', Number(pendingOrderNotification.orderId))
                     .single();
+
+                if (cancelled) return;
 
                 if (orderData) {
                     if (popupEnabled) {
                         setNotificationOrder(orderData);
                         setNewItems(orderData.order_items || []);
-                        setNotificationType('new');
+                        setNotificationType(pendingOrderNotification.type === 'update' ? 'update' : 'new');
                         setShowNotification(true);
                     }
 
-                    // Optional: Speak immediately on tap if sound is enabled
                     if (soundEnabled) {
-                        await handleSpeakOrder(orderData, 'new');
+                        await handleSpeakOrder(orderData, pendingOrderNotification.type === 'update' ? 'update' : 'new');
                     }
                 }
+            } catch (e) {
+                console.error('Error handling tapped notification:', e);
+            } finally {
+                consumePendingOrderNotification();
             }
-        });
+        })();
 
         return () => {
-            database.unsubscribe(subOrders);
-            database.unsubscribe(subOrderItems);
-            soundService.unload();
-            responseListener.remove(); // Use .remove() method
+            cancelled = true;
         };
-    }, [soundEnabled, popupEnabled, systemEnabled]);
+    }, [pendingOrderNotification?.orderId, pendingOrderNotification?.type, popupEnabled, soundEnabled, consumePendingOrderNotification]);
 
     const handleNewOrderNotification = async (orderData: any) => {
         try {

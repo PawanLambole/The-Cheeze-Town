@@ -4,8 +4,13 @@ const { loadEnv } = require('./loadEnv');
 
 loadEnv();
 
-const supabaseUrl = 'https://gnpdhisyxwqvnjleyola.supabase.co';
-const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImducGRoaXN5eHdxdm5qbGV5b2xhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjUwNDY4MSwiZXhwIjoyMDgyMDgwNjgxfQ.TpN6iRbVHyagqvEBJioMz2cfSxbBj0fFuQYUhCKYAac';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+
+if (!supabaseUrl || !serviceKey) {
+    console.error('Missing env vars. Set SUPABASE_URL and SUPABASE_SERVICE_KEY for this script.');
+    process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, serviceKey);
 

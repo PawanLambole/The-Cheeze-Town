@@ -4,7 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    // Include custom auth header so browser-based testing doesn't fail preflight.
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-order-notification-secret',
 };
 
 serve(async (req: Request) => {
@@ -13,14 +14,30 @@ serve(async (req: Request) => {
     }
 
     try {
+        const expectedSecret = Deno.env.get('ORDER_NOTIFICATION_SECRET') ?? '';
+        const providedSecret = req.headers.get('x-order-notification-secret') ?? '';
+
+        if (!expectedSecret || providedSecret !== expectedSecret) {
+            console.warn('Unauthorized order-notification request', {
+                hasExpectedSecret: Boolean(expectedSecret),
+                hasProvidedSecret: Boolean(providedSecret),
+            });
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 401,
+            });
+        }
+
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         );
 
-        const { record } = await req.json();
+        const payload = await req.json();
+        const record = payload?.record;
+        const eventType = payload?.eventType ?? 'ORDER_INSERT';
 
-        if (!record || !record.id) {
+        if (!record) {
             // Just a ping or invalid data
             return new Response(JSON.stringify({ message: "No record data" }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -28,12 +45,57 @@ serve(async (req: Request) => {
             });
         }
 
-        console.log(`🔔 Processing order: ${record.id}`);
+        // Determine the order context for the notification.
+        let orderForNotification: any = null;
+        let title: string;
+        let body: string;
+        let data: any = {};
 
-        // 1. Fetch Users wanting notifications (Chefs usually, specifically with Role logic if needed, but for now ANYONE with a token)
+        if (eventType === 'ORDER_ITEM_INSERT') {
+            const orderId = record.order_id;
+            if (!orderId) {
+                return new Response(JSON.stringify({ message: 'No order_id on order item record' }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200,
+                });
+            }
+
+            const { data: orderRow, error: orderError } = await supabaseClient
+                .from('orders')
+                .select('id, order_number, table_id, total_amount')
+                .eq('id', orderId)
+                .maybeSingle();
+
+            if (orderError) {
+                throw new Error(`Error fetching order for item insert: ${orderError.message}`);
+            }
+
+            orderForNotification = orderRow ?? { id: orderId };
+
+            title = `Order Updated #${orderForNotification.order_number || orderForNotification.id} ✏️`;
+            body = `+${record.quantity || 1} ${record.menu_item_name || 'item'} (Table ${orderForNotification.table_id || 'N/A'})`;
+            data = { orderId: orderForNotification.id, type: 'update' };
+        } else {
+            if (!record.id) {
+                return new Response(JSON.stringify({ message: 'No order id' }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200,
+                });
+            }
+
+            orderForNotification = record;
+            title = `New Order #${record.order_number || record.id} 🍔`;
+            body = `Table ${record.table_id || 'N/A'} - ₹${record.total_amount}`;
+            data = { orderId: record.id, type: 'new' };
+        }
+
+        console.log(`🔔 Processing notification. eventType=${eventType} orderId=${orderForNotification?.id ?? record?.id}`);
+
+        // 1. Fetch Chef users with push tokens
         const { data: users, error: userError } = await supabaseClient
             .from('users')
             .select('expo_push_token')
+            .eq('role', 'chef')
             .not('expo_push_token', 'is', null);
 
         if (userError) {
@@ -54,9 +116,9 @@ serve(async (req: Request) => {
             return {
                 to: user.expo_push_token,
                 sound: 'default',
-                title: `New Order #${record.order_number || record.id} 🍔`,
-                body: `Table ${record.table_id || 'N/A'} - ₹${record.total_amount}`,
-                data: { orderId: record.id }, // MATCHES CLIENT LISTENER EXPECTATION
+                title,
+                body,
+                data,
                 channelId: 'Orders_v4',      // MATCHES CLIENT CHANNEL
                 priority: 'high',            // MAX PRIORITY
             };
@@ -67,6 +129,8 @@ serve(async (req: Request) => {
         while (messages.length > 0) {
             chunks.push(messages.splice(0, 100));
         }
+
+        const expoResults: any[] = [];
 
         for (const chunk of chunks) {
             const response = await fetch('https://exp.host/--/api/v2/push/send', {
@@ -80,9 +144,10 @@ serve(async (req: Request) => {
             });
             const result = await response.json();
             console.log('Expo Response:', JSON.stringify(result));
+            expoResults.push(result);
         }
 
-        return new Response(JSON.stringify({ message: "Notifications sent!" }), {
+        return new Response(JSON.stringify({ message: "Notifications sent!", eventType, recipients: users.length, expoResults }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         });

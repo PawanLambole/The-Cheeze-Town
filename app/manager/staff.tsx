@@ -152,7 +152,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
       resetForm();
     } catch (e) {
       console.error("Error adding staff", e);
-      alert("Failed to add staff");
+      alert(t('manager.staff.errorAddStaff', { defaultValue: 'Failed to add staff' }));
     }
   };
 
@@ -176,7 +176,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
               fetchStaff();
             } catch (e) {
               console.error("Error firing staff", e);
-              Alert.alert('Error', 'Failed to fire staff member');
+              Alert.alert(t('common.error'), t('manager.staff.errorFireStaff', { defaultValue: 'Failed to fire staff member' }));
             }
           }
         }
@@ -201,10 +201,10 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
 
               if (error) throw error;
               fetchStaff();
-              Alert.alert('Success', 'Staff member reinstated to Pending list.');
+              Alert.alert(t('common.success'), t('manager.staff.reinstateSuccess', { defaultValue: 'Staff member reinstated to Pending list.' }));
             } catch (e) {
               console.error("Error reinstating staff", e);
-              Alert.alert('Error', 'Failed to reinstate staff member');
+              Alert.alert(t('common.error'), t('manager.staff.errorReinstateStaff', { defaultValue: 'Failed to reinstate staff member' }));
             }
           }
         }
@@ -243,7 +243,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
       resetForm();
     } catch (e) {
       console.error("Error updating staff", e);
-      alert("Failed to update staff");
+      alert(t('manager.staff.errorUpdateStaff', { defaultValue: 'Failed to update staff' }));
     }
   };
 
@@ -267,11 +267,13 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Staff member approved successfully');
+      if (error) throw error;
+
+      Alert.alert(t('common.success'), t('manager.staff.approveSuccess', { defaultValue: 'Staff member approved successfully' }));
       fetchStaff();
     } catch (e) {
       console.error("Error approving staff", e);
-      Alert.alert("Error", "Failed to approve staff member");
+      Alert.alert(t('common.error'), t('manager.staff.errorApproveStaff', { defaultValue: 'Failed to approve staff member' }));
     } finally {
       setShowApprovalModal(false);
       setSelectedStaffForApproval(null);
@@ -350,8 +352,8 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
               member.status === 'approved' ? { color: '#10B981' } :
                 member.status === 'fired' ? { color: '#EF4444' } : { color: '#F59E0B' }
             ]}>
-              {member.status === 'approved' ? '✓ Approved' :
-                member.status === 'fired' ? '✕ Fired' : '⏱ Pending'}
+              {member.status === 'approved' ? `✓ ${t('common.approved', { defaultValue: 'Approved' })}` :
+                member.status === 'fired' ? `✕ ${t('manager.staff.status.fired', { defaultValue: 'Fired' })}` : `⏱ ${t('manager.staff.status.pending', { defaultValue: 'Pending' })}`}
             </Text>
           </View>
         </View>
@@ -366,7 +368,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
               style={[styles.actionButtonFull, styles.approveButtonBg]}
               onPress={(e) => handleApproveClick(member.id, e)}
             >
-              <Text style={styles.actionButtonText}>Approve</Text>
+              <Text style={styles.actionButtonText}>{t('common.approve', { defaultValue: 'Approve' })}</Text>
             </TouchableOpacity>
           )}
 
@@ -378,7 +380,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
                 <UserX size={16} color="#FFF" />
-                <Text style={styles.actionButtonText}>Fire Staff</Text>
+                <Text style={styles.actionButtonText}>{t('manager.staff.fireStaff', { defaultValue: 'Fire Staff' })}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -391,7 +393,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
                 <UserPlus size={16} color="#FFF" />
-                <Text style={styles.actionButtonText}>Reinstate</Text>
+                <Text style={styles.actionButtonText}>{t('manager.staff.reinstate', { defaultValue: 'Reinstate' })}</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -468,7 +470,7 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
             onPress={() => setSelectedStatus('fired')}
           >
             <Text style={[styles.statValue, selectedStatus === 'fired' && styles.statTextActive]}>{firedStaff}</Text>
-            <Text style={[styles.statLabel, selectedStatus === 'fired' && styles.statTextActive]}>Fired</Text>
+            <Text style={[styles.statLabel, selectedStatus === 'fired' && styles.statTextActive]}>{t('manager.staff.status.fired', { defaultValue: 'Fired' })}</Text>
           </TouchableOpacity>
         </View>
 
@@ -548,13 +550,13 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
                 <View style={styles.newDesignationRow}>
                   <TextInput
                     style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                    placeholder="New designation (optional)"
+                    placeholder={t('manager.staff.newDesignationPlaceholder', { defaultValue: 'New designation (optional)' })}
                     placeholderTextColor={Colors.dark.textSecondary}
                     value={newDesignation}
                     onChangeText={setNewDesignation}
                   />
                   <TouchableOpacity style={styles.addDesignationButton} onPress={handleAddDesignation}>
-                    <Text style={styles.addDesignationText}>Add</Text>
+                    <Text style={styles.addDesignationText}>{t('common.add', { defaultValue: 'Add' })}</Text>
                   </TouchableOpacity>
                 </View>
               )}

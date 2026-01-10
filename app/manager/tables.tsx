@@ -264,7 +264,7 @@ export default function TablesScreen() {
 
       if (error) {
         console.error('Error updating table:', error);
-        Alert.alert('Error', 'Failed to update table');
+        Alert.alert(t('common.error'), t('manager.tables.errorUpdateTable', { defaultValue: 'Failed to update table' }));
       } else {
         setShowEditModal(false);
         setEditTableNumber('');
@@ -274,7 +274,7 @@ export default function TablesScreen() {
       }
     } catch (error) {
       console.error('Error:', error);
-      Alert.alert('Error', 'Failed to update table');
+      Alert.alert(t('common.error'), t('manager.tables.errorUpdateTable', { defaultValue: 'Failed to update table' }));
     }
   };
 
@@ -283,7 +283,7 @@ export default function TablesScreen() {
 
     // Check if table is occupied
     if (selectedTable.status === 'occupied') {
-      Alert.alert('Cannot Delete', 'Cannot delete an occupied table. Please complete the order first.');
+      Alert.alert(t('manager.tables.deleteTitle'), t('manager.tables.errorDeleteOccupied', { defaultValue: 'Cannot delete an occupied table. Please complete the order first.' }));
       return;
     }
 
@@ -292,7 +292,7 @@ export default function TablesScreen() {
 
       if (error) {
         console.error('Error deleting table:', error);
-        Alert.alert('Error', 'Failed to delete table');
+        Alert.alert(t('common.error'), t('manager.tables.errorDeleteTable', { defaultValue: 'Failed to delete table' }));
       } else {
         setShowDeleteModal(false);
         setSelectedTable(null);
@@ -300,7 +300,7 @@ export default function TablesScreen() {
       }
     } catch (error) {
       console.error('Error:', error);
-      Alert.alert('Error', 'Failed to delete table');
+      Alert.alert(t('common.error'), t('manager.tables.errorDeleteTable', { defaultValue: 'Failed to delete table' }));
     }
   };
 
@@ -722,7 +722,7 @@ export default function TablesScreen() {
                   ))}
                   <View style={{ height: 1, backgroundColor: Colors.dark.border, marginVertical: 8 }} />
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                    <Text style={{ color: Colors.dark.textSecondary }}>Subtotal</Text>
+                    <Text style={{ color: Colors.dark.textSecondary }}>{t('common.subtotal', { defaultValue: 'Subtotal' })}</Text>
                     <Text style={{ color: Colors.dark.text, fontWeight: '600' }}>₹{selectedTable.orderAmount}</Text>
                   </View>
                 </View>

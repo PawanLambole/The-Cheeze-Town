@@ -359,14 +359,14 @@ export default function HomeScreen() {
             label={t('manager.home.todaysOrders')}
             icon={<ClipboardList size={20} color="#3B82F6" />}
             color="#3B82F6"
-            onPress={() => router.push('/manager/orders')}
+            onPress={() => router.push('/manager/orders?dateRange=today')}
           />
           <StatCard
             value={stats.pendingOrders}
             label={t('manager.home.pendingOrders')}
             icon={<Clock size={20} color="#F59E0B" />}
             color="#F59E0B"
-            onPress={() => router.push('/manager/orders')}
+            onPress={() => router.push('/manager/orders?status=pending')}
           />
           <StatCard
             value={`₹${stats.todayRevenue.toLocaleString()}`}
@@ -416,6 +416,16 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.quickAccessGrid}>
+          <TouchableOpacity
+            style={[styles.quickAccessCard, styles.quickAccessFull]}
+            onPress={() => router.push('/manager/order-history')}
+          >
+            <View style={[styles.quickAccessIcon, { backgroundColor: '#3B82F620', width: 40, height: 40 }]}>
+              <ClipboardList size={22} color="#3B82F6" />
+            </View>
+            <Text style={[styles.quickAccessLabel, { fontSize: 16 }]}>{t('manager.dashboard.orderHistory', { defaultValue: 'Order History' })}</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.quickAccessCard}
             onPress={() => router.push('/inventory')}
@@ -629,6 +639,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
     gap: 8,
+  },
+  quickAccessFull: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingLeft: 3, // Increased left padding to shift content right
+    paddingRight: 30,
+    paddingVertical: 26,
+    gap: 10,
   },
   quickAccessIcon: {
     width: 48,

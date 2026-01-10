@@ -71,7 +71,7 @@ export default function TabLayout() {
                 width: 60,
                 height: 60,
                 borderRadius: 30,
-                backgroundColor: Colors.dark.primary,
+                backgroundColor: '#000000', // Changed from primary to black to fix dimmed border
                 justifyContent: 'center',
                 alignItems: 'center',
                 shadowColor: Platform.OS !== 'web' ? Colors.dark.primary : undefined,
@@ -171,6 +171,12 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="restaurant-info"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="order-history"
         options={{
           href: null,
         }}

@@ -29,7 +29,7 @@ export default function RestaurantInfoScreen() {
         });
 
         if (url) {
-             Linking.openURL(url);
+            Linking.openURL(url);
         }
     };
 
@@ -44,7 +44,7 @@ export default function RestaurantInfoScreen() {
             </View>
 
             <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-                
+
                 {/* Phone Section */}
                 <View style={styles.card}>
                     <View style={styles.iconContainer}>
@@ -53,7 +53,7 @@ export default function RestaurantInfoScreen() {
                     <View style={styles.cardContent}>
                         <Text style={styles.cardTitle}>{t('manager.settings.restaurantDetails.phone')}</Text>
                         <Text style={styles.cardSubtitle}>{t('manager.settings.restaurantDetails.callUs')}</Text>
-                        
+
                         <View style={styles.infoGroup}>
                             <Text style={styles.label}>Rahul Barve</Text>
                             <View style={styles.phoneRow}>
@@ -67,7 +67,7 @@ export default function RestaurantInfoScreen() {
                             </View>
                         </View>
 
-                         <View style={styles.infoGroup}>
+                        <View style={styles.infoGroup}>
                             <Text style={styles.label}>Pavan Vitthal Lambole</Text>
                             <TouchableOpacity onPress={() => handleCall('+919766573966')}>
                                 <Text style={styles.link}>+91 97665 73966</Text>
@@ -78,39 +78,39 @@ export default function RestaurantInfoScreen() {
 
                 {/* Email Section */}
                 <View style={styles.card}>
-                     <View style={styles.iconContainer}>
+                    <View style={styles.iconContainer}>
                         <Mail size={32} color={Colors.dark.primary} />
                     </View>
                     <View style={styles.cardContent}>
                         <Text style={styles.cardTitle}>{t('manager.settings.restaurantDetails.email')}</Text>
                         <Text style={styles.cardSubtitle}>{t('manager.settings.restaurantDetails.emailUs')}</Text>
-                         
+
                         <View style={styles.infoGroup}>
-                             <TouchableOpacity onPress={() => handleEmail('thecheesetown@gmail.com')}>
+                            <TouchableOpacity onPress={() => handleEmail('thecheesetown@gmail.com')}>
                                 <Text style={styles.link}>thecheesetown@gmail.com</Text>
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.infoGroup}>
-                             <Text style={styles.label}>Pavan Vitthal Lambole</Text>
-                             <TouchableOpacity onPress={() => handleEmail('pavanlambole578@gmail.com')}>
+                            <Text style={styles.label}>Pavan Vitthal Lambole</Text>
+                            <TouchableOpacity onPress={() => handleEmail('pavanlambole578@gmail.com')}>
                                 <Text style={styles.link}>pavanlambole578@gmail.com</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </View>
 
-                 {/* Location Section */}
+                {/* Location Section */}
                 <View style={styles.card}>
-                     <View style={styles.iconContainer}>
+                    <View style={styles.iconContainer}>
                         <MapPin size={32} color={Colors.dark.primary} />
                     </View>
                     <View style={styles.cardContent}>
                         <Text style={styles.cardTitle}>{t('manager.settings.restaurantDetails.location')}</Text>
                         <View style={styles.infoGroup}>
-                            <Text style={styles.address}>Infront of V.W.S College,</Text>
-                            <Text style={styles.address}>Near Sakri Road,</Text>
-                            <Text style={styles.address}>Dhule.</Text>
+                            <Text style={styles.address}>{t('manager.settings.restaurantDetails.address1')}</Text>
+                            <Text style={styles.address}>{t('manager.settings.restaurantDetails.address2')}</Text>
+                            <Text style={styles.address}>{t('manager.settings.restaurantDetails.address3')}</Text>
                         </View>
                     </View>
                 </View>
@@ -185,10 +185,10 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     label: {
-         fontSize: 12,
-         color: Colors.dark.textSecondary,
-         marginBottom: 4,
-         fontWeight: '600'
+        fontSize: 12,
+        color: Colors.dark.textSecondary,
+        marginBottom: 4,
+        fontWeight: '600'
     },
     phoneRow: {
         flexDirection: 'row',
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 8,
     },
     address: {
-         fontSize: 16,
+        fontSize: 16,
         color: Colors.dark.textSecondary,
         lineHeight: 24
     }

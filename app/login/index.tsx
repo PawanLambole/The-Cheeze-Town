@@ -42,8 +42,8 @@ export default function LoginScreen() {
 
     useEffect(() => {
         // Auto-redirect if already authenticated and NOT currently processing a manual login
-        if (isAuthenticated && userData && !loading) {
-            navigateToDashboard(userData.role || 'manager');
+        if (isAuthenticated && userData?.role && !loading) {
+            navigateToDashboard(userData.role);
         }
     }, [isAuthenticated, userData, loading]);
 
@@ -171,7 +171,7 @@ export default function LoginScreen() {
     };
 
 
-    if (authLoading) {
+    if (authLoading || (isAuthenticated && !userData?.role)) {
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color={Colors.dark.primary} />

@@ -12,6 +12,7 @@ import {
 import { Download, AlertCircle, RefreshCw, X } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import type { AppVersion } from '@/services/updateService';
 
 interface UpdateDialogProps {
@@ -31,6 +32,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
     onUpdate,
     onDismiss,
 }) => {
+    const { t } = useTranslation();
     const [isUpdating, setIsUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -114,7 +116,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
                         {/* Version Info */}
                         <View style={styles.versionContainer}>
                             <View style={styles.versionItem}>
-                                <Text style={styles.versionLabel}>Current</Text>
+                                <Text style={styles.versionLabel}>{t('update.current')}</Text>
                                 <Text style={styles.versionText}>{currentVersion.name}</Text>
                             </View>
 
@@ -123,7 +125,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
                             </View>
 
                             <View style={styles.versionItem}>
-                                <Text style={styles.versionLabel}>New</Text>
+                                <Text style={styles.versionLabel}>{t('update.new')}</Text>
                                 <Text style={[styles.versionText, styles.newVersion]}>
                                     {version.version_name}
                                 </Text>
@@ -207,7 +209,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
                                     onPress={handleDismiss}
                                     disabled={isUpdating}
                                 >
-                                    <Text style={styles.laterButtonText}>Maybe Later</Text>
+                                    <Text style={styles.laterButtonText}>{t('update.maybeLater')}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>

@@ -2,6 +2,12 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+type PermissionCheckResult = {
+    granted: boolean;
+    canAskAgain: boolean;
+    status: Notifications.PermissionStatus;
+};
+
 class NotificationService {
     private static instance: NotificationService;
     private readonly androidChannelId = 'Orders_v4';
@@ -32,6 +38,12 @@ class NotificationService {
         if (Platform.OS !== 'android') return;
 
         try {
+            // Expo Go cannot use custom notification sounds because the sound resource
+            // is not packaged into the Expo Go app. Use default there.
+            // In an EAS/dev-client/production build, you can bundle a custom sound
+            // in android/app/src/main/res/raw and reference it here (e.g. belli.wav).
+            const isExpoGo = Constants.appOwnership === 'expo';
+
             await Notifications.setNotificationChannelAsync(this.androidChannelId, {
                 name: 'Orders Priority',
                 importance: Notifications.AndroidImportance.MAX,
@@ -40,7 +52,9 @@ class NotificationService {
                 lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
                 enableVibrate: true,
                 enableLights: true,
-                // sound: 'belli.wav', // COMMENTED OUT: Custom sound fails in Expo Go => Silent => No Banner
+                sound: isExpoGo ? 'default' : 'belli.wav',
+                bypassDnd: true,
+                showBadge: true,
             });
 
             // Debug: Log channels to verify creation and settings
@@ -58,6 +72,30 @@ class NotificationService {
         }
     }
 
+    async ensureNotificationPermissionsAsync(): Promise<PermissionCheckResult> {
+        if (Platform.OS === 'web') {
+            return { granted: true, canAskAgain: true, status: 'granted' as any };
+        }
+
+        const current = await Notifications.getPermissionsAsync();
+        const currentGranted = (current as any).granted === true || current.status === 'granted';
+        const canAskAgain = typeof (current as any).canAskAgain === 'boolean' ? (current as any).canAskAgain : true;
+
+        if (currentGranted) {
+            return { granted: true, canAskAgain, status: current.status };
+        }
+
+        // If OS allows, request again.
+        if (canAskAgain) {
+            const requested = await Notifications.requestPermissionsAsync();
+            const requestedGranted = (requested as any).granted === true || requested.status === 'granted';
+            const requestedCanAskAgain = typeof (requested as any).canAskAgain === 'boolean' ? (requested as any).canAskAgain : canAskAgain;
+            return { granted: requestedGranted, canAskAgain: requestedCanAskAgain, status: requested.status };
+        }
+
+        return { granted: false, canAskAgain: false, status: current.status };
+    }
+
     async registerForPushNotificationsAsync(): Promise<string | null> {
         await this.ensureAndroidChannelAsync();
 
@@ -65,16 +103,9 @@ class NotificationService {
             return null;
         }
 
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-        }
-
-        if (finalStatus !== 'granted') {
-            console.log('Failed to get push token for push notification!');
+        const permission = await this.ensureNotificationPermissionsAsync();
+        if (!permission.granted) {
+            console.log('Notification permission not granted. status=', permission.status, 'canAskAgain=', permission.canAskAgain);
             return null;
         }
 

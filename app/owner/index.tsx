@@ -12,6 +12,7 @@ import {
   Settings,
   Clock,
   TrendingDown,
+  Tag,
 
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -192,7 +193,7 @@ export default function OwnerDashboardScreen() {
               title={t('owner.todaysOrders')}
               value={stats.totalOrders.toString()}
               subtitle={t('owner.completedToday')}
-              onPress={() => router.push('/owner/orders')}
+              onPress={() => router.push('/owner/orders?dateRange=today')}
             />
           </View>
 
@@ -209,7 +210,7 @@ export default function OwnerDashboardScreen() {
               title={t('owner.pendingOrders')}
               value={stats.pendingOrders.toString()}
               subtitle={t('owner.activeRightNow')}
-              onPress={() => router.push('/owner/orders')}
+              onPress={() => router.push('/owner/orders?status=pending')}
             />
           </View>
 
@@ -247,10 +248,10 @@ export default function OwnerDashboardScreen() {
             />
             <OwnerCard
               icon={<ClipboardList size={24} color={Colors.dark.primary} />}
-              title={t('owner.orders')}
-              subtitle={t('owner.ordersSubtitle')}
+              title={t('manager.dashboard.orderHistory', { defaultValue: 'Order History' })}
+              subtitle={t('owner.ordersSubtitle', { defaultValue: 'View All' })}
               variant="management"
-              onPress={() => router.push('/owner/orders')}
+              onPress={() => router.push('/owner/order-history')}
             />
             <OwnerCard
               icon={<Table size={24} color={Colors.dark.primary} />}
@@ -279,6 +280,13 @@ export default function OwnerDashboardScreen() {
               subtitle={t('owner.staffSubtitle')}
               variant="management"
               onPress={() => router.push('/owner/staff')}
+            />
+            <OwnerCard
+              icon={<Tag size={24} color={Colors.dark.primary} />}
+              title={t('owner.offers')}
+              subtitle={t('owner.offersSubtitle')}
+              variant="management"
+              onPress={() => router.push('/owner/offers' as any)}
             />
 
           </View>

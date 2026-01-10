@@ -142,6 +142,18 @@ export default function OwnerTabLayout() {
                     href: null,
                 }}
             />
+            <Tabs.Screen
+                name="order-history"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="offers"
+                options={{
+                    href: null,
+                }}
+            />
         </Tabs>
     );
 }

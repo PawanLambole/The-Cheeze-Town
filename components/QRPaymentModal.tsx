@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { X, CheckCircle, XCircle, RefreshCw } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
+import { useTranslation } from 'react-i18next';
 import { Colors } from '@/constants/Theme';
 import { generateQRCode, checkPaymentStatus, cancelQRCode, RazorpayQRCode, PaymentStatus } from '@/services/razorpayService';
 
@@ -24,6 +25,7 @@ export default function QRPaymentModal({
     tableNo,
     onPaymentSuccess,
 }: QRPaymentModalProps) {
+    const { t } = useTranslation();
     const [qrCode, setQrCode] = useState<RazorpayQRCode | null>(null);
     const [loading, setLoading] = useState(false);
     const [checking, setChecking] = useState(false);
@@ -117,7 +119,7 @@ export default function QRPaymentModal({
             return (
                 <View style={styles.minimalLoadingContainer}>
                     <ActivityIndicator size="large" color={Colors.dark.primary} />
-                    <Text style={styles.minimalLoadingText}>Generating...</Text>
+                    <Text style={styles.minimalLoadingText}>{t('payment.generating')}</Text>
                 </View>
             );
         }
@@ -126,7 +128,7 @@ export default function QRPaymentModal({
             return (
                 <View style={styles.minimalSuccessContainer}>
                     <CheckCircle size={48} color="#10B981" />
-                    <Text style={styles.minimalSuccessText}>Payment Successful</Text>
+                    <Text style={styles.minimalSuccessText}>{t('payment.success')}</Text>
                 </View>
             );
         }
@@ -168,7 +170,7 @@ export default function QRPaymentModal({
             ) : paymentStatus === 'paid' ? (
                 <View style={styles.fullscreenSuccess}>
                     <CheckCircle size={64} color="#10B981" />
-                    <Text style={styles.successText}>Payment Successful</Text>
+                    <Text style={styles.successText}>{t('payment.success')}</Text>
                 </View>
             ) : qrCode ? (
                 <View style={styles.fullscreenQR}>
