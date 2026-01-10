@@ -13,7 +13,6 @@ import {
 import { X, CreditCard, Wallet, CheckCircle, Download, Share2, Clock, Smartphone, TicketPercent } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useTranslation } from 'react-i18next';
-import { PhonePeGateway, ManualPayment } from '../services/phonepeService';
 import QRPaymentModal from './QRPaymentModal';
 import { PaymentStatus } from '../services/razorpayService';
 import { supabase } from '@/services/database';
@@ -28,17 +27,10 @@ interface PaymentModalProps {
     onPaymentSuccess: (transactionId: string, method: string) => void;
 }
 
-type PaymentMethod = 'gateway' | 'cash' | 'razorpay' | null;
+type PaymentMethod = 'cash' | 'razorpay' | null;
 type PaymentStep = 'select' | 'qr_code' | 'receipt';
 
-// SuperMoney UPI Base Link
-const SUPERMONEY_UPI_BASE = 'upi://pay?mode=02&ver=01&pa=9766573966%40superyes&pn=PAVAN+VITTHAL+LAMBOLE&txntype=pay&qrmedium=02&am=200&orgid=180032&sign=MEYCIQDwUgWpsfTJIyDk+D0PoMKJFtn8xeSLGwUQscHexz+xQwIhALUGip6v3ShopUI3PqJeA5KRig1Vx7fHGc/Pz6wSzpi0';
 
-// Helper function to generate SuperMoney UPI link with dynamic amount
-const generateSuperMoneyUPI = (amount: number): string => {
-    // Replace the amount parameter in the UPI link
-    return SUPERMONEY_UPI_BASE.replace(/am=\d+/, `am=${amount}`);
-};
 
 export default function PaymentModal({
     visible,
@@ -98,75 +90,20 @@ export default function PaymentModal({
         setSelectedMethod(method);
     };
 
-    // Generate QR code for SuperMoney UPI payment
-    const generatePhonePeQR = async () => {
-        setIsProcessing(true);
-        try {
-            // Generate SuperMoney UPI string with the actual amount
-            const upiString = generateSuperMoneyUPI(finalAmount);
 
-            // Generate a simple transaction ID
-            const txnId = `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-            setQrValue(upiString);
-            setTransactionId(txnId);
-            setPaymentMethod('UPI Payment');
-            setCurrentStep('qr_code');
 
-            // Note: Payment verification will be manual via "I Have Paid" button
-            // Or you can implement automatic polling if you have a backend
-        } catch (error) {
-            Alert.alert('Error', 'Failed to generate payment QR code. Please try again.');
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    // Poll payment status every 3 seconds
-    const startPaymentStatusPolling = async (txnId: string) => {
-        setCheckingStatus(true);
-        let attempts = 0;
-        const maxAttempts = 60; // Poll for 3 minutes max
-
-        const pollInterval = setInterval(async () => {
-            attempts++;
-
-            if (attempts > maxAttempts) {
-                clearInterval(pollInterval);
-                setCheckingStatus(false);
-                Alert.alert('Timeout', 'Payment verification timed out. Please check status manually.');
-                return;
-            }
-
-            try {
-                const status = await PhonePeGateway.checkPaymentStatus(txnId);
-                if (status.success) {
-                    clearInterval(pollInterval);
-                    setCheckingStatus(false);
-                    // Show receipt
-                    setCurrentStep('receipt');
-                }
-            } catch (error) {
-                // Continue polling on error
-            }
-        }, 3000); // Check every 3 seconds
-    };
 
     // Manual verification for cash payment
     const processCashPayment = async () => {
         setIsProcessing(true);
         try {
-            const response = await ManualPayment.recordCashPayment({
-                orderId,
-                amount: finalAmount,
-                customerName,
-            });
+            // Generate a simple transaction ID for cash payment
+            const txnId = `CASH${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-            if (response.success && response.transactionId) {
-                setTransactionId(response.transactionId);
-                setPaymentMethod('Cash');
-                setCurrentStep('receipt');
-            }
+            setTransactionId(txnId);
+            setPaymentMethod('Cash');
+            setCurrentStep('receipt');
         } catch (error) {
             Alert.alert('Error', 'Failed to record cash payment');
         } finally {
@@ -337,25 +274,7 @@ export default function PaymentModal({
             {/* Payment Methods */}
             <Text style={styles.sectionTitle}>{t('payment.method')}</Text>
 
-            {/* PhonePe Gateway */}
-            <TouchableOpacity
-                style={[
-                    styles.paymentMethodCard,
-                    selectedMethod === 'gateway' && styles.paymentMethodCardActive,
-                ]}
-                onPress={() => handlePaymentMethodSelect('gateway')}
-            >
-                <View style={styles.paymentMethodIcon}>
-                    <CreditCard size={24} color={selectedMethod === 'gateway' ? '#FDB813' : '#6B7280'} />
-                </View>
-                <View style={styles.paymentMethodInfo}>
-                    <Text style={styles.paymentMethodTitle}>{t('payment.phonePe')}</Text>
-                    <Text style={styles.paymentMethodDesc}>{t('payment.phonePeDesc')}</Text>
-                </View>
-                {selectedMethod === 'gateway' && (
-                    <CheckCircle size={20} color="#FDB813" />
-                )}
-            </TouchableOpacity>
+
 
             {/* Cash Payment */}
             <TouchableOpacity
@@ -398,29 +317,7 @@ export default function PaymentModal({
             </TouchableOpacity>
 
             {/* Payment Details based on selected method */}
-            {selectedMethod === 'gateway' && (
-                <View style={styles.paymentDetailsSection}>
-                    <View style={styles.cashInfoBox}>
-                        <Text style={styles.cashInfoText}>
-                            Click below to generate a UPI QR code. Customer can scan and pay ₹{finalAmount.toFixed(2)}.
-                        </Text>
-                    </View>
-                    <TouchableOpacity
-                        style={[styles.proceedButton, isProcessing && styles.proceedButtonDisabled]}
-                        onPress={generatePhonePeQR}
-                        disabled={isProcessing}
-                    >
-                        {isProcessing ? (
-                            <ActivityIndicator color="#FFFFFF" />
-                        ) : (
-                            <>
-                                <CreditCard size={18} color="#FFFFFF" />
-                                <Text style={styles.proceedButtonText}>{t('payment.generateQR')}</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
-                </View>
-            )}
+
 
             {selectedMethod === 'cash' && (
                 <View style={styles.paymentDetailsSection}>
