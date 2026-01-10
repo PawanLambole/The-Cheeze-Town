@@ -208,6 +208,7 @@ export default function PaymentModal({
     const fetchActiveOffers = async () => {
         try {
             const now = new Date().toISOString();
+            console.log('[PaymentModal] Fetching offers at:', now);
             const { data, error } = await supabase
                 .from('offers' as any)
                 .select('*')
@@ -215,7 +216,11 @@ export default function PaymentModal({
                 .lte('valid_from', now)
                 .gte('valid_to', now);
 
-            if (data) setOffers(data);
+            console.log('[PaymentModal] Offers query result:', { data, error, count: data?.length });
+            if (data) {
+                console.log('[PaymentModal] Offers found:', data.map((o: any) => ({ code: o.code, valid_from: o.valid_from, valid_to: o.valid_to })));
+                setOffers(data);
+            }
         } catch (error) {
             console.error('Error fetching offers:', error);
         }
