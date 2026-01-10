@@ -126,8 +126,9 @@ export default function CreateOfferScreen() {
                 value: Number(value),
                 min_bill_amount: Number(minBill) || 0,
                 target_item_id: targetItemId,
-                valid_from: new Date(validFrom).toISOString(),
-                valid_to: new Date(validTo).toISOString(),
+                // Construct date in local time to preseve the intended day
+                valid_from: new Date(new Date(validFrom).setHours(0, 0, 0, 0)).toISOString(),
+                valid_to: new Date(new Date(validTo).setHours(23, 59, 59, 999)).toISOString(),
                 is_active: true
             };
 
