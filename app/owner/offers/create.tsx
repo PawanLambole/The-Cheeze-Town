@@ -119,6 +119,13 @@ export default function CreateOfferScreen() {
 
         setLoading(true);
         try {
+            // Convert dates to start/end of day in local timezone
+            const validFromDate = new Date(validFrom);
+            validFromDate.setHours(0, 0, 0, 0); // Start of day in local timezone
+
+            const validToDate = new Date(validTo);
+            validToDate.setHours(23, 59, 59, 999); // End of day in local timezone
+
             const offerData = {
                 heading,
                 code: code.toUpperCase(),
@@ -126,8 +133,8 @@ export default function CreateOfferScreen() {
                 value: Number(value),
                 min_bill_amount: Number(minBill) || 0,
                 target_item_id: targetItemId,
-                valid_from: new Date(validFrom).toISOString(),
-                valid_to: new Date(validTo).toISOString(),
+                valid_from: validFromDate.toISOString(),
+                valid_to: validToDate.toISOString(),
                 is_active: true
             };
 
