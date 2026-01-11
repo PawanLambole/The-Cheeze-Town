@@ -45,23 +45,28 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
         setIsUpdating(true);
         setError(null);
 
+        // Safety timeout - if update takes too long (e.g. 30s), stop spinner
+        const timeoutId = setTimeout(() => {
+            setIsUpdating(false);
+            setError('Update timed out. Please check your connection and try again.');
+        }, 30000);
+
         try {
             if (isOTA) {
                 // Perform OTA update
                 await onUpdate();
             } else if (isNative && version.download_url) {
-                // Open download URL for native update
+                // ... native update logic ...
                 const canOpen = await Linking.canOpenURL(version.download_url);
                 if (canOpen) {
                     await Linking.openURL(version.download_url);
-                    // Don't set isUpdating to false for native updates
-                    // as user might return to the app
                 } else {
-                    setError('Cannot open download link. Please try again later.');
-                    setIsUpdating(false);
+                    throw new Error('Cannot open download link');
                 }
             }
+            clearTimeout(timeoutId);
         } catch (err) {
+            clearTimeout(timeoutId);
             console.error('Update error:', err);
             setError('Failed to update. Please try again.');
             setIsUpdating(false);
