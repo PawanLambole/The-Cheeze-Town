@@ -31,7 +31,7 @@ module.exports = ({ config }) => {
             resizeMode: 'contain',
             backgroundColor: '#121212'
         },
-        runtimeVersion: envAppVersion,
+        runtimeVersion: '1.0.0', // Locked to 1.0.0 for OTA compatibility
         updates: {
             enabled: true,
             checkAutomatically: 'ON_LOAD',
