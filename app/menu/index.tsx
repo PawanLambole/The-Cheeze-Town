@@ -263,6 +263,12 @@ export default function MenuScreen() {
       return;
     }
 
+    // Validate Ingredients
+    if (linkedIngredients.some(l => l.quantity <= 0)) {
+      alert(t('menu.management.invalidIngredientQuantity', 'Please enter a valid quantity for all ingredients.'));
+      return;
+    }
+
     try {
       let imageUrl = formImage;
       if (formImage && formImage.startsWith('file://')) {
@@ -324,6 +330,12 @@ export default function MenuScreen() {
     if (!editItem) return;
     const priceNum = Number(formPrice);
     if (!formName.trim() || !formCategory.trim() || isNaN(priceNum)) {
+      return;
+    }
+
+    // Validate Ingredients
+    if (linkedIngredients.some(l => l.quantity <= 0)) {
+      alert(t('menu.management.invalidIngredientQuantity', 'Please enter a valid quantity for all ingredients.'));
       return;
     }
 
