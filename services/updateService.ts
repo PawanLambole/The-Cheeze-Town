@@ -36,8 +36,8 @@ export const getCurrentVersion = (): { name: string; code: number } => {
     const versionCode = parseInt(Application.nativeBuildVersion || '100', 10);
 
     return {
-        name: versionName,
-        code: versionCode,
+        name: process.env.EXPO_PUBLIC_APP_VERSION || Application.nativeApplicationVersion || '1.0.0',
+        code: parseInt(process.env.EXPO_PUBLIC_APP_VERSION_CODE || Application.nativeBuildVersion || '100', 10),
     };
 };
 
