@@ -391,68 +391,51 @@ export default function ChefDashboard() {
         try {
             const { start, end } = getTodayRange();
 
-            // 1) Fetch active orders (today only)
-            // Include 'paid' status since web orders are marked as 'paid' after successful payment
-            const { data: activeOrders, error: activeError } = await supabase
+            // 1) Fetch active orders (today only) WITH items
+            const activePromise = supabase
                 .from('orders')
-                .select('id, order_number, table_id, status, total_amount, notes, order_time, created_at, prepared_time')
+                .select(`
+                    id, order_number, table_id, status, total_amount, notes, order_time, created_at, prepared_time,
+                    order_items (id, order_id, menu_item_name, quantity, special_instructions, created_at)
+                `)
                 .in('status', ['pending', 'preparing', 'paid'])
                 .gte('created_at', start)
                 .lt('created_at', end)
                 .order('created_at', { ascending: true });
 
-            // 2) Fetch completed orders (keep to today)
-            const { data: completedOrdersRaw, error: completedError } = await supabase
+            // 2) Fetch completed orders (keep to today) WITH items
+            const completedPromise = supabase
                 .from('orders')
-                .select('id, order_number, table_id, status, total_amount, notes, order_time, created_at, prepared_time')
+                .select(`
+                    id, order_number, table_id, status, total_amount, notes, order_time, created_at, prepared_time,
+                    order_items (id, order_id, menu_item_name, quantity, special_instructions, created_at)
+                `)
                 .in('status', ['ready', 'served', 'completed'])
                 .gte('created_at', start)
                 .lt('created_at', end)
-                .order('prepared_time', { ascending: false });
+                .order('prepared_time', { ascending: false })
+                .limit(50); // Performance: Limit completed view
+
+            const [
+                { data: activeOrders, error: activeError },
+                { data: completedOrdersRaw, error: completedError }
+            ] = await Promise.all([activePromise, completedPromise]);
 
             if (activeError) console.error('Error fetching active orders:', activeError);
             if (completedError) console.error('Error fetching completed orders:', completedError);
 
-            const safeActive = (activeOrders || []) as unknown as Order[];
-            const safeCompleted = (completedOrdersRaw || []) as unknown as Order[];
+            setOrders((activeOrders || []) as Order[]);
+            setCompletedOrders((completedOrdersRaw || []) as Order[]);
 
-            const allIds = [...safeActive, ...safeCompleted].map(o => o.id).filter(Boolean);
-
-            let itemsByOrderId = new Map<number, OrderItem[]>();
-            if (allIds.length > 0) {
-                const { data: itemsData, error: itemsError } = await supabase
-                    .from('order_items')
-                    .select('id, order_id, menu_item_name, quantity, special_instructions, created_at')
-                    .in('order_id', allIds);
-
-                if (itemsError) {
-                    console.error('Error fetching order items:', itemsError);
-                } else {
-                    for (const row of itemsData || []) {
-                        const orderId = Number((row as any).order_id);
-                        const item: OrderItem = {
-                            id: (row as any).id,
-                            menu_item_name: (row as any).menu_item_name,
-                            quantity: Number((row as any).quantity) || 0,
-                            special_instructions: (row as any).special_instructions ?? null,
-                            created_at: (row as any).created_at // Added timestamp
-                        };
-                        const existing = itemsByOrderId.get(orderId) || [];
-                        existing.push(item);
-                        itemsByOrderId.set(orderId, existing);
-                    }
-                }
-            }
-
-            setOrders(safeActive.map(o => ({ ...o, order_items: itemsByOrderId.get(o.id) || [] })));
-            setCompletedOrders(safeCompleted.map(o => ({ ...o, order_items: itemsByOrderId.get(o.id) || [] })));
         } catch (error) {
             console.error('Error:', error);
+            Alert.alert(t('common.error'), t('chef.fetchError', { defaultValue: 'Error fetching orders' }));
         } finally {
-            setLoading(false);
             setRefreshing(false);
+            setLoading(false);
         }
     };
+
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);

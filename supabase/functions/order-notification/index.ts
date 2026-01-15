@@ -95,7 +95,7 @@ serve(async (req: Request) => {
         const { data: users, error: userError } = await supabaseClient
             .from('users')
             .select('expo_push_token')
-            .eq('role', 'chef')
+            .in('role', ['chef', 'manager', 'owner'])
             .not('expo_push_token', 'is', null);
 
         if (userError) {

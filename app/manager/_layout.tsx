@@ -181,6 +181,12 @@ export default function TabLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="payment-history"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

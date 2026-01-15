@@ -13,6 +13,8 @@ import {
   Clock,
   TrendingDown,
   Tag,
+  Wallet,
+  Banknote,
 
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -69,6 +71,8 @@ export default function OwnerDashboardScreen() {
   */
   const [stats, setStats] = useState({
     totalRevenue: 0,
+    onlineRevenue: 0,
+    cashRevenue: 0,
     totalOrders: 0,
     pendingOrders: 0,
     totalExpense: 0
@@ -82,10 +86,10 @@ export default function OwnerDashboardScreen() {
       todayStart.setHours(0, 0, 0, 0);
       const todayISO = todayStart.toISOString();
 
-      // 1. Get TODAY'S orders for revenue
+      // 1. Get TODAY'S orders for count and fallback revenue
       const { data: todaysOrders, error: ordersError } = await supabase
         .from('orders')
-        .select('total_amount, status')
+        .select('id, total_amount, status')
         .gte('created_at', todayISO);
 
       if (ordersError) throw ordersError;
@@ -93,19 +97,52 @@ export default function OwnerDashboardScreen() {
       const validOrders = (todaysOrders || []).filter((o: any) =>
         o.status !== 'cancelled' && o.status !== 'rejected'
       );
-
       const ordersCount = validOrders.length;
 
-      // Calculate Revenue from COMPLETED and PAID orders (paid = web orders)
-      const paidOrders = validOrders.filter((o: any) => o.status === 'completed' || o.status === 'paid');
-      const revenue = paidOrders.reduce((sum: number, order: any) => sum + (Number(order.total_amount) || 0), 0);
+      // 2. Get TODAY'S Payments for accurate Revenue Split
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select('amount, payment_method, order_id')
+        .eq('status', 'completed')
+        .gte('payment_date', todayISO);
 
-      // 2. Get pending orders count (Real-time status) - This remains "Active Right Now"
+      if (paymentsError) throw paymentsError;
+
+      let onlineRev = 0;
+      let cashRev = 0;
+      const paidOrderIds = new Set();
+
+      // Sum from payments table
+      (paymentsData || []).forEach((p: any) => {
+        const amt = Number(p.amount) || 0;
+        if (p.payment_method === 'cash') {
+          cashRev += amt;
+        } else {
+          onlineRev += amt;
+        }
+        if (p.order_id) paidOrderIds.add(p.order_id);
+      });
+
+      // Add orders that are 'paid' or 'completed' but NOT in payments table (fallback)
+      validOrders.forEach((o: any) => {
+        if (!paidOrderIds.has(o.id)) {
+          const amt = Number(o.total_amount) || 0;
+          if (o.status === 'paid') {
+            onlineRev += amt;
+          } else if (o.status === 'completed') {
+            cashRev += amt;
+          }
+        }
+      });
+
+      const totalRev = onlineRev + cashRev;
+
+      // 3. Get pending orders count (Real-time status)
       const { data: pendingData } = await database.query('orders', 'status', 'eq', 'pending');
       const { data: preparingData } = await database.query('orders', 'status', 'eq', 'preparing');
       const pendingCount = (pendingData?.length || 0) + (preparingData?.length || 0);
 
-      // 3. Get TODAY'S expenses from purchases table
+      // 4. Get TODAY'S expenses from purchases table
       const { data: todaysPurchases } = await supabase
         .from('purchases')
         .select('total_amount')
@@ -114,7 +151,9 @@ export default function OwnerDashboardScreen() {
       const expenses = (todaysPurchases || []).reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
 
       setStats({
-        totalRevenue: revenue,
+        totalRevenue: totalRev,
+        onlineRevenue: onlineRev,
+        cashRevenue: cashRev,
         totalOrders: ordersCount,
         pendingOrders: pendingCount,
         totalExpense: expenses
@@ -194,6 +233,23 @@ export default function OwnerDashboardScreen() {
               value={stats.totalOrders.toString()}
               subtitle={t('owner.completedToday')}
               onPress={() => router.push('/owner/orders?dateRange=today')}
+            />
+          </View>
+
+          <View style={styles.overviewRow}>
+            <OwnerCard
+              icon={<Banknote size={22} color="#10B981" />}
+              title="Cash Collection"
+              value={`₹${stats.cashRevenue.toLocaleString()}`}
+              subtitle="Offline Payments"
+              onPress={() => router.push('/owner/payment-history?mode=cash')}
+            />
+            <OwnerCard
+              icon={<Wallet size={22} color="#3B82F6" />}
+              title="Online Payment"
+              value={`₹${stats.onlineRevenue.toLocaleString()}`}
+              subtitle="UPI / Card / Web"
+              onPress={() => router.push('/owner/payment-history?mode=online')}
             />
           </View>
 

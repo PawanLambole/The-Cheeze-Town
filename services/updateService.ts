@@ -32,12 +32,18 @@ export interface UpdateCheckResult {
  * Get the current app version
  */
 export const getCurrentVersion = (): { name: string; code: number } => {
-    const versionName = Application.nativeApplicationVersion || '1.0.0';
-    const versionCode = parseInt(Application.nativeBuildVersion || '100', 10);
+    // Priority: Env Var (OTA) > Native Version > Default
+    const envVersion = process.env.EXPO_PUBLIC_APP_VERSION;
+    const envCode = process.env.EXPO_PUBLIC_APP_VERSION_CODE;
+
+    const nativeVersion = Application.nativeApplicationVersion;
+    const nativeCode = Application.nativeBuildVersion;
+
+    console.log('[VersionCheck] Env:', envVersion, envCode, '| Native:', nativeVersion, nativeCode);
 
     return {
-        name: process.env.EXPO_PUBLIC_APP_VERSION || Application.nativeApplicationVersion || '1.0.0',
-        code: parseInt(process.env.EXPO_PUBLIC_APP_VERSION_CODE || Application.nativeBuildVersion || '100', 10),
+        name: envVersion || nativeVersion || '1.0.0',
+        code: parseInt(envCode || nativeCode || '100', 10),
     };
 };
 

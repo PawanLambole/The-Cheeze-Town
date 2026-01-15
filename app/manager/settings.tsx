@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, ChevronRight, Lock, Globe, IndianRupee, Printer, Database, Info, LogOut, Languages } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, Globe, Info, LogOut, Languages } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/i18n';
 import { Colors } from '@/constants/Theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotificationSettings } from '@/contexts/NotificationSettingsContext';
 import { UpdateChecker } from '@/components/UpdateChecker';
+import { Bell, Volume2, MessageSquare } from 'lucide-react-native';
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -57,10 +59,36 @@ interface SettingsScreenProps {
   isOwner?: boolean;
 }
 
-export default function SettingsScreen({ showHeader = true, isOwner = true }: SettingsScreenProps) {
+export default function SettingsScreen({ showHeader = true, isOwner = false }: SettingsScreenProps) {
   const router = useRouter();
   const { t, i18n } = useTranslation();
+
   const { signOut } = useAuth();
+
+  const {
+    managerSoundEnabled, managerPopupEnabled, managerSystemEnabled,
+    ownerSoundEnabled, ownerPopupEnabled, ownerSystemEnabled,
+    toggleSetting,
+    setManagerSoundEnabled, setManagerPopupEnabled, setManagerSystemEnabled,
+    setOwnerSoundEnabled, setOwnerPopupEnabled, setOwnerSystemEnabled
+  } = useNotificationSettings();
+
+  const handleToggle = (key: string, val: boolean, setter: (v: boolean) => void) => {
+    toggleSetting(key, val, setter);
+  };
+
+  // Resolve current settings based on role
+  const soundEnabled = isOwner ? ownerSoundEnabled : managerSoundEnabled;
+  const popupEnabled = isOwner ? ownerPopupEnabled : managerPopupEnabled;
+  const systemEnabled = isOwner ? ownerSystemEnabled : managerSystemEnabled;
+
+  const soundSetter = isOwner ? setOwnerSoundEnabled : setManagerSoundEnabled;
+  const popupSetter = isOwner ? setOwnerPopupEnabled : setManagerPopupEnabled;
+  const systemSetter = isOwner ? setOwnerSystemEnabled : setManagerSystemEnabled;
+
+  const soundKey = isOwner ? 'owner_sound_enabled' : 'manager_sound_enabled';
+  const popupKey = isOwner ? 'owner_popup_enabled' : 'manager_popup_enabled';
+  const systemKey = isOwner ? 'owner_system_enabled' : 'manager_system_enabled';
 
 
 
@@ -148,8 +176,35 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
           </View>
         </View>
 
-
-
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.notifications', { defaultValue: 'Notifications' })}</Text>
+          <View style={styles.settingsList}>
+            <SettingItem
+              icon={<Volume2 size={20} color={Colors.dark.primary} />}
+              title={t('settings.sound', { defaultValue: 'Sound Alerts' })}
+              subtitle={t('settings.soundSubtitle', { defaultValue: 'Play sound for new orders' })}
+              hasSwitch
+              switchValue={soundEnabled}
+              onSwitchChange={(val) => handleToggle(soundKey, val, soundSetter)}
+            />
+            <SettingItem
+              icon={<MessageSquare size={20} color={Colors.dark.primary} />}
+              title={t('settings.popup', { defaultValue: 'In-App Popups' })}
+              subtitle={t('settings.popupSubtitle', { defaultValue: 'Show modal for new orders' })}
+              hasSwitch
+              switchValue={popupEnabled}
+              onSwitchChange={(val) => handleToggle(popupKey, val, popupSetter)}
+            />
+            <SettingItem
+              icon={<Bell size={20} color={Colors.dark.primary} />}
+              title={t('settings.system', { defaultValue: 'System Notifications' })}
+              subtitle={t('settings.systemSubtitle', { defaultValue: 'Show notifications when app is backgrounded' })}
+              hasSwitch
+              switchValue={systemEnabled}
+              onSwitchChange={(val) => handleToggle(systemKey, val, systemSetter)}
+            />
+          </View>
+        </View>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('manager.settings.businessSettings')}</Text>
           <View style={styles.settingsList}>
@@ -159,61 +214,10 @@ export default function SettingsScreen({ showHeader = true, isOwner = true }: Se
               subtitle={t('manager.settings.restaurantInfoSubtitle')}
               onPress={() => router.push('/manager/restaurant-info')}
             />
-            {!isOwner && (
-              <SettingItem
-                icon={<IndianRupee size={20} color={Colors.dark.primary} />}
-                title={t('manager.settings.taxSettings')}
-                subtitle={t('manager.settings.taxSettingsSubtitle')}
-                value="5%"
-                onPress={() => Alert.alert(t('manager.settings.comingSoon'), t('manager.settings.featureComingSoon'))}
-              />
-            )}
+
 
           </View>
         </View>
-
-        {!isOwner && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('manager.settings.security')}</Text>
-            <View style={styles.settingsList}>
-              <SettingItem
-                icon={<Lock size={20} color={Colors.dark.primary} />}
-                title={t('manager.settings.twoFactor')}
-                subtitle={t('manager.settings.twoFactorSubtitle')}
-                onPress={() => Alert.alert(t('manager.settings.comingSoon'), t('manager.settings.featureComingSoon'))}
-              />
-            </View>
-          </View>
-        )}
-
-        {!isOwner && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('manager.settings.dataStorage')}</Text>
-            <View style={styles.settingsList}>
-              <SettingItem
-                icon={<Database size={20} color={Colors.dark.primary} />}
-                title={t('manager.settings.backupData')}
-                subtitle={t('manager.settings.backupSubtitle')}
-                onPress={() => Alert.alert(t('manager.settings.comingSoon'), t('manager.settings.featureComingSoon'))}
-              />
-              <SettingItem
-                icon={<Database size={20} color={Colors.dark.primary} />}
-                title={t('manager.settings.clearCache')}
-                subtitle={t('manager.settings.clearCacheSubtitle')}
-                onPress={() => {
-                  Alert.alert(
-                    t('manager.settings.clearCache'),
-                    t('common.confirm'),
-                    [
-                      { text: t('common.cancel'), style: 'cancel' },
-                      { text: t('common.submit'), style: 'destructive', onPress: () => Alert.alert(t('common.success'), t('manager.settings.clearCacheSubtitle')) } // Reusing subtitle/success for simplicity or adding specific success msg
-                    ]
-                  );
-                }}
-              />
-            </View>
-          </View>
-        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('manager.settings.about')}</Text>

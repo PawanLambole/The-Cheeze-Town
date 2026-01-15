@@ -149,6 +149,12 @@ export default function OwnerTabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="payment-history"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
                 name="offers"
                 options={{
                     href: null,

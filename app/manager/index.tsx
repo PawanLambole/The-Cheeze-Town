@@ -13,6 +13,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  Wallet,
+  Banknote,
 
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -148,7 +150,9 @@ export default function HomeScreen() {
     todayOrders: 0,
     pendingOrders: 0,
     todayRevenue: 0,
-    todayExpense: 0, // Note: We might need an expenses table or similar logic
+    onlineRevenue: 0,
+    cashRevenue: 0,
+    todayExpense: 0,
   });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -160,7 +164,7 @@ export default function HomeScreen() {
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
 
-      // 1. Get today's orders count
+      // 1. Get today's orders count and fallback revenue
       const { data: todaysOrdersData, error: ordersError } = await database.query(
         'orders',
         'created_at',
@@ -173,29 +177,49 @@ export default function HomeScreen() {
       const ordersList = ((todaysOrdersData as unknown) || []) as DatabaseOrder[];
       const orderCount = ordersList.length;
 
-      // Calculate Revenue from both:
-      // 1. Actual payment records from payments table
-      // 2. Orders with status 'paid' (from website) that might not have payment records yet
+      // 2. Calculate Revenue Split using Payments table + Fallback
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).toISOString();
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
 
-      const { data: paymentsToday, error: paymentsError } = await supabase
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
-        .select('amount')
+        .select('amount, payment_method, order_id')
         .eq('status', 'completed')
         .gte('payment_date', startOfDay)
         .lte('payment_date', endOfDay);
 
       if (paymentsError) throw paymentsError;
 
-      const paymentsRevenue = (paymentsToday || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+      let onlineRev = 0;
+      let cashRev = 0;
+      const paidOrderIds = new Set();
 
-      // Also get revenue from 'paid' orders (website orders)
-      const paidOrders = ordersList.filter((o: DatabaseOrder) => o.status === 'paid' || o.status === 'completed');
-      const ordersRevenue = paidOrders.reduce((sum: number, o: DatabaseOrder) => sum + (Number(o.total_amount) || 0), 0);
+      // Sum from payments table
+      (paymentsData || []).forEach((p: any) => {
+        const amt = Number(p.amount) || 0;
+        if (p.payment_method === 'cash') {
+          cashRev += amt;
+        } else {
+          onlineRev += amt;
+        }
+        if (p.order_id) paidOrderIds.add(p.order_id);
+      });
 
-      // Use the higher value to avoid double counting (payments table should include all, but just in case)
-      const revenue = Math.max(paymentsRevenue, ordersRevenue);
+      // Fallback: Add orders that are 'paid' or 'completed' but NOT in payments table
+      ordersList.forEach((o: DatabaseOrder) => {
+        // cast id to string or whatever payments uses. payments.order_id is likely int or string depending on schema. 
+        // Assuming order.id is number based on interface, but let's be safe.
+        if (!paidOrderIds.has(o.id)) {
+          const amt = Number(o.total_amount) || 0;
+          if (o.status === 'paid') {
+            onlineRev += amt;
+          } else if (o.status === 'completed') {
+            cashRev += amt;
+          }
+        }
+      });
+
+      const totalRev = onlineRev + cashRev;
 
       // 2. Get pending orders count (all time or just today/recent? Usually 'pending' status implies current)
       const { data: pendingData, error: pendingError } = await database.query(
@@ -259,7 +283,9 @@ export default function HomeScreen() {
       setStats({
         todayOrders: orderCount,
         pendingOrders: pendingCount,
-        todayRevenue: revenue,
+        todayRevenue: totalRev,
+        onlineRevenue: onlineRev,
+        cashRevenue: cashRev,
         todayExpense: totalExpense,
       });
       setRecentOrders(formattedRecentOrders);
@@ -367,6 +393,20 @@ export default function HomeScreen() {
             icon={<Clock size={20} color="#F59E0B" />}
             color="#F59E0B"
             onPress={() => router.push('/manager/orders?status=pending')}
+          />
+          <StatCard
+            value={`₹${stats.onlineRevenue.toLocaleString()}`}
+            label="Online Revenue"
+            icon={<Wallet size={20} color="#3B82F6" />}
+            color="#3B82F6"
+            onPress={() => router.push('/manager/payment-history?mode=online')}
+          />
+          <StatCard
+            value={`₹${stats.cashRevenue.toLocaleString()}`}
+            label="Cash Collection"
+            icon={<Banknote size={20} color="#10B981" />}
+            color="#10B981"
+            onPress={() => router.push('/manager/payment-history?mode=cash')}
           />
           <StatCard
             value={`₹${stats.todayRevenue.toLocaleString()}`}

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, Printer, Filter, CreditCard } from 'lucide-react-native';
+import { ArrowLeft, Search, X, Clock, CheckCircle, User, ShoppingBag, Table, Printer, Filter, CreditCard, Trash2 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { printPaymentReceipt } from '../../services/thermalPrinter';
 import { Colors } from '@/constants/Theme';
@@ -29,9 +29,11 @@ interface Order {
     totalAmount: number;
     time: string;
     duration: string;
-    transactionId?: string;
     paymentMethod?: string;
+    transactionId?: string;
+
     createdAt: string;
+    paymentDate?: string;
 }
 
 interface OrderFilterState {
@@ -40,10 +42,15 @@ interface OrderFilterState {
     endDate: string | null;
     status: 'all' | 'pending' | 'served' | 'completed';
     paymentStatus: 'all' | 'paid' | 'unpaid';
+    paymentMethod: 'all' | 'cash' | 'online';
     orderType: 'all' | 'dine-in' | 'takeaway';
 }
 
-export default function OrderHistoryScreen() {
+interface OrderHistoryScreenProps {
+    canDelete?: boolean;
+}
+
+export default function OrderHistoryScreen({ canDelete = false }: OrderHistoryScreenProps) {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { t } = useTranslation();
@@ -66,12 +73,20 @@ export default function OrderHistoryScreen() {
     const initialDateRange = (params.dateRange as OrderFilterState['dateRange']) || 'month'; // Default to month/short history if generic, but we enforce 3 months in fetch
     const initialStatus = (params.status as OrderFilterState['status']) || 'all';
 
+    const initialPaymentMethod = (params.paymentMethod as OrderFilterState['paymentMethod']) || 'all';
+    const initialPaymentStatus = (params.paymentStatus as OrderFilterState['paymentStatus']) || 'all';
+    const initialStartDate = (params.startDate as string) || null;
+    const initialEndDate = (params.endDate as string) || null;
+
+
     const [activeFilters, setActiveFilters] = useState<OrderFilterState>({
         dateRange: initialDateRange,
-        startDate: null,
-        endDate: null,
+        startDate: initialStartDate,
+        endDate: initialEndDate,
         status: initialStatus,
-        paymentStatus: 'all',
+        paymentStatus: initialPaymentStatus,
+        paymentMethod: initialPaymentMethod,
+
         orderType: 'all'
     });
     const [tempFilters, setTempFilters] = useState<OrderFilterState>(activeFilters);
@@ -84,12 +99,59 @@ export default function OrderHistoryScreen() {
     const getTimeAgo = (dateString: string) => {
         const now = new Date();
         const past = new Date(dateString);
-        const diffMs = now.getTime() - past.getTime();
-        const diffMins = Math.round(diffMs / 60000);
-        if (diffMins < 60) return `${diffMins} ${t('common.minsAgo', { defaultValue: 'mins ago' })}`;
-        const diffHours = Math.round(diffMins / 60);
-        if (diffHours < 24) return `${diffHours} ${t('common.hoursAgo', { defaultValue: 'hours ago' })}`;
-        return `${Math.round(diffHours / 24)} ${t('common.daysAgo', { defaultValue: 'days ago' })}`;
+
+        // Check if today
+        if (now.toDateString() === past.toDateString()) {
+            // Keep distinct hours/mins for today
+            const diffMs = now.getTime() - past.getTime();
+            const diffMins = Math.round(diffMs / 60000);
+            if (diffMins < 60) return `${diffMins} ${t('common.minsAgo', { defaultValue: 'mins ago' })}`;
+            const diffHours = Math.round(diffMins / 60);
+            return `${diffHours} ${t('common.hoursAgo', { defaultValue: 'hours ago' })}`;
+        }
+
+        // Check if yesterday
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        if (past.toDateString() === yesterday.toDateString()) {
+            return t('common.yesterday', { defaultValue: 'Yesterday' });
+        }
+
+        // Return Date "14 Jan 2024"
+        return `${past.getDate()} ${past.toLocaleDateString('en-US', { month: 'short' })} ${past.getFullYear()}`;
+    };
+
+    const deleteOrder = async (orderId: string) => {
+        Alert.alert(
+            t('common.delete', { defaultValue: 'Delete Order' }),
+            t('manager.orders.deleteConfirm', { defaultValue: 'Are you sure you want to delete this order? This action cannot be undone.' }),
+            [
+                { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
+                {
+                    text: t('common.delete', { defaultValue: 'Delete' }),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const { error } = await supabase
+                                .from('orders')
+                                .delete()
+                                .eq('id', Number(orderId));
+
+                            if (error) throw error;
+
+                            setOrders(prev => prev.filter(o => o.id !== orderId));
+                            if (selectedOrder?.id === orderId) {
+                                setShowOrderModal(false);
+                                setSelectedOrder(null);
+                            }
+                        } catch (e) {
+                            console.error("Error deleting order:", e);
+                            Alert.alert(t('common.error'), t('manager.orders.deleteError', { defaultValue: 'Failed to delete order' }));
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const fetchOrders = async () => {
@@ -116,7 +178,7 @@ export default function OrderHistoryScreen() {
             if (orderIds.length > 0) {
                 const { data: paymentsData } = await supabase
                     .from('payments')
-                    .select('order_id, status, transaction_id, payment_method')
+                    .select('order_id, status, transaction_id, payment_method, payment_date')
                     .in('order_id', orderIds)
                     .in('status', ['completed', 'confirmed']);
 
@@ -161,6 +223,7 @@ export default function OrderHistoryScreen() {
                     duration: getTimeAgo(o.created_at).replace(' ago', ''),
                     transactionId: o.transaction_id || paymentRecord?.transaction_id,
                     paymentMethod: o.payment_method || paymentRecord?.payment_method,
+                    paymentDate: paymentRecord?.payment_date,
                     status: o.status,
                 };
             }));
@@ -174,11 +237,91 @@ export default function OrderHistoryScreen() {
         }
     };
 
+    // Sync activeFilters with params when they change
+    const { dateRange, startDate, endDate, status, paymentMethod, paymentStatus } = params;
+
+    // Default filters
+    const defaultFilters: OrderFilterState = {
+        dateRange: 'month',
+        startDate: null,
+        endDate: null,
+        status: 'all',
+        paymentStatus: 'all',
+        paymentMethod: 'all',
+        orderType: 'all'
+    };
+
     useFocusEffect(
         useCallback(() => {
+            // Check if we have active params. 
+            // If we have "dateRange" param, we assume we are in "Param Mode".
+            // If we have NO params (empty object), we should RESET to defaults.
+            // Note: useLocalSearchParams returns object.
+
+            const hasFilterParams = dateRange || startDate || endDate || status || paymentMethod || paymentStatus;
+
+            if (!hasFilterParams) {
+                // No params? Reset to defaults if not already defaults
+                // We check against current tempFilters or activeFilters?
+                // Best to check activeFilters.
+                // However, be careful not to loop.
+                setActiveFilters(prev => {
+                    const isDifferent =
+                        prev.dateRange !== 'month' ||
+                        prev.status !== 'all' ||
+                        prev.paymentStatus !== 'all' ||
+                        prev.paymentMethod !== 'all' ||
+                        prev.startDate !== null;
+
+                    if (isDifferent) {
+                        return defaultFilters;
+                    }
+                    return prev;
+                });
+                setTempFilters(defaultFilters);
+                setSearchQuery('');
+            }
+
             fetchOrders();
-        }, [])
+        }, [dateRange, startDate, endDate, status, paymentMethod, paymentStatus])
     );
+
+    useEffect(() => {
+        // Only update if params are present and different from current state
+        if (dateRange || startDate || endDate || status || paymentMethod || paymentStatus) {
+            const newDateRange = (dateRange as OrderFilterState['dateRange']) || activeFilters.dateRange;
+            const newStartDate = (startDate as string) || activeFilters.startDate;
+            const newEndDate = (endDate as string) || activeFilters.endDate;
+            const newStatus = (status as OrderFilterState['status']) || activeFilters.status;
+            const newPaymentMethod = (paymentMethod as OrderFilterState['paymentMethod']) || activeFilters.paymentMethod;
+            const newPaymentStatus = (paymentStatus as OrderFilterState['paymentStatus']) || activeFilters.paymentStatus;
+
+            // Check if anything actually changed to avoid unnecessary updates
+            if (
+                newDateRange !== activeFilters.dateRange ||
+                newStartDate !== activeFilters.startDate ||
+                newEndDate !== activeFilters.endDate ||
+                newStatus !== activeFilters.status ||
+                newPaymentMethod !== activeFilters.paymentMethod ||
+                newPaymentStatus !== activeFilters.paymentStatus
+            ) {
+                const newFilters = {
+                    ...activeFilters,
+                    dateRange: newDateRange,
+                    startDate: newStartDate,
+                    endDate: newEndDate,
+                    status: newStatus,
+                    paymentMethod: newPaymentMethod,
+                    paymentStatus: newPaymentStatus,
+                    orderType: activeFilters.orderType // Maintain existing
+                };
+
+                setActiveFilters(newFilters);
+                setTempFilters(newFilters);
+            }
+        }
+    }, [dateRange, startDate, endDate, status, paymentMethod, paymentStatus]);
+
 
     // Advanced Filtering Logic
     const getFilteredOrders = () => {
@@ -213,6 +356,22 @@ export default function OrderHistoryScreen() {
                 if (activeFilters.paymentStatus === 'unpaid' && isPaid) return false;
             }
 
+            // Payment Method
+            if (activeFilters.paymentMethod !== 'all') {
+                const method = order.paymentMethod?.toLowerCase() || '';
+                let isCash = method === 'cash';
+                let isOnline = method !== 'cash' && method !== '';
+
+                // Inference Fallback if method is missing or not definitive
+                if (!method) {
+                    if (order.status === 'completed') isCash = true;
+                    if (order.status === 'paid') isOnline = true;
+                }
+
+                if (activeFilters.paymentMethod === 'cash' && !isCash) return false;
+                if (activeFilters.paymentMethod === 'online' && !isOnline) return false;
+            }
+
             // Order Type
             if (activeFilters.orderType !== 'all') {
                 const isDineIn = order.tableNo && order.tableNo > 0;
@@ -222,38 +381,53 @@ export default function OrderHistoryScreen() {
 
             // Date Filter
             if (activeFilters.dateRange !== 'all') {
-                if (!order.createdAt) return false;
-                const orderDate = new Date(order.createdAt);
+                // Use payment date if available (for financial accuracy), else created date
+                const effectiveDateStr = order.paymentDate || order.createdAt;
+                if (!effectiveDateStr) return false;
+
+                const orderDate = new Date(effectiveDateStr);
                 const today = new Date();
 
+                // Helper to get local YYYY-MM-DD
+                const getLocalDateStr = (d: Date) => {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                };
+
+                const orderDateStr = getLocalDateStr(orderDate);
+                const todayStr = getLocalDateStr(today);
+
                 if (activeFilters.dateRange === 'today') {
-                    if (orderDate.toDateString() !== today.toDateString()) return false;
+                    if (orderDateStr !== todayStr) return false;
                 }
                 else if (activeFilters.dateRange === 'yesterday') {
                     const yesterday = new Date(today);
                     yesterday.setDate(today.getDate() - 1);
-                    if (orderDate.toDateString() !== yesterday.toDateString()) return false;
+                    if (orderDateStr !== getLocalDateStr(yesterday)) return false;
                 }
                 else if (activeFilters.dateRange === 'week') {
                     const weekAgo = new Date(today);
                     weekAgo.setDate(today.getDate() - 7);
+                    // For week/month comparison, simple > check is usually enough, but strictly speaking:
+                    // we want >= weekAgo. orderDate is a Date object, so < comparison works fine for range.
+                    // But `weekAgo` includes current time. Reset it to start of day?
+                    weekAgo.setHours(0, 0, 0, 0);
                     if (orderDate < weekAgo) return false;
                 }
                 else if (activeFilters.dateRange === 'month') {
                     const monthAgo = new Date(today);
                     monthAgo.setMonth(today.getMonth() - 1);
+                    monthAgo.setHours(0, 0, 0, 0);
                     if (orderDate < monthAgo) return false;
                 }
                 else if (activeFilters.dateRange === 'custom') {
                     if (activeFilters.startDate) {
-                        const start = new Date(activeFilters.startDate);
-                        start.setHours(0, 0, 0, 0);
-                        if (orderDate < start) return false;
+                        if (orderDateStr < activeFilters.startDate) return false;
                     }
                     if (activeFilters.endDate) {
-                        const end = new Date(activeFilters.endDate);
-                        end.setHours(23, 59, 59, 999);
-                        if (orderDate > end) return false;
+                        if (orderDateStr > activeFilters.endDate) return false;
                     }
                 }
             }
@@ -377,70 +551,87 @@ export default function OrderHistoryScreen() {
                                 setShowOrderModal(true);
                             }}
                         >
+                            {/* Row 1: Order number (Left) + Table (Right) */}
                             <View style={styles.orderHeader}>
-                                <View>
-                                    <View style={styles.orderHeaderTop}>
-                                        <Text style={styles.orderId}>#{order.orderId}</Text>
-                                        <View style={styles.tableTag}>
-                                            <Table size={12} color="#000000" />
-                                            <Text style={styles.tableNo}>{t('manager.orders.table')} {order.tableNo}</Text>
-                                        </View>
-                                    </View>
-                                    {order.customerName && (
-                                        <View style={styles.customerInfo}>
-                                            <User size={12} color={Colors.dark.textSecondary} />
-                                            <Text style={styles.customerName}>{order.customerName}</Text>
-                                        </View>
-                                    )}
+                                <View style={styles.orderHeaderLeft}>
+                                    <Text style={styles.orderId} numberOfLines={1}>#{order.orderId}</Text>
                                 </View>
+                                <View style={styles.tableTag}>
+                                    <Table size={10} color="#000000" style={styles.tableIcon} />
+                                    <Text style={styles.tableNo} numberOfLines={1}>
+                                        {t('common.table', { defaultValue: 'Table' })} {order.tableNo}
+                                    </Text>
+                                </View>
+                            </View>
 
+                            {/* Row 2: Time (left) + Status (right) */}
+                            <View style={styles.orderMetaRow}>
+                                <View style={styles.timeContainer}>
+                                    <Clock size={14} color={Colors.dark.textSecondary} style={styles.timeIcon} />
+                                    <Text style={styles.timeText} numberOfLines={1}>{order.time}</Text>
+                                </View>
                                 {order.isCompleted ? (
-                                    <View style={[styles.statusToggleCompact, { backgroundColor: '#E5E7EB', borderColor: '#D1D5DB' }]}>
-                                        <View style={[styles.toggleThumb, { backgroundColor: '#9CA3AF' }]}>
-                                            <CheckCircle size={10} color="#FFFFFF" />
-                                        </View>
-                                        <Text style={[styles.statusToggleCompactText, { color: '#6B7280' }]}>
-                                            {t('manager.orders.stats.completed')}
-                                        </Text>
+                                    <View style={styles.statusBadgeCompleted}>
+                                        <CheckCircle size={14} color="#6B7280" style={styles.badgeIcon} />
+                                        <Text style={styles.statusTextCompleted} numberOfLines={1}>Completed</Text>
+                                    </View>
+                                ) : order.isServed ? (
+                                    <View style={styles.statusBadgeServed}>
+                                        <CheckCircle size={14} color="#10B981" style={styles.badgeIcon} />
+                                        <Text style={styles.statusTextServed} numberOfLines={1}>Served</Text>
                                     </View>
                                 ) : (
-                                    <View style={[styles.statusToggleCompact, { backgroundColor: order.isServed ? '#DCFCE7' : '#FEF3C7', borderColor: order.isServed ? '#86EFAC' : '#FCD34D' }]}>
-                                        <View style={[styles.toggleThumb, { backgroundColor: order.isServed ? '#059669' : '#D97706' }]}>
-                                            {order.isServed ? <CheckCircle size={10} color="#FFFFFF" /> : <Clock size={10} color="#FFFFFF" />}
-                                        </View>
-                                        <Text style={[styles.statusToggleCompactText, { color: order.isServed ? '#065F46' : '#92400E' }]}>
-                                            {order.isServed ? t('manager.orders.stats.served') : t('manager.orders.stats.pending')}
-                                        </Text>
+                                    <View style={styles.statusBadgePending}>
+                                        <Clock size={14} color="#F59E0B" style={styles.badgeIcon} />
+                                        <Text style={styles.statusTextPending} numberOfLines={1}>Pending</Text>
                                     </View>
                                 )}
                             </View>
 
-                            <View style={styles.itemsContainer}>
-                                <Text style={styles.itemsList} numberOfLines={2}>
-                                    {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
-                                </Text>
+                            <View style={styles.itemsSection}>
+                                <Text style={styles.itemsSectionLabel}>ITEMS ({order.items.length})</Text>
+                                {order.items.slice(0, 3).map((item, idx) => (
+                                    <Text key={idx} style={styles.itemText}>
+                                        <Text style={styles.itemQty}>{item.quantity}×</Text> {item.name}
+                                    </Text>
+                                ))}
+                                {order.items.length > 3 && (
+                                    <Text style={styles.moreItems}>+{order.items.length - 3} more</Text>
+                                )}
                             </View>
 
+                            {/* Row 4: Print bill (right) */}
+                            {order.isCompleted ? (
+                                <View style={styles.printRow}>
+                                    <TouchableOpacity
+                                        style={styles.printButton}
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            handlePrintBill(order);
+                                        }}
+                                    >
+                                        <Printer size={14} color="#000000" style={styles.printButtonIcon} />
+                                        <Text style={styles.printButtonText}>Print Bill</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : null}
+
+                            {/* Row 5: Amount (left) + Delete (right) */}
                             <View style={styles.orderFooter}>
-                                <View style={styles.timeContainer}>
-                                    <Clock size={14} color={Colors.dark.textSecondary} />
-                                    <Text style={styles.timeText}>{order.time}</Text>
-                                </View>
-                                <View style={styles.footerRight}>
-                                    {order.isCompleted && (
-                                        <TouchableOpacity
-                                            style={styles.billButton}
-                                            onPress={(e) => {
-                                                e.stopPropagation();
-                                                handlePrintBill(order);
-                                            }}
-                                        >
-                                            <Printer size={14} color="#000000" />
-                                            <Text style={styles.billButtonText}>{t('manager.orders.printBill')}</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                    <Text style={styles.totalAmount}>₹{order.totalAmount.toFixed(2)}</Text>
-                                </View>
+                                <Text style={styles.totalPrice} numberOfLines={1}>₹{order.totalAmount}</Text>
+                                {canDelete ? (
+                                    <TouchableOpacity
+                                        style={styles.deleteButton}
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            deleteOrder(order.id);
+                                        }}
+                                    >
+                                        <Trash2 size={16} color="#EF4444" />
+                                    </TouchableOpacity>
+                                ) : (
+                                    <View />
+                                )}
                             </View>
                         </TouchableOpacity>
                     ))}
@@ -487,6 +678,20 @@ export default function OrderHistoryScreen() {
                                     </View>
                                 </View>
 
+                                {/* Added Payment Method Info */}
+                                <View style={{ paddingHorizontal: 16, paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <View>
+                                        <Text style={styles.summaryLabel}>{t('manager.orders.paymentMethod', { defaultValue: 'Payment Method' })}</Text>
+                                        <Text style={[styles.summaryValue, { textTransform: 'capitalize', color: Colors.dark.primary }]}>
+                                            {selectedOrder.paymentMethod || (selectedOrder.isPaid ? 'Online' : 'Pending')}
+                                        </Text>
+                                    </View>
+                                    <View>
+                                        <Text style={styles.summaryLabel}>{t('manager.orders.timeElapsed')}</Text>
+                                        <Text style={styles.summaryValue}>{selectedOrder.time}</Text>
+                                    </View>
+                                </View>
+
                                 <View style={styles.orderItemsSection}>
                                     <Text style={styles.sectionLabel}>{t('manager.orders.items')} ({selectedOrder.items.length})</Text>
                                     {selectedOrder.items.map((item, index) => (
@@ -504,26 +709,52 @@ export default function OrderHistoryScreen() {
                                     </View>
                                 </View>
 
+
                                 <Text style={styles.orderTotalAmount}>₹{selectedOrder.totalAmount.toFixed(2)}</Text>
+
+                                {canDelete && (
+                                    <TouchableOpacity
+                                        style={{
+                                            marginHorizontal: 16,
+                                            marginTop: 24,
+                                            backgroundColor: '#FEE2E2',
+                                            padding: 16,
+                                            borderRadius: 12,
+                                            alignItems: 'center',
+                                            flexDirection: 'row',
+                                            justifyContent: 'center',
+                                            gap: 8,
+                                            borderWidth: 1,
+                                            borderColor: '#EF4444'
+                                        }}
+                                        onPress={() => deleteOrder(selectedOrder.id)}
+                                    >
+                                        <Trash2 size={20} color="#EF4444" />
+                                        <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 16 }}>
+                                            {t('common.delete', { defaultValue: 'Delete Order' })}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
 
                                 <View style={{ height: 40 }} />
                             </ScrollView>
                         )}
                     </View>
                 </View>
-            </Modal>
+            </Modal >
 
             {/* Receipt Viewer */}
-            <ReceiptViewer
+            < ReceiptViewer
                 visible={showReceipt}
-                onClose={() => setShowReceipt(false)}
+                onClose={() => setShowReceipt(false)
+                }
                 receipt={currentReceipt}
                 receiptData={currentReceiptData}
                 title="Receipt"
             />
 
             {/* Filter Modal */}
-            <Modal visible={showFilterModal} animationType="slide" transparent>
+            < Modal visible={showFilterModal} animationType="slide" transparent >
                 <View style={styles.modalOverlay}>
                     <KeyboardAvoidingView
                         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -569,6 +800,24 @@ export default function OrderHistoryScreen() {
                                             >
                                                 <Text style={[styles.filterChipText, tempFilters.paymentStatus === status && styles.filterChipTextActive]}>
                                                     {t(`filters.options.${status}`, { defaultValue: status })}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+
+                                {/* Payment Method Section */}
+                                <View style={styles.filterSection}>
+                                    <Text style={styles.filterLabel}>{t('filters.paymentMethod', { defaultValue: 'Payment Method' })}</Text>
+                                    <View style={styles.filterRow}>
+                                        {['all', 'cash', 'online'].map((method: any) => (
+                                            <TouchableOpacity
+                                                key={method}
+                                                style={[styles.filterChip, tempFilters.paymentMethod === method && styles.filterChipActive]}
+                                                onPress={() => setTempFilters(prev => ({ ...prev, paymentMethod: method }))}
+                                            >
+                                                <Text style={[styles.filterChipText, tempFilters.paymentMethod === method && styles.filterChipTextActive]}>
+                                                    {t(`filters.options.${method}`, { defaultValue: method })}
                                                 </Text>
                                             </TouchableOpacity>
                                         ))}
@@ -648,6 +897,7 @@ export default function OrderHistoryScreen() {
                                             endDate: null,
                                             status: 'all',
                                             paymentStatus: 'all',
+                                            paymentMethod: 'all',
                                             orderType: 'all'
                                         });
                                     }}
@@ -668,7 +918,7 @@ export default function OrderHistoryScreen() {
                         </View>
                     </KeyboardAvoidingView>
                 </View>
-            </Modal>
+            </Modal >
         </View >
     );
 }
@@ -766,11 +1016,12 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         borderWidth: 1,
         borderColor: Colors.dark.border,
+        overflow: 'hidden',
     },
     orderHeader: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        justifyContent: 'flex-start',
+        alignItems: 'center',
         marginBottom: 12,
     },
     orderHeaderTop: {
@@ -783,15 +1034,21 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: Colors.dark.text,
+        flexShrink: 1,
+        minWidth: 0,
+        marginRight: 10,
     },
     tableTag: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
         paddingHorizontal: 8,
         paddingVertical: 4,
         backgroundColor: Colors.dark.primary,
         borderRadius: 6,
+        flexShrink: 0,
+    },
+    tableIcon: {
+        marginRight: 4,
     },
     tableNo: {
         fontSize: 12,
@@ -839,11 +1096,165 @@ const styles = StyleSheet.create({
     statusToggleCompactTextServed: {
         color: '#065F46',
     },
-    itemsContainer: {
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        padding: 12,
-        borderRadius: 8,
+    orderHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        minWidth: 0,
+        marginRight: 12,
+    },
+    orderMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    badgeIcon: {
+        marginRight: 6,
+    },
+    statusBadgeCompleted: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#E5E7EB',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        flexShrink: 0,
+        maxWidth: '45%',
+    },
+    statusTextCompleted: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#6B7280',
+    },
+    statusBadgeServed: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#D1FAE5',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        flexShrink: 0,
+        maxWidth: '45%',
+    },
+    statusTextServed: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#10B981',
+    },
+    statusBadgePending: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FEF3C7',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        flexShrink: 0,
+        maxWidth: '45%',
+    },
+    statusTextPending: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#F59E0B',
+    },
+    itemsSection: {
+        marginTop: 16,
         marginBottom: 12,
+    },
+    itemsSectionLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: Colors.dark.textSecondary,
+        marginBottom: 8,
+        letterSpacing: 0.5,
+    },
+    itemText: {
+        fontSize: 14,
+        color: Colors.dark.text,
+        marginBottom: 6,
+        lineHeight: 20,
+    },
+    itemQty: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: Colors.dark.primary,
+    },
+    moreItems: {
+        fontSize: 13,
+        color: Colors.dark.textSecondary,
+        marginTop: 4,
+        fontStyle: 'italic',
+    },
+    deleteButton: {
+        width: 40,
+        height: 40,
+        backgroundColor: '#FEE2E2',
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    printButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.dark.primary,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 8,
+        flexShrink: 0,
+    },
+    printButtonIcon: {
+        marginRight: 6,
+    },
+    printButtonText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#000000',
+    },
+    printRow: {
+        alignItems: 'flex-end',
+        marginTop: 6,
+        marginBottom: 6,
+    },
+    totalPrice: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: Colors.dark.text,
+        marginLeft: 4,
+        flexShrink: 0,
+    },
+    itemsContainer: {
+        marginVertical: 12,
+        paddingHorizontal: 0,
+    },
+    itemsLabel: {
+        fontSize: 11,
+        color: Colors.dark.textSecondary,
+        marginBottom: 8,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    itemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    itemQuantity: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: Colors.dark.primary,
+        minWidth: 28,
+    },
+    itemName: {
+        fontSize: 14,
+        color: Colors.dark.text,
+        flex: 1,
+    },
+    moreItemsText: {
+        fontSize: 12,
+        color: Colors.dark.textSecondary,
+        marginTop: 4,
+        fontStyle: 'italic',
     },
     itemsList: {
         fontSize: 14,
@@ -854,11 +1265,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: Colors.dark.border,
     },
     timeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        flex: 1,
+        minWidth: 0,
+    },
+    timeIcon: {
+        marginRight: 6,
     },
     timeText: {
         fontSize: 13,
