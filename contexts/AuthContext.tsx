@@ -1,8 +1,12 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/config/supabase';
 import { notificationService } from '@/services/NotificationService';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+const LOGIN_TIMESTAMP_KEY = 'auth_login_timestamp';
+const SESSION_TIMEOUT_MS = 36 * 60 * 60 * 1000; // 36 hours
 
 const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
@@ -81,6 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (profile) {
                     setUserData((prev) => (prev ? ({ ...prev, ...(profile as AppUser) }) : (profile as AppUser)));
+                } else {
+                    // Start: Profile Check Implementation
+                    // User is authenticated in Auth system but has no record in 'users' table.
+                    // This is an invalid state (e.g., user deleted from DB but has valid token).
+                    console.warn('⚠️ User authenticated but no profile found in database. Auto-logging out.');
+                    await signOut();
+                    return;
+                    // End: Profile Check Implementation
                 }
 
                 return;
@@ -141,6 +153,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const checkSession = async () => {
             try {
+                // Start: 36-Hour Timeout Implementation
+                const storedTimestamp = await AsyncStorage.getItem(LOGIN_TIMESTAMP_KEY);
+                const now = Date.now();
+
+                if (storedTimestamp) {
+                    const loginTime = parseInt(storedTimestamp, 10);
+                    if (now - loginTime > SESSION_TIMEOUT_MS) {
+                        console.log('⏰ Session expired (exceeded 36 hours). Logging out.');
+                        await signOut();
+                        setLoading(false);
+                        return;
+                    }
+                } else {
+                    // If no timestamp exists but we have a session (e.g. existing user after update),
+                    // start the timer now so they don't get logged out immediately.
+                    await AsyncStorage.setItem(LOGIN_TIMESTAMP_KEY, now.toString());
+                }
+                // End: 36-Hour Timeout Implementation
+
                 // Prefer getSession() on boot: it's local storage based and avoids hanging on network.
                 const { data: sessionResult, error: sessionError } = await withTimeout(
                     supabase.auth.getSession(),
@@ -242,6 +273,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log('⏳ Fetching user profile...');
                 const startProfile = Date.now();
 
+                // Start: 36-Hour Timeout Implementation
+                // Set login timestamp on successful login
+                await AsyncStorage.setItem(LOGIN_TIMESTAMP_KEY, Date.now().toString());
+                // End: 36-Hour Timeout Implementation
+
                 void fetchAndSetProfile(result.data.user.id).finally(() => {
                     const endProfile = Date.now();
                     console.log(`✅ Profile fetch finished in ${endProfile - startProfile}ms`);
@@ -263,6 +299,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error('Error signing out from Supabase:', error);
         } finally {
+            await AsyncStorage.removeItem(LOGIN_TIMESTAMP_KEY); // Clear timestamp on logout
             setUserData(null);
         }
     };

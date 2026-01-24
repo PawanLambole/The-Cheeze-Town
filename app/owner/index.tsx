@@ -115,7 +115,8 @@ export default function OwnerDashboardScreen() {
       // Sum from payments table
       (paymentsData || []).forEach((p: any) => {
         const amt = Number(p.amount) || 0;
-        if (p.payment_method === 'cash') {
+        const method = p.payment_method ? p.payment_method.toLowerCase() : '';
+        if (method === 'cash') {
           cashRev += amt;
         } else {
           onlineRev += amt;
