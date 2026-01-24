@@ -25,8 +25,8 @@ export default function AnimatedSplashScreen({ children, onAnimationComplete }: 
         // In a real app, you might wait for fonts or auth checks here
         async function prepare() {
             try {
-                // Artificially delay for 2 seconds to show the splash
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // No artificial delay needed for production
+                // await new Promise(resolve => setTimeout(resolve, 2000));
             } catch (e) {
                 console.warn(e);
             } finally {

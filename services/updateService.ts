@@ -138,7 +138,7 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
         });
 
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Update check timed out')), 5000)
+            setTimeout(() => reject(new Error('Update check timed out')), 3000)
         );
 
         const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;

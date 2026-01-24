@@ -105,51 +105,14 @@ export default function LoginScreen() {
                     return;
                 }
 
-                // If no profile exists, create one with the selected role
+                // If no profile exists, DO NOT create one. Strictly deny access.
                 if (!userRoleData) {
-                    console.log('No user profile found, creating with role:', role);
-                    const { data: { user } } = await supabase.auth.getUser();
-
-                    if (user) {
-                        const newUser = {
-                            id: data.session.user.id,
-                            email: user.email,
-                            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-                            role: role, // Use the role they selected during login
-                            phone: user.phone || ''
-                        };
-
-                        // Use UPSERT to handle case where record exists but couldn't be read due to RLS
-                        const { data: upsertedData, error: createError } = await supabase
-                            .from('users')
-                            .upsert([newUser] as any, {
-                                onConflict: 'id',
-                                ignoreDuplicates: false
-                            })
-                            .select('role')
-                            .single();
-
-                        if (createError) {
-                            console.error('Error creating/updating user profile:', createError);
-
-                            // Check if it's a duplicate key error on email (different ID)
-                            if (createError.code === '23505' && createError.message.includes('email')) {
-                                setErrorModalMessage(t('errors.emailRegistered'));
-                            } else {
-                                setErrorModalMessage(t('errors.createProfileFailed'));
-                            }
-
-                            await signOut();
-                            setLoading(false);
-                            setErrorModalVisible(true);
-                            return;
-                        }
-
-                        // Successfully created/updated, use the role from the upserted data
-                        const finalRole = upsertedData?.role || role;
-                        navigateToDashboard(finalRole);
-                        return;
-                    }
+                    console.warn('User authenticated but no profile found in public.users');
+                    await signOut();
+                    setLoading(false);
+                    setErrorModalMessage(t('errors.userNotFound') || 'User profile not found. Please contact support.');
+                    setErrorModalVisible(true);
+                    return;
                 }
 
                 // At this point, userRoleData should exist (we created it if it didn't)

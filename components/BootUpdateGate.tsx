@@ -56,46 +56,44 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
 
     const checkBootUpdates = async () => {
         try {
-            // 1. Check for Native Updates (Mandatory Block)
-            // Skip this in development to avoid blocking local testing
-            if (!__DEV__) {
-                // We check Supabase logic first.
-                const nativeCheck = await updateService.checkForUpdate();
+            if (__DEV__) {
+                setIsReady(true);
+                return;
+            }
 
+            // Parallelize checks to reduce wait time
+            const [nativeCheckResult, otaCheckResult] = await Promise.allSettled([
+                updateService.checkForUpdate(),
+                Updates.checkForUpdateAsync().catch(e => ({ isAvailable: false })) // Catch individual OTA error
+            ]);
+
+            // 1. Handle Native Update (Priority: Blocking)
+            if (nativeCheckResult.status === 'fulfilled') {
+                const nativeCheck = nativeCheckResult.value;
                 if (
                     nativeCheck.updateRequired &&
                     nativeCheck.isMandatory &&
                     nativeCheck.latestVersion?.update_type === 'native'
                 ) {
-                    // FOUND MANDATORY NATIVE UPDATE -> BLOCK
                     setBlockingUpdate(nativeCheck.latestVersion);
-                    await SplashScreen.hideAsync(); // Hide splash to show blocking UI
+                    await SplashScreen.hideAsync();
                     return;
                 }
             }
 
-            // 2. Check for OTA Updates (Auto-Apply)
-            if (!__DEV__) {
-                try {
-                    const update = await Updates.checkForUpdateAsync();
-                    if (update.isAvailable) {
-                        // OTA Available -> Fetch & Reload
-                        await Updates.fetchUpdateAsync();
-                        await Updates.reloadAsync();
-                        return; // Stop execution, app will reload
-                    }
-                } catch (e) {
-                    console.warn('Boot OTA Check failed, proceeding to app:', e);
-                    // If OTA check fails, we proceed safely to runtime
+            // 2. Handle OTA Update (Auto-Apply)
+            if (otaCheckResult.status === 'fulfilled') {
+                // @ts-ignore
+                const update = otaCheckResult.value;
+                if (update && update.isAvailable) {
+                    await Updates.fetchUpdateAsync();
+                    await Updates.reloadAsync();
+                    return;
                 }
             }
 
         } catch (error) {
             console.error('Boot Update Check Failed:', error);
-            // If we can't check, we default to allowing entry (fail open) 
-            // unless we want to be strict. Given "Guarantee update reliability", 
-            // fail open allows app usage if server is down, but fails 'Security'.
-            // Usually fail open is better for UX unless critical.
         }
 
         // 3. Safe to Proceed

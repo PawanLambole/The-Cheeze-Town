@@ -163,105 +163,95 @@ export default function HomeScreen() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
-
-      // 1. Get today's orders count and fallback revenue
-      const { data: todaysOrdersData, error: ordersError } = await database.query(
-        'orders',
-        'created_at',
-        'gte',
-        todayISO
-      );
-
-      if (ordersError) throw ordersError;
-
-      const ordersList = ((todaysOrdersData as unknown) || []) as DatabaseOrder[];
-      const orderCount = ordersList.length;
-
-      // 2. Calculate Revenue Split using Payments table + Fallback
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).toISOString();
       const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59).toISOString();
 
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select('amount, payment_method, order_id')
-        .eq('status', 'completed')
-        .gte('payment_date', startOfDay)
-        .lte('payment_date', endOfDay);
+      // Parallelize All Manager Dashboard Queries
+      const [
+        ordersResult,
+        paymentsResult,
+        activeOrdersResult,
+        recentOrdersResult,
+        expensesResult
+      ] = await Promise.all([
+        // 1. Today's Orders (Count)
+        supabase // Replaced database.query with raw supabase for direct parallel block compatibility
+          .from('orders')
+          .select('id, created_at, total_amount, status')
+          .gte('created_at', todayISO),
 
-      if (paymentsError) throw paymentsError;
+        // 2. Payments (Today)
+        supabase
+          .from('payments')
+          .select('amount, payment_method, order_id')
+          .eq('status', 'completed')
+          .gte('payment_date', todayISO)
+          .lte('payment_date', endOfDay),
 
+        // 3. Active Orders (Pending + Preparing)
+        supabase
+          .from('orders')
+          .select('status')
+          .in('status', ['pending', 'preparing']),
+
+        // 4. Recent Orders (WITH ITEMS - Single Trip)
+        supabase
+          .from('orders')
+          .select('*, order_items(menu_item_name, quantity)')
+          .order('created_at', { ascending: false })
+          .limit(5),
+
+        // 5. Expenses (Today)
+        supabase
+          .from('purchases')
+          .select('total_amount')
+          .gte('created_at', todayISO)
+          .lte('created_at', endOfDay),
+      ]);
+
+      const todaysOrdersData = ordersResult.data || [];
+      const paymentsData = paymentsResult.data || [];
+      const activeOrdersData = activeOrdersResult.data || [];
+      const recentData = recentOrdersResult.data || [];
+      const expData = expensesResult.data || [];
+
+      // 1. Order Count
+      const ordersList = (todaysOrdersData as unknown) as DatabaseOrder[];
+      const orderCount = ordersList.length;
+
+      // 2. Revenue Split
       let onlineRev = 0;
       let cashRev = 0;
       const paidOrderIds = new Set();
 
-      // Sum from payments table
       (paymentsData || []).forEach((p: any) => {
         const amt = Number(p.amount) || 0;
         const method = p.payment_method ? p.payment_method.toLowerCase() : '';
-        if (method === 'cash') {
-          cashRev += amt;
-        } else {
-          onlineRev += amt;
-        }
+        if (method === 'cash') cashRev += amt;
+        else onlineRev += amt;
         if (p.order_id) paidOrderIds.add(p.order_id);
       });
 
-      // Fallback: Add orders that are 'paid' or 'completed' but NOT in payments table
-      ordersList.forEach((o: DatabaseOrder) => {
-        // cast id to string or whatever payments uses. payments.order_id is likely int or string depending on schema. 
-        // Assuming order.id is number based on interface, but let's be safe.
+      ordersList.forEach((o: any) => {
         if (!paidOrderIds.has(o.id)) {
           const amt = Number(o.total_amount) || 0;
-          if (o.status === 'paid') {
-            onlineRev += amt;
-          } else if (o.status === 'completed') {
-            cashRev += amt;
-          }
+          if (o.status === 'paid') onlineRev += amt;
+          else if (o.status === 'completed') cashRev += amt;
         }
       });
-
       const totalRev = onlineRev + cashRev;
 
-      // 2. Get pending orders count (all time or just today/recent? Usually 'pending' status implies current)
-      const { data: pendingData, error: pendingError } = await database.query(
-        'orders',
-        'status',
-        'eq',
-        'pending'
-      );
+      // 3. Pending Count
+      const pendingCount = activeOrdersData.length;
 
-      // Also checking for 'preparing' if that counts as pending workflow
-      const { data: preparingData } = await database.query(
-        'orders',
-        'status',
-        'eq',
-        'preparing'
-      );
+      // 4. Recent Orders Formatting (Now using pre-fetched items)
+      const formattedRecentOrders = ((recentData as unknown) as any[]).map((order: any) => {
+        const itemStrings = order.order_items?.map((i: any) => `${i.quantity}x ${i.menu_item_name}`) || [];
 
-      const pendingCount = (pendingData?.length || 0) + (preparingData?.length || 0);
-
-      // 3. Recent Orders - Fetch top 5 sorted by created_at desc
-      // The generic query in database.ts is limited. Let's use supabase direct for sorting/limit.
-      const { data: recentData, error: recentError } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (recentError) throw recentError;
-
-      // Map recent orders to partial view format
-      const formattedRecentOrders = ((recentData as unknown) as DatabaseOrder[] || []).map((order: DatabaseOrder) => {
-        // We need order items. Since we didn't join, let's just show a placeholder or fetch items if critical.
-        // For dashboard list, maybe we just show generic info or do a second fetch?
-        // Let's rely on a utility or just standard mapping. 
-        // Note: The UI expects 'items' string array.
-        // For now, simpler to leave items empty or generic until we fetch them.
         return {
           orderId: order.order_number,
           tableNo: order.table_id,
           customerName: order.customer_name || t('common.guest'),
-          items: [], // We would need to fetch order_items. Leaving empty for performance for now or TODO.
+          items: itemStrings,
           isServed: order.status === 'served' || order.status === 'completed' || order.status === 'paid',
           totalAmount: order.total_amount,
           time: getTimeAgo(order.created_at),
@@ -269,18 +259,9 @@ export default function HomeScreen() {
         };
       });
 
-      // 4. Calculate today's expenses from purchases
-      const { data: expData, error: expError } = await supabase
-        .from('purchases')
-        .select('total_amount')
-        .gte('created_at', startOfDay)
-        .lte('created_at', endOfDay);
+      // 5. Expenses
+      const totalExpense = expData.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
 
-      if (expError) throw expError;
-
-      const totalExpense = (expData || []).reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
-
-      // Update state
       setStats({
         todayOrders: orderCount,
         pendingOrders: pendingCount,
@@ -290,22 +271,6 @@ export default function HomeScreen() {
         todayExpense: totalExpense,
       });
       setRecentOrders(formattedRecentOrders);
-
-      // Fetch items for recent orders to populate the UI correctly
-      // This is a "N+1" problem but okay for 5 items.
-      if (formattedRecentOrders.length > 0) {
-        const ordersWithItems = await Promise.all(formattedRecentOrders.map(async (o: any) => {
-          const { data: items } = await supabase
-            .from('order_items')
-            .select('menu_item_name, quantity')
-            .eq('order_id', ((recentData as unknown as DatabaseOrder[])?.find((rd: DatabaseOrder) => rd.order_number === o.orderId)?.id || 0));
-
-          // map to "Qty x Name"
-          const itemStrings = items?.map((i: any) => `${i.quantity}x ${i.menu_item_name}`) || [];
-          return { ...o, items: itemStrings };
-        }));
-        setRecentOrders(ordersWithItems);
-      }
 
     } catch (e) {
       console.error("Failed to fetch dashboard data", e);

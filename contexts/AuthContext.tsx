@@ -1,12 +1,13 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/config/supabase';
 import { notificationService } from '@/services/NotificationService';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-const LOGIN_TIMESTAMP_KEY = 'auth_login_timestamp';
-const SESSION_TIMEOUT_MS = 36 * 60 * 60 * 1000; // 36 hours
+const LOGIN_TIMESTAMP_KEY = 'auth_last_active_timestamp';
+const SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
@@ -46,6 +47,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const mountedRef = useRef(false);
     const latestProfileRequestRef = useRef(0);
 
+    const signOut = useCallback(async () => {
+        try {
+            await supabase.auth.signOut();
+        } catch (error) {
+            console.error('Error signing out from Supabase:', error);
+        } finally {
+            await AsyncStorage.removeItem(LOGIN_TIMESTAMP_KEY); // Clear timestamp on logout
+            setUserData(null);
+        }
+    }, []);
+
     useEffect(() => {
         mountedRef.current = true;
         return () => {
@@ -53,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, []);
 
-    const fetchAndSetProfile = useCallback(async (userId: string) => {
+    const fetchAndSetProfile = useCallback(async (userId: string, enforceExistence: boolean = true) => {
         const requestId = ++latestProfileRequestRef.current;
         const maxAttempts = 3;
         const timeoutMs = 15000;
@@ -85,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (profile) {
                     setUserData((prev) => (prev ? ({ ...prev, ...(profile as AppUser) }) : (profile as AppUser)));
-                } else {
+                } else if (enforceExistence) {
                     // Start: Profile Check Implementation
                     // User is authenticated in Auth system but has no record in 'users' table.
                     // This is an invalid state (e.g., user deleted from DB but has valid token).
@@ -114,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
         }
-    }, []);
+    }, [signOut]);
 
     const pushTokenSyncInFlightRef = useRef(false);
 
@@ -150,72 +162,88 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         void syncChefPushToken(userData.id);
     }, [userData?.id, userData?.role, syncChefPushToken]);
 
+    const checkSession = useCallback(async () => {
+        try {
+            // Start: 24-Hour Inactivity Timeout Implementation
+            const storedTimestamp = await AsyncStorage.getItem(LOGIN_TIMESTAMP_KEY);
+            const now = Date.now();
+
+            if (storedTimestamp) {
+                const lastActiveTime = parseInt(storedTimestamp, 10);
+                if (now - lastActiveTime > SESSION_TIMEOUT_MS) {
+                    console.log('⏰ Session expired (inactive for >24 hours). Logging out.');
+                    await signOut();
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // Update timestamp to now (Sliding Window)
+            await AsyncStorage.setItem(LOGIN_TIMESTAMP_KEY, now.toString());
+            // End: 24-Hour Inactivity Timeout Implementation
+
+            // Prefer getSession() on boot: it's local storage based and avoids hanging on network.
+            const { data: sessionResult, error: sessionError } = await withTimeout(
+                supabase.auth.getSession(),
+                5000,
+                'Session check'
+            );
+
+            if (sessionError) {
+                console.error('Session check error:', sessionError);
+            }
+
+            const sessionUser = sessionResult?.session?.user;
+
+            if (sessionUser) {
+                // Allow app to proceed immediately; profile can load in background.
+                setUserData({
+                    id: sessionUser.id,
+                    email: sessionUser.email ?? '',
+                    name: null,
+                    role: null,
+                    phone: null,
+                });
+
+                // Fetch full profile (bounded) without blocking loading.
+                void fetchAndSetProfile(sessionUser.id);
+            } else {
+                setUserData(null);
+            }
+        } catch (error: any) {
+            console.error('Session check error:', error);
+
+            // Handle invalid refresh token specifically
+            if (error?.message?.includes('Refresh Token Not Found') ||
+                error?.name === 'AuthApiError' ||
+                JSON.stringify(error).includes('Invalid Refresh Token')) {
+                console.log('🔄 Invalid refresh token detected, signing out...');
+                await supabase.auth.signOut();
+                setUserData(null);
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [fetchAndSetProfile, signOut]);
+
+    // Listen for AppState changes to trigger checks on resume
     useEffect(() => {
-        const checkSession = async () => {
-            try {
-                // Start: 36-Hour Timeout Implementation
-                const storedTimestamp = await AsyncStorage.getItem(LOGIN_TIMESTAMP_KEY);
-                const now = Date.now();
-
-                if (storedTimestamp) {
-                    const loginTime = parseInt(storedTimestamp, 10);
-                    if (now - loginTime > SESSION_TIMEOUT_MS) {
-                        console.log('⏰ Session expired (exceeded 36 hours). Logging out.');
-                        await signOut();
-                        setLoading(false);
-                        return;
-                    }
-                } else {
-                    // If no timestamp exists but we have a session (e.g. existing user after update),
-                    // start the timer now so they don't get logged out immediately.
-                    await AsyncStorage.setItem(LOGIN_TIMESTAMP_KEY, now.toString());
-                }
-                // End: 36-Hour Timeout Implementation
-
-                // Prefer getSession() on boot: it's local storage based and avoids hanging on network.
-                const { data: sessionResult, error: sessionError } = await withTimeout(
-                    supabase.auth.getSession(),
-                    5000,
-                    'Session check'
-                );
-
-                if (sessionError) {
-                    console.error('Session check error:', sessionError);
-                }
-
-                const sessionUser = sessionResult?.session?.user;
-
-                if (sessionUser) {
-                    // Allow app to proceed immediately; profile can load in background.
-                    setUserData({
-                        id: sessionUser.id,
-                        email: sessionUser.email ?? '',
-                        name: null,
-                        role: null,
-                        phone: null,
-                    });
-
-                    // Fetch full profile (bounded) without blocking loading.
-                    void fetchAndSetProfile(sessionUser.id);
-                } else {
-                    setUserData(null);
-                }
-            } catch (error: any) {
-                console.error('Session check error:', error);
-
-                // Handle invalid refresh token specifically
-                if (error?.message?.includes('Refresh Token Not Found') ||
-                    error?.name === 'AuthApiError' ||
-                    JSON.stringify(error).includes('Invalid Refresh Token')) {
-                    console.log('🔄 Invalid refresh token detected, signing out...');
-                    await supabase.auth.signOut();
-                    setUserData(null);
-                }
-            } finally {
-                setLoading(false);
+        const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+            if (nextAppState === 'active') {
+                console.log('📱 App resumed, checking session...');
+                await checkSession();
             }
         };
 
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        return () => {
+            subscription.remove();
+        };
+    }, [checkSession]);
+
+    useEffect(() => {
+        // Initial check on mount
         checkSession();
 
         // Listen for auth state changes
@@ -239,7 +267,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => {
             subscription.unsubscribe();
         };
-    }, [fetchAndSetProfile]);
+    }, [checkSession, fetchAndSetProfile]);
 
     const signIn = async (email: string, password: string) => {
         console.log('🔐 Attempting sign in for:', email);
@@ -273,12 +301,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log('⏳ Fetching user profile...');
                 const startProfile = Date.now();
 
-                // Start: 36-Hour Timeout Implementation
+                // Start: 24-Hour Timeout Implementation
                 // Set login timestamp on successful login
                 await AsyncStorage.setItem(LOGIN_TIMESTAMP_KEY, Date.now().toString());
-                // End: 36-Hour Timeout Implementation
+                // End: 24-Hour Timeout Implementation
 
-                void fetchAndSetProfile(result.data.user.id).finally(() => {
+                void fetchAndSetProfile(result.data.user.id, false).finally(() => {
                     const endProfile = Date.now();
                     console.log(`✅ Profile fetch finished in ${endProfile - startProfile}ms`);
                 });
@@ -290,17 +318,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('Sign in exception:', error);
             // Return error format matching Supabase response so UI handles it
             return { data: { user: null, session: null }, error: error };
-        }
-    };
-
-    const signOut = async () => {
-        try {
-            await supabase.auth.signOut();
-        } catch (error) {
-            console.error('Error signing out from Supabase:', error);
-        } finally {
-            await AsyncStorage.removeItem(LOGIN_TIMESTAMP_KEY); // Clear timestamp on logout
-            setUserData(null);
         }
     };
 
@@ -326,4 +343,3 @@ export function useAuth() {
     }
     return context;
 }
-

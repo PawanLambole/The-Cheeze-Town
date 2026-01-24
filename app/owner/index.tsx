@@ -6,6 +6,7 @@ import {
   IndianRupee,
   ClipboardList,
   Users,
+  User,
   UtensilsCrossed,
   Package,
   Table,
@@ -86,34 +87,57 @@ export default function OwnerDashboardScreen() {
       todayStart.setHours(0, 0, 0, 0);
       const todayISO = todayStart.toISOString();
 
-      // 1. Get TODAY'S orders for count and fallback revenue
-      const { data: todaysOrders, error: ordersError } = await supabase
-        .from('orders')
-        .select('id, total_amount, status')
-        .gte('created_at', todayISO);
+      // Parallelize All Dashboard Queries
+      const [
+        ordersResult,
+        paymentsResult,
+        activeOrdersResult,
+        purchasesResult
+      ] = await Promise.all([
+        // 1. Orders (Today)
+        supabase
+          .from('orders')
+          .select('id, total_amount, status')
+          .gte('created_at', todayISO),
 
-      if (ordersError) throw ordersError;
+        // 2. Payments (Today)
+        supabase
+          .from('payments')
+          .select('amount, payment_method, order_id')
+          .eq('status', 'completed')
+          .gte('payment_date', todayISO),
 
-      const validOrders = (todaysOrders || []).filter((o: any) =>
+        // 3. Pending/Preparing Orders (Active)
+        supabase
+          .from('orders')
+          .select('status')
+          .in('status', ['pending', 'preparing']),
+
+        // 4. Purchases (Today)
+        supabase
+          .from('purchases')
+          .select('total_amount')
+          .gte('created_at', todayISO)
+      ]);
+
+      const todaysOrders = ordersResult.data || [];
+      const paymentsData = paymentsResult.data || [];
+      const activeOrders = activeOrdersResult.data || [];
+      const todaysPurchases = purchasesResult.data || [];
+
+      // Process Orders Count
+      const validOrders = todaysOrders.filter((o: any) =>
         o.status !== 'cancelled' && o.status !== 'rejected'
       );
       const ordersCount = validOrders.length;
 
-      // 2. Get TODAY'S Payments for accurate Revenue Split
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select('amount, payment_method, order_id')
-        .eq('status', 'completed')
-        .gte('payment_date', todayISO);
-
-      if (paymentsError) throw paymentsError;
-
+      // Process Revenue
       let onlineRev = 0;
       let cashRev = 0;
       const paidOrderIds = new Set();
 
       // Sum from payments table
-      (paymentsData || []).forEach((p: any) => {
+      paymentsData.forEach((p: any) => {
         const amt = Number(p.amount) || 0;
         const method = p.payment_method ? p.payment_method.toLowerCase() : '';
         if (method === 'cash') {
@@ -135,21 +159,13 @@ export default function OwnerDashboardScreen() {
           }
         }
       });
-
       const totalRev = onlineRev + cashRev;
 
-      // 3. Get pending orders count (Real-time status)
-      const { data: pendingData } = await database.query('orders', 'status', 'eq', 'pending');
-      const { data: preparingData } = await database.query('orders', 'status', 'eq', 'preparing');
-      const pendingCount = (pendingData?.length || 0) + (preparingData?.length || 0);
+      // Process Active Orders Count
+      const pendingCount = activeOrders.length;
 
-      // 4. Get TODAY'S expenses from purchases table
-      const { data: todaysPurchases } = await supabase
-        .from('purchases')
-        .select('total_amount')
-        .gte('created_at', todayISO);
-
-      const expenses = (todaysPurchases || []).reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
+      // Process Expenses
+      const expenses = todaysPurchases.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
 
       setStats({
         totalRevenue: totalRev,
@@ -187,21 +203,21 @@ export default function OwnerDashboardScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <View>
-          <Text style={styles.appName}>{t('common.appName')}</Text>
-          <Text style={styles.greeting}>
-            {t('owner.subtitle')}
-          </Text>
-        </View>
-        <View style={styles.headerButtons}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => router.push('/owner/settings')}
+            onPress={() => router.push('/owner/profile')}
           >
-            <Settings size={24} color={Colors.dark.text} />
+            <User size={24} color={Colors.dark.primary} />
           </TouchableOpacity>
-
+          <View>
+            <Text style={styles.appName}>{t('common.appName')}</Text>
+            <Text style={styles.greeting}>
+              {t('owner.subtitle')}
+            </Text>
+          </View>
         </View>
+        {/* Settings Button Removed */}
       </View>
 
       <View style={styles.main}>

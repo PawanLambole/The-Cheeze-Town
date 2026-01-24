@@ -1,4 +1,4 @@
-import { View, Platform } from 'react-native';
+import { View, Platform, Image } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Home, ShoppingCart, Package, Users, User } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -61,6 +61,43 @@ export default function OwnerTabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="create-order"
+                options={{
+                    tabBarLabel: () => null,
+                    tabBarIcon: ({ focused }) => (
+                        <View
+                            style={{
+                                top: Platform.OS === 'web' ? -15 : (Platform.OS === 'ios' ? -5 : -10),
+                                width: 60,
+                                height: 60,
+                                borderRadius: 30,
+                                backgroundColor: '#000000',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                shadowColor: Platform.OS !== 'web' ? Colors.dark.primary : undefined,
+                                shadowOffset: Platform.OS !== 'web' ? {
+                                    width: 0,
+                                    height: 4,
+                                } : undefined,
+                                shadowOpacity: Platform.OS !== 'web' ? 0.3 : undefined,
+                                shadowRadius: Platform.OS !== 'web' ? 4 : undefined,
+                                elevation: Platform.OS === 'android' ? 5 : undefined,
+                                borderWidth: 4,
+                                borderColor: Colors.dark.background,
+                                ...(Platform.OS === 'web' && {
+                                    boxShadow: `0 4px 8px rgba(251, 191, 36, 0.3)`,
+                                }),
+                                overflow: 'hidden',
+                            }}>
+                            <Image
+                                source={require('../../assets/images/logo.png')}
+                                style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+                            />
+                        </View>
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="inventory"
                 options={{
                     title: t('manager.navigation.inventory'),
@@ -81,10 +118,7 @@ export default function OwnerTabLayout() {
             <Tabs.Screen
                 name="profile"
                 options={{
-                    title: t('common.profile'),
-                    tabBarIcon: ({ size, color }) => (
-                        <User size={size} color={color} />
-                    ),
+                    href: null,
                 }}
             />
             <Tabs.Screen
@@ -132,12 +166,6 @@ export default function OwnerTabLayout() {
             />
             <Tabs.Screen
                 name="expenses"
-                options={{
-                    href: null,
-                }}
-            />
-            <Tabs.Screen
-                name="create-order"
                 options={{
                     href: null,
                 }}
