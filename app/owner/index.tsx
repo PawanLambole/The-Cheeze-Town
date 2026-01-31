@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Added import
 import {
   ShoppingCart,
   IndianRupee,
@@ -65,6 +66,11 @@ export default function OwnerDashboardScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { userData } = useAuth();
+
+  // Persist Last Dashboard Route
+  useEffect(() => {
+    AsyncStorage.setItem('last_dashboard_route', '/owner');
+  }, []);
 
   /* 
    Updated to show TOTAL (Lifetime) data as requested. 

@@ -65,6 +65,7 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
     const { t } = useTranslation();
     const [selectedStatus, setSelectedStatus] = useState<'all' | 'pending' | 'served' | 'completed'>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [addItemSearchQuery, setAddItemSearchQuery] = useState(''); // Added search state for Add Item modal
     const [showOrderModal, setShowOrderModal] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [showAddItemModal, setShowAddItemModal] = useState(false);
@@ -158,30 +159,62 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
     const fetchOrders = async () => {
         if (!refreshing) setRefreshing(true);
         try {
-            // OPTIMIZED: Fetch with Joins and Limit
-            // 1. Fetch Orders with Items and Payments in ONE query
-            const { data: dbOrders, error } = await supabase
-                .from('orders')
-                .select(`
-                    *,
-                    order_items (
-                        menu_item_name,
-                        quantity,
-                        unit_price
-                    ),
-                    payments (
-                        status,
-                        transaction_id,
-                        payment_method
-                    )
-                `)
-                .neq('status', 'cancelled')
-                .order('created_at', { ascending: false })
-                .limit(50); // PERFORMANCE: Limit to 50 most recent orders
+            // OPTIMIZED: Fetch Active Orders & Recent History (Parallel)
+            // Goal: Ensure ALL pending/active orders are shown (even if old), plus recent history.
 
-            if (error) throw error;
+            const queryColumns = `
+                *,
+                order_items (
+                    menu_item_name,
+                    quantity,
+                    unit_price
+                ),
+                payments (
+                    status,
+                    transaction_id,
+                    payment_method
+                )
+            `;
 
-            const ordersWithItems = (dbOrders || []).map((o: any) => {
+            const [recentResult, activeResult] = await Promise.all([
+                // 1. Recent History (Limit 50)
+                supabase
+                    .from('orders')
+                    .select(queryColumns)
+                    .neq('status', 'cancelled')
+                    .order('created_at', { ascending: false })
+                    .limit(50),
+
+                // 2. ALL Active Orders (Pending/Preparing) - No Limit (to match Dashboard count)
+                supabase
+                    .from('orders')
+                    .select(queryColumns)
+                    .in('status', ['pending', 'preparing'])
+                    .order('created_at', { ascending: true }) // Oldest first for active
+            ]);
+
+            if (recentResult.error) throw recentResult.error;
+            if (activeResult.error) throw activeResult.error;
+
+            const recentOrders = recentResult.data || [];
+            const activeOrders = activeResult.data || [];
+
+            // Merge and Deduplicate by ID
+            const orderMap = new Map();
+
+            // Add active orders first
+            activeOrders.forEach((o: any) => orderMap.set(o.id, o));
+            // Add recent orders (overwriting is fine, data is same)
+            recentOrders.forEach((o: any) => orderMap.set(o.id, o));
+
+            const combinedOrders = Array.from(orderMap.values());
+
+            // Sort by created_at desc (Newest first)
+            combinedOrders.sort((a: any, b: any) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+
+            const ordersWithItems = combinedOrders.map((o: any) => {
                 // Map Items (Joined)
                 const items = (o.order_items || []).map((i: any) => ({
                     name: i.menu_item_name,
@@ -190,7 +223,6 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                 }));
 
                 // Map Payment (Joined)
-                // Payments is an array due to one-to-many potential, take first valid/completed if any
                 const validPayment = (o.payments || []).find((p: any) => p.status === 'completed' || p.status === 'confirmed');
                 const paymentRecord = validPayment || (o.payments && o.payments[0]);
 
@@ -223,7 +255,6 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
             setOrders(ordersWithItems);
         } catch (error) {
             console.error('Error fetching orders:', error);
-            // Fallback for "Relation not found" if payments FK is missing, we could revert to simpler query here if needed.
             Alert.alert(t('common.error'), t('manager.orders.fetchError', { defaultValue: 'Error fetching orders' }));
         } finally {
             setRefreshing(false);
@@ -444,12 +475,46 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                 {
                     text: t('common.delete', { defaultValue: 'Delete' }),
                     style: 'destructive',
+
                     onPress: async () => {
                         try {
+                            const orderIdNum = Number(orderId);
+
+                            // 1. Delete Order Items
+                            const { error: itemsError } = await supabase
+                                .from('order_items')
+                                .delete()
+                                .eq('order_id', orderIdNum);
+
+                            if (itemsError) {
+                                console.error('Error deleting items:', itemsError);
+                                throw itemsError;
+                            }
+
+                            // 2. Delete Payments
+                            // Note: Payments usually link to order_id.
+                            const { error: paymentsError } = await supabase
+                                .from('payments')
+                                .delete()
+                                .eq('order_id', orderIdNum);
+
+                            if (paymentsError) {
+                                console.error('Error deleting payments:', paymentsError);
+                                // Depending on schema, this might be critical or optional if null is allowed
+                                // strict: throw
+                                throw paymentsError;
+                            }
+
+                            // 3. Delete Notifications (if any table links via order_id explicitly)
+                            // Assuming 'notifications' table might exist or be handled by trigger, but if manual:
+                            // Check triggers/functions? Usually cascading handles via DB, but if not:
+                            // Let's assume standard simple removal for now.
+
+                            // 4. Finally Delete Order
                             const { error } = await supabase
                                 .from('orders')
                                 .delete()
-                                .eq('id', Number(orderId));
+                                .eq('id', orderIdNum);
 
                             if (error) throw error;
 
@@ -906,6 +971,9 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                             e.stopPropagation();
                                             setOrderForAddItem(order);
                                             setSelectedItems([]);
+                                            setOrderForAddItem(order);
+                                            setSelectedItems([]);
+                                            setAddItemSearchQuery(''); // Clear search
                                             setShowAddItemModal(true);
                                         }}
                                     >
@@ -1087,6 +1155,9 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                             onPress={() => {
                                                 setOrderForAddItem(selectedOrder);
                                                 setSelectedItems([]);
+                                                setOrderForAddItem(selectedOrder);
+                                                setSelectedItems([]);
+                                                setAddItemSearchQuery(''); // Clear search
                                                 setShowAddItemModal(true);
                                             }}
                                         >
@@ -1236,7 +1307,14 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                             style={styles.searchInput}
                                             placeholder="Search menu items..."
                                             placeholderTextColor={Colors.dark.textSecondary}
+                                            value={addItemSearchQuery}
+                                            onChangeText={setAddItemSearchQuery}
                                         />
+                                        {addItemSearchQuery.length > 0 && (
+                                            <TouchableOpacity onPress={() => setAddItemSearchQuery('')}>
+                                                <X size={20} color={Colors.dark.textSecondary} style={{ marginRight: 8 }} />
+                                            </TouchableOpacity>
+                                        )}
                                     </View>
 
                                     {/* Quick Add Categories */}
@@ -1306,30 +1384,32 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
                                         <Text style={styles.sectionLabel}>{t('manager.orders.menuItems')}</Text>
 
                                         {/* Menu Items from DB */}
-                                        {menuItems.map((item, index) => {
-                                            const isSelected = selectedItems.some(si => si.name === item.name);
-                                            return (
-                                                <TouchableOpacity
-                                                    key={index}
-                                                    style={[styles.menuItem, isSelected && styles.menuItemSelected]}
-                                                    onPress={() => {
-                                                        if (isSelected) {
-                                                            setSelectedItems(selectedItems.filter(si => si.name !== item.name));
-                                                        } else {
-                                                            setSelectedItems([...selectedItems, { ...item, quantity: 1 }]);
-                                                        }
-                                                    }}
-                                                >
-                                                    <View style={styles.menuItemInfo}>
-                                                        <Text style={styles.menuItemName}>{item.name}</Text>
-                                                        <Text style={styles.menuItemPrice}>₹{item.price}</Text>
-                                                    </View>
-                                                    <View style={[styles.addIcon, isSelected && styles.addedIcon]}>
-                                                        <Text style={styles.addIconText}>{isSelected ? '✓' : '+'}</Text>
-                                                    </View>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
+                                        {menuItems
+                                            .filter(item => item.name.toLowerCase().includes(addItemSearchQuery.toLowerCase()))
+                                            .map((item, index) => {
+                                                const isSelected = selectedItems.some(si => si.name === item.name);
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={index}
+                                                        style={[styles.menuItem, isSelected && styles.menuItemSelected]}
+                                                        onPress={() => {
+                                                            if (isSelected) {
+                                                                setSelectedItems(selectedItems.filter(si => si.name !== item.name));
+                                                            } else {
+                                                                setSelectedItems([...selectedItems, { ...item, quantity: 1 }]);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <View style={styles.menuItemInfo}>
+                                                            <Text style={styles.menuItemName}>{item.name}</Text>
+                                                            <Text style={styles.menuItemPrice}>₹{item.price}</Text>
+                                                        </View>
+                                                        <View style={[styles.addIcon, isSelected && styles.addedIcon]}>
+                                                            <Text style={styles.addIconText}>{isSelected ? '✓' : '+'}</Text>
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                );
+                                            })}
                                     </View>
                                     {/* Confirm Button */}
                                     {/* Confirm Button Sticky Footer */}

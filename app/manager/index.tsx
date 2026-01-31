@@ -22,7 +22,7 @@ import { Colors } from '@/constants/Theme';
 import { database, supabase } from '@/services/database';
 import { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
-
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Added import
 
 interface StatCardProps {
   value: string | number;
@@ -140,6 +140,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+
+  // Persist Last Dashboard Route
+  useEffect(() => {
+    AsyncStorage.setItem('last_dashboard_route', '/manager');
+  }, []);
 
   const tabBarHeight = Platform.OS === 'web' ? 70 : 60 + insets.bottom;
   const fabProtrusion = Platform.OS === 'web' ? 15 : Platform.OS === 'ios' ? 5 : 10;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar, Image, ActivityIndicator, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Added import
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -24,10 +25,20 @@ export default function LoginScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showRoleDropdown, setShowRoleDropdown] = useState(false);
 
-    const navigateToDashboard = (userRole: string) => {
+    const navigateToDashboard = async (userRole: string) => {
         switch (userRole) {
             case 'owner':
-                router.replace('/owner');
+                // Check if user was last in Manager View
+                try {
+                    const lastRoute = await AsyncStorage.getItem('last_dashboard_route');
+                    if (lastRoute === '/manager') {
+                        router.replace('/manager');
+                    } else {
+                        router.replace('/owner');
+                    }
+                } catch (e) {
+                    router.replace('/owner');
+                }
                 break;
             case 'manager':
                 router.replace('/manager');

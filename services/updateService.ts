@@ -161,6 +161,17 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
 
         const updateInfo = data[0];
 
+        // SAFETY VALVE: Client-side Version Check
+        // If current version code is >= latest version code, we are up to date!
+        if (currentVersion.code >= updateInfo.latest_version_code) {
+            return {
+                updateRequired: false,
+                isMandatory: false,
+                latestVersion: null,
+                currentVersion,
+            };
+        }
+
         // Clear dismissed update if this is mandatory
         if (updateInfo.is_mandatory) {
             await clearDismissedUpdate();
@@ -192,6 +203,29 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
             latestVersion: null,
             currentVersion,
         };
+    }
+};
+
+const JUST_UPDATED_KEY = '@app_just_updated_version';
+
+export const setJustUpdated = async (version: string) => {
+    try {
+        await AsyncStorage.setItem(JUST_UPDATED_KEY, version);
+    } catch (e) {
+        console.error('Error setting updated flag', e);
+    }
+};
+
+export const checkJustUpdated = async (): Promise<string | null> => {
+    try {
+        const val = await AsyncStorage.getItem(JUST_UPDATED_KEY);
+        if (val) {
+            await AsyncStorage.removeItem(JUST_UPDATED_KEY);
+            return val;
+        }
+        return null;
+    } catch (e) {
+        return null;
     }
 };
 

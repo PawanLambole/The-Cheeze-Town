@@ -28,8 +28,8 @@ async function registerUpdate() {
         update_type: 'ota',
         is_active: true,
         is_mandatory: false,
-        release_notes: 'Login UI Refinements',
-        update_message: 'Refined Login UI with compact sizing and no shadows.'
+        release_notes: 'Bug Fix: Orders List Sync',
+        update_message: 'Fixed issue where older pending orders were hidden from the list.'
     });
 
     if (versionError) {

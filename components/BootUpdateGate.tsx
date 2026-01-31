@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform, BackHandler, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform, BackHandler, StatusBar, Alert } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as SplashScreen from 'expo-splash-screen';
 import * as updateService from '@/services/updateService';
@@ -26,33 +26,6 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
     const { t } = useTranslation();
     const [isReady, setIsReady] = useState(false);
     const [blockingUpdate, setBlockingUpdate] = useState<AppVersion | null>(null);
-    const [checkingMessage, setCheckingMessage] = useState<string>('');
-
-    useEffect(() => {
-        checkBootUpdates();
-
-        // Failsafe: Force ready after 8 seconds if checks hang
-        const failsafeTimeout = setTimeout(() => {
-            setIsReady((prev) => {
-                if (!prev) {
-                    console.warn('Boot checks timed out, forcing app load...');
-                }
-                return true;
-            });
-        }, 8000);
-
-        return () => clearTimeout(failsafeTimeout);
-    }, []);
-
-    // Block back button if regular Mandatory Update is active
-    useEffect(() => {
-        if (blockingUpdate) {
-            const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-                return true; // Disable back button
-            });
-            return () => subscription.remove();
-        }
-    }, [blockingUpdate]);
 
     const checkBootUpdates = async () => {
         try {
@@ -87,6 +60,7 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
                 const update = otaCheckResult.value;
                 if (update && update.isAvailable) {
                     await Updates.fetchUpdateAsync();
+                    await updateService.setJustUpdated('new-ota');
                     await Updates.reloadAsync();
                     return;
                 }
@@ -99,6 +73,42 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
         // 3. Safe to Proceed
         setIsReady(true);
     };
+
+    useEffect(() => {
+        checkBootUpdates();
+
+        // Check if we just updated
+        updateService.checkJustUpdated().then((version) => {
+            if (version) {
+                Alert.alert(
+                    t('common.updatedSuccess', { defaultValue: 'Update Successful' }),
+                    t('common.appUpdatedMessage', { defaultValue: 'The app has been updated to the latest version.' })
+                );
+            }
+        });
+
+        // Failsafe: Force ready after 8 seconds if checks hang
+        const failsafeTimeout = setTimeout(() => {
+            setIsReady((prev) => {
+                if (!prev) {
+                    console.warn('Boot checks timed out, forcing app load...');
+                }
+                return true;
+            });
+        }, 8000);
+
+        return () => clearTimeout(failsafeTimeout);
+    }, []);
+
+    // Block back button if regular Mandatory Update is active
+    useEffect(() => {
+        if (blockingUpdate) {
+            const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+                return true; // Disable back button
+            });
+            return () => subscription.remove();
+        }
+    }, [blockingUpdate]);
 
     const handleDownloadUpdate = async () => {
         if (blockingUpdate?.download_url) {
@@ -148,11 +158,7 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
     }
 
     if (!isReady) {
-        // Determine what to render while checking.
-        // Since we are wrapping AnimatedSplashScreen, if we render null, 
-        // nothing mounts. Native splash is visible.
-        // If we want to be explicit, we return null.
-        return null;
+        return null; // Native splash visible
     }
 
     return <>{children}</>;

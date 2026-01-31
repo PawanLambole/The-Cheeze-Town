@@ -34,8 +34,8 @@ module.exports = ({ config }) => {
         runtimeVersion: '1.0.0', // Locked to 1.0.0 for OTA compatibility
         updates: {
             enabled: true,
-            checkAutomatically: 'ON_ERROR_RECOVERY',
-            fallbackToCacheTimeout: 0,
+            checkAutomatically: 'ON_LOAD',
+            fallbackToCacheTimeout: 30000,
             url: 'https://u.expo.dev/3a81c4a5-1d0b-4303-a288-3eab17e1ed8d'
         },
         newArchEnabled: true,

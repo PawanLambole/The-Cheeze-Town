@@ -232,6 +232,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (nextAppState === 'active') {
                 console.log('📱 App resumed, checking session...');
                 await checkSession();
+            } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+                // Update timestamp when leaving app so the timer counts TRUE inactivity duration
+                await AsyncStorage.setItem(LOGIN_TIMESTAMP_KEY, Date.now().toString());
             }
         };
 
