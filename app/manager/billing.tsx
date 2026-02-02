@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, CreditCard, Banknote, Smartphone, X, CheckCircle } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+import { ArrowLeft, CreditCard, Banknote, Smartphone, X, CheckCircle, ScanLine } from 'lucide-react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '@/constants/Theme';
 
 interface BillItem {
@@ -13,6 +15,7 @@ interface BillItem {
 
 export default function BillingScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
 
@@ -28,12 +31,18 @@ export default function BillingScreen() {
   const total = subtotal + tax - discount;
 
   const paymentMethods = [
-    { id: 'cash', name: 'Cash', icon: Banknote },
-    { id: 'card', name: 'Card', icon: CreditCard },
-    { id: 'upi', name: 'UPI', icon: Smartphone },
+    { id: 'cash', name: t('payment.cash'), icon: Banknote },
+    { id: 'card', name: t('payment.card'), icon: CreditCard },
+    { id: 'upi', name: t('payment.upi'), icon: Smartphone },
   ];
 
   const insets = useSafeAreaInsets();
+
+  // UPI Configuration
+  const upiId = 'rahulbarve1994@okicici';
+  const payeeName = 'Rahul Barve';
+  const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${total.toFixed(2)}&cu=INR&aid=uGICAgIC1x9ONEg`;
+
 
   return (
     <View style={styles.container}>
@@ -41,14 +50,14 @@ export default function BillingScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Billing</Text>
+        <Text style={styles.headerTitle}>{t('manager.billing.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.billCard}>
           <View style={styles.billHeader}>
-            <Text style={styles.billTitle}>Bill Details</Text>
+            <Text style={styles.billTitle}>{t('manager.billing.billDetails')}</Text>
             <Text style={styles.billTable}>Table 5</Text>
           </View>
 
@@ -66,19 +75,19 @@ export default function BillingScreen() {
 
           <View style={styles.billSummary}>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryLabel}>{t('manager.orders.subtotal')}</Text>
               <Text style={styles.summaryValue}>₹{subtotal}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Tax (5%)</Text>
+              <Text style={styles.summaryLabel}>{t('manager.createOrder.tax')} (5%)</Text>
               <Text style={styles.summaryValue}>₹{tax.toFixed(2)}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Discount</Text>
+              <Text style={styles.summaryLabel}>{t('manager.createOrder.discount')}</Text>
               <Text style={[styles.summaryValue, { color: '#10B981' }]}>-₹{discount}</Text>
             </View>
             <View style={[styles.summaryRow, styles.summaryTotal]}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
+              <Text style={styles.totalLabel}>{t('manager.createOrder.grandTotal')}</Text>
               <Text style={styles.totalValue}>₹{total.toFixed(2)}</Text>
             </View>
           </View>
@@ -97,7 +106,7 @@ export default function BillingScreen() {
           style={styles.payButton}
           onPress={() => setShowPaymentModal(true)}
         >
-          <Text style={styles.payButtonText}>Proceed to Payment</Text>
+          <Text style={styles.payButtonText}>{t('manager.orders.processPayment')}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -105,50 +114,103 @@ export default function BillingScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Payment Method</Text>
+              <Text style={styles.modalTitle}>{t('manager.billing.paymentMethod')}</Text>
               <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.amountDisplay}>
-              <Text style={styles.amountLabel}>Amount to Pay</Text>
+              <Text style={styles.amountLabel}>{t('payment.amountToPay')}</Text>
               <Text style={styles.amountValue}>₹{total.toFixed(2)}</Text>
             </View>
 
-            <View style={styles.paymentMethods}>
-              {paymentMethods.map(method => {
-                const Icon = method.icon;
-                return (
-                  <TouchableOpacity
-                    key={method.id}
-                    style={[
-                      styles.paymentMethod,
-                      selectedPaymentMethod === method.id && styles.paymentMethodSelected
-                    ]}
-                    onPress={() => setSelectedPaymentMethod(method.id)}
-                  >
-                    <Icon size={24} color={selectedPaymentMethod === method.id ? '#000000' : Colors.dark.textSecondary} />
-                    <Text style={[
-                      styles.paymentMethodText,
-                      selectedPaymentMethod === method.id && styles.paymentMethodTextSelected
-                    ]}>
-                      {method.name}
-                    </Text>
-                    {selectedPaymentMethod === method.id && (
-                      <CheckCircle size={20} color="#000000" />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {selectedPaymentMethod === 'upi' ? (
+              <View style={styles.qrContainer}>
+                <Text style={styles.qrTitle}>{t('payment.scanToPay')}</Text>
+                <View style={styles.qrWrapper}>
+                  <QRCode
+                    value={upiUrl}
+                    size={200}
+                    color="black"
+                    backgroundColor="white"
+                  />
+                </View>
+                <Text style={styles.qrSubtitle}>{t('payment.scanHint')}</Text>
+                <Text style={styles.qrDesc}>{t('payment.scanDesc')}</Text>
 
-            <TouchableOpacity
-              style={[styles.confirmButton, !selectedPaymentMethod && styles.confirmButtonDisabled]}
-              disabled={!selectedPaymentMethod}
-            >
-              <Text style={styles.confirmButtonText}>Confirm Payment</Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.changeMethodButton}
+                  onPress={() => setSelectedPaymentMethod(null)}
+                >
+                  <Text style={styles.changeMethodText}>{t('payment.changeMethod')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.paymentMethods}>
+                {paymentMethods.map(method => {
+                  const Icon = method.icon;
+                  return (
+                    <TouchableOpacity
+                      key={method.id}
+                      style={[
+                        styles.paymentMethod,
+                        selectedPaymentMethod === method.id && styles.paymentMethodSelected
+                      ]}
+                      onPress={() => setSelectedPaymentMethod(method.id)}
+                    >
+                      <Icon size={24} color={selectedPaymentMethod === method.id ? '#000000' : Colors.dark.textSecondary} />
+                      <Text style={[
+                        styles.paymentMethodText,
+                        selectedPaymentMethod === method.id && styles.paymentMethodTextSelected
+                      ]}>
+                        {method.name}
+                      </Text>
+                      {selectedPaymentMethod === method.id && (
+                        <CheckCircle size={20} color="#000000" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+
+            {!selectedPaymentMethod && (
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonDisabled]}
+                disabled={true}
+              >
+                <Text style={styles.confirmButtonText}>Select Method</Text>
+              </TouchableOpacity>
+            )}
+
+            {selectedPaymentMethod && selectedPaymentMethod !== 'upi' && (
+              <TouchableOpacity
+                style={[styles.confirmButton]}
+                disabled={false}
+                onPress={() => {
+                  // Handle regular payment confirmation
+                  setShowPaymentModal(false);
+                  // Add logic to save payment
+                }}
+              >
+                <Text style={styles.confirmButtonText}>Confirm {paymentMethods.find(m => m.id === selectedPaymentMethod)?.name}</Text>
+              </TouchableOpacity>
+            )}
+
+            {selectedPaymentMethod === 'upi' && (
+              <TouchableOpacity
+                style={[styles.confirmButton, { marginTop: 20 }]}
+                onPress={() => {
+                  // Handle UPI payment confirmation (manual confirmation after scan)
+                  setShowPaymentModal(false);
+                }}
+              >
+                <Text style={styles.confirmButtonText}>{t('payment.confirmed')}</Text>
+              </TouchableOpacity>
+            )}
+
           </View>
         </View>
       </Modal>
@@ -313,6 +375,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: Colors.dark.border,
+    maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -386,5 +449,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#000000',
+  },
+  qrContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  qrTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.dark.text,
+    marginBottom: 20,
+  },
+  qrWrapper: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  qrSubtitle: {
+    fontSize: 14,
+    color: Colors.dark.textSecondary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  qrDesc: {
+    fontSize: 12,
+    color: Colors.dark.textSecondary,
+    marginBottom: 20,
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+  changeMethodButton: {
+    padding: 8,
+  },
+  changeMethodText: {
+    color: Colors.dark.primary,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

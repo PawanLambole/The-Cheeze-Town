@@ -1,0 +1,12 @@
+Fetching auth.users...
+Found 4 auth users.
+Fetching public.users...
+Found 3 public users.
+
+--- MATCHING ---
+[OK] manager@gmail.com -> manager (ID: e4432e24-6676-4061-9106-1097073b8d1b)
+[OK] chef@gmail.com -> chef (ID: 5695faa1-b949-4ca1-be74-ad52c9efa9e3)
+[OK] thecheesetown@gmail.com -> owner (ID: cf19854d-1444-4b4b-b774-9ffcccb6c5ee)
+[MISSING LINK] Auth User pavanlambole578@gmail.com (ID: 1050e8e4-a606-494e-8ff1-a102818ae239) NOT FOUND in public.users with same ID.
+
+--- ORPHANS ---

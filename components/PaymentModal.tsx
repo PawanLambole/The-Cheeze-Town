@@ -27,7 +27,7 @@ interface PaymentModalProps {
     onPaymentSuccess: (transactionId: string, method: string) => void;
 }
 
-type PaymentMethod = 'cash' | 'razorpay' | null;
+type PaymentMethod = 'cash' | 'razorpay' | 'upi' | null;
 type PaymentStep = 'select' | 'qr_code' | 'receipt';
 
 
@@ -274,7 +274,34 @@ export default function PaymentModal({
             {/* Payment Methods */}
             <Text style={styles.sectionTitle}>{t('payment.method')}</Text>
 
-
+            {/* UPI Payment (New) */}
+            <TouchableOpacity
+                style={[
+                    styles.paymentMethodCard,
+                    selectedMethod === 'upi' && styles.paymentMethodCardActive,
+                ]}
+                onPress={() => {
+                    handlePaymentMethodSelect('upi');
+                    // Generate UPI URL
+                    const upiId = 'rahulbarve1994@okicici';
+                    const payeeName = 'Rahul Barve';
+                    const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${finalAmount.toFixed(2)}&cu=INR&aid=uGICAgIC1x9ONEg`;
+                    setQrValue(upiUrl);
+                    setPaymentMethod('UPI');
+                    setCurrentStep('qr_code');
+                }}
+            >
+                <View style={styles.paymentMethodIcon}>
+                    <Smartphone size={24} color={selectedMethod === 'upi' ? '#FDB813' : '#6B7280'} />
+                </View>
+                <View style={styles.paymentMethodInfo}>
+                    <Text style={styles.paymentMethodTitle}>{t('payment.upi')}</Text>
+                    <Text style={styles.paymentMethodDesc}>{t('payment.scanToPaySubtitle')}</Text>
+                </View>
+                {selectedMethod === 'upi' && (
+                    <CheckCircle size={20} color="#FDB813" />
+                )}
+            </TouchableOpacity>
 
             {/* Cash Payment */}
             <TouchableOpacity

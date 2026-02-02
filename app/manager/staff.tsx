@@ -144,8 +144,17 @@ export default function StaffScreen({ isOwner, showBack = true }: StaffScreenPro
         status: 'pending', // All new staff need approval
         created_at: new Date().toISOString()
       };
-      const { error } = await supabase.from('users').insert([newUser]);
+      const { data, error } = await supabase.from('users').insert([newUser]).select();
       if (error) throw error;
+
+      if (data && data[0]) {
+        const { error: staffError } = await supabase.from('staff').insert([{
+          user_id: data[0].id,
+          position: selectedDesignation,
+          status: 'active'
+        }]);
+        if (staffError) console.error("Error creating staff record", staffError);
+      }
 
       fetchStaff();
       setShowAddModal(false);
