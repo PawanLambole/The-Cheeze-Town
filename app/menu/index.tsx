@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Plus, Search, Edit2, Trash2, X, Camera, Image as ImageIcon } from 'lucide-react-native';
@@ -30,8 +30,10 @@ interface InventoryItem {
 interface IngredientLink {
   inventoryItemId: string;
   name: string; // for display
-  unit: string; // for display
-  quantity: number;
+  baseUnit: string; // The specific unit stored in inventory (e.g. 'kg')
+  quantity: number; // The actual quantity in TERMS OF baseUnit
+  // Virtual fields for UI state
+  displayUnit: string; // The unit currently shown to the user (e.g. 'gm')
 }
 
 export default function MenuScreen() {
@@ -82,8 +84,9 @@ export default function MenuScreen() {
         return data.map((d: any) => ({
           inventoryItemId: String(d.inventory_item_id),
           name: d.inventory?.item_name || 'Unknown',
-          unit: d.inventory?.unit || '',
-          quantity: d.quantity
+          baseUnit: d.inventory?.unit || '',
+          quantity: d.quantity,
+          displayUnit: d.inventory?.unit || '' // Default to base unit
         }));
       }
     } catch (e) {
@@ -126,21 +129,62 @@ export default function MenuScreen() {
     }
   }, [ingredientSearchQuery, inventoryItems, linkedIngredients]);
 
+  const getAvailableUnits = (baseUnit: string) => {
+    if (baseUnit === 'kg') return ['kg', 'gm'];
+    if (baseUnit === 'l') return ['l', 'ml'];
+    return [baseUnit];
+  };
+
+  const convertQuantity = (qty: number, fromUnit: string, toUnit: string): number => {
+    if (fromUnit === toUnit) return qty;
+    if (fromUnit === 'kg' && toUnit === 'gm') return qty * 1000;
+    if (fromUnit === 'gm' && toUnit === 'kg') return qty / 1000;
+    if (fromUnit === 'l' && toUnit === 'ml') return qty * 1000;
+    if (fromUnit === 'ml' && toUnit === 'l') return qty / 1000;
+    return qty;
+  };
+
   const addIngredientLink = (item: InventoryItem) => {
     setLinkedIngredients([...linkedIngredients, {
       inventoryItemId: item.id,
       name: item.name,
-      unit: item.unit,
+      baseUnit: item.unit,
+      displayUnit: item.unit,
       quantity: 0 // Default, user must edit
     }]);
     setIngredientSearchQuery('');
     setShowIngredientSearch(false);
   };
 
-  const updateIngredientQuantity = (inventoryId: string, qty: string) => {
-    setLinkedIngredients(prev => prev.map(p =>
-      p.inventoryItemId === inventoryId ? { ...p, quantity: parseFloat(qty) || 0 } : p
-    ));
+  const updateIngredientQuantity = (inventoryId: string, displayQtyStr: string) => {
+    setLinkedIngredients(prev => prev.map(p => {
+      if (p.inventoryItemId !== inventoryId) return p;
+
+      const displayQty = parseFloat(displayQtyStr) || 0;
+      // Convert Display Qty (e.g. 500gm) to Base Qty (e.g. 0.5kg)
+      const baseQty = convertQuantity(displayQty, p.displayUnit, p.baseUnit);
+
+      return { ...p, quantity: baseQty };
+    }));
+  };
+
+  const toggleIngredientUnit = (inventoryId: string) => {
+    setLinkedIngredients(prev => prev.map(p => {
+      if (p.inventoryItemId !== inventoryId) return p;
+
+      const available = getAvailableUnits(p.baseUnit);
+      if (available.length <= 1) return p;
+
+      const currentIndex = available.indexOf(p.displayUnit);
+      const nextUnit = available[(currentIndex + 1) % available.length];
+
+      // When toggling unit, we want to KEEP the same physical quantity, just change display
+      // quantity (base) stays same (e.g. 0.5kg)
+      // displayUnit changes (e.g. gm)
+      // Render logic will handle displaying 500
+
+      return { ...p, displayUnit: nextUnit };
+    }));
   };
 
   const removeIngredientLink = (inventoryId: string) => {
@@ -512,11 +556,14 @@ export default function MenuScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          <Text style={{ textAlign: 'center', color: Colors.dark.textSecondary, marginTop: 20, marginBottom: 40, opacity: 0.5 }}>
+            v{process.env.EXPO_PUBLIC_APP_VERSION} ({process.env.EXPO_PUBLIC_APP_VERSION_CODE})
+          </Text>
         </ScrollView>
       </View>
 
       <Modal visible={showAddModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('menu.management.addMenuItem')}</Text>
@@ -524,7 +571,7 @@ export default function MenuScreen() {
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 20 }}>
               <TextInput style={styles.input} placeholder={t('menu.management.itemName')} placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
               <View style={styles.categoryInputContainer}>
                 <TextInput
@@ -599,23 +646,38 @@ export default function MenuScreen() {
               </View>
 
               <View style={styles.linkedIngredientsList}>
-                {linkedIngredients.map((link) => (
-                  <View key={link.inventoryItemId} style={styles.linkedIngredientRow}>
-                    <Text style={styles.linkedIngredientName}>{link.name}</Text>
-                    <TextInput
-                      style={styles.linkedIngredientInput}
-                      value={link.quantity === 0 ? '' : String(link.quantity)}
-                      onChangeText={(text) => updateIngredientQuantity(link.inventoryItemId, text)}
-                      keyboardType="numeric"
-                      placeholder={t('menu.management.qty')}
-                      placeholderTextColor={Colors.dark.textSecondary}
-                    />
-                    <Text style={styles.linkedIngredientUnit}>{link.unit}</Text>
-                    <TouchableOpacity onPress={() => removeIngredientLink(link.inventoryItemId)} style={styles.removeIngredientButton}>
-                      <X size={16} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                {linkedIngredients.map((link) => {
+                  const displayValue = convertQuantity(link.quantity, link.baseUnit, link.displayUnit);
+                  return (
+                    <View key={link.inventoryItemId} style={styles.linkedIngredientRow}>
+                      <Text style={styles.linkedIngredientName}>{link.name}</Text>
+                      <TextInput
+                        style={styles.linkedIngredientInput}
+                        value={displayValue === 0 ? '' : String(displayValue)}
+                        onChangeText={(text) => updateIngredientQuantity(link.inventoryItemId, text)}
+                        keyboardType="numeric"
+                        placeholder={t('menu.management.qty')}
+                        placeholderTextColor={Colors.dark.textSecondary}
+                      />
+                      <TouchableOpacity onPress={() => toggleIngredientUnit(link.inventoryItemId)} style={{
+                        backgroundColor: Colors.dark.primary,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minWidth: 50,
+                      }}>
+                        <Text style={{ color: '#000', fontSize: 14, fontWeight: 'bold' }}>
+                          {link.displayUnit}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => removeIngredientLink(link.inventoryItemId)} style={styles.removeIngredientButton}>
+                        <X size={16} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  )
+                })}
               </View>
 
               {formImage && (
@@ -632,10 +694,10 @@ export default function MenuScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
       <Modal visible={showEditModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('menu.management.editMenuItem')}</Text>
@@ -643,7 +705,7 @@ export default function MenuScreen() {
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 20 }}>
               <TextInput style={styles.input} placeholder={t('menu.management.itemName')} placeholderTextColor={Colors.dark.textSecondary} value={formName} onChangeText={setFormName} />
               <View style={styles.categoryInputContainer}>
                 <TextInput
@@ -718,23 +780,40 @@ export default function MenuScreen() {
               </View>
 
               <View style={styles.linkedIngredientsList}>
-                {linkedIngredients.map((link) => (
-                  <View key={link.inventoryItemId} style={styles.linkedIngredientRow}>
-                    <Text style={styles.linkedIngredientName}>{link.name}</Text>
-                    <TextInput
-                      style={styles.linkedIngredientInput}
-                      value={link.quantity === 0 ? '' : String(link.quantity)}
-                      onChangeText={(text) => updateIngredientQuantity(link.inventoryItemId, text)}
-                      keyboardType="numeric"
-                      placeholder={t('menu.management.qty')}
-                      placeholderTextColor={Colors.dark.textSecondary}
-                    />
-                    <Text style={styles.linkedIngredientUnit}>{link.unit}</Text>
-                    <TouchableOpacity onPress={() => removeIngredientLink(link.inventoryItemId)} style={styles.removeIngredientButton}>
-                      <X size={16} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                {linkedIngredients.map((link) => {
+                  // Calculate value to show based on displayUnit
+                  const displayValue = convertQuantity(link.quantity, link.baseUnit, link.displayUnit);
+
+                  return (
+                    <View key={link.inventoryItemId} style={styles.linkedIngredientRow}>
+                      <Text style={styles.linkedIngredientName}>{link.name}</Text>
+                      <TextInput
+                        style={styles.linkedIngredientInput}
+                        value={displayValue === 0 ? '' : String(displayValue)}
+                        onChangeText={(text) => updateIngredientQuantity(link.inventoryItemId, text)}
+                        keyboardType="numeric"
+                        placeholder={t('menu.management.qty')}
+                        placeholderTextColor={Colors.dark.textSecondary}
+                      />
+                      <TouchableOpacity onPress={() => toggleIngredientUnit(link.inventoryItemId)} style={{
+                        backgroundColor: Colors.dark.primary,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minWidth: 50,
+                      }}>
+                        <Text style={{ color: '#000', fontSize: 14, fontWeight: 'bold' }}>
+                          {link.displayUnit}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => removeIngredientLink(link.inventoryItemId)} style={styles.removeIngredientButton}>
+                        <X size={16} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  )
+                })}
               </View>
 
               {formImage && (
@@ -751,7 +830,7 @@ export default function MenuScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Delete Confirmation Modal */}
@@ -809,7 +888,7 @@ export default function MenuScreen() {
                     {detailsIngredients.map((ing, index) => (
                       <View key={index} style={styles.detailsIngredientRow}>
                         <Text style={styles.detailsIngredientName}>{ing.name}</Text>
-                        <Text style={styles.detailsIngredientQty}>{ing.quantity} {ing.unit}</Text>
+                        <Text style={styles.detailsIngredientQty}>{ing.quantity} {ing.baseUnit}</Text>
                       </View>
                     ))}
                   </View>
@@ -827,8 +906,8 @@ export default function MenuScreen() {
             )}
           </View>
         </View>
-      </Modal>
-    </View>
+      </Modal >
+    </View >
   );
 }
 
@@ -1090,9 +1169,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: '80%',
+    maxHeight: '90%', // Increased height
     borderWidth: 1,
     borderColor: Colors.dark.border,
+    flex: 1, // Allow taking available space
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1281,11 +1361,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.dark.secondary,
-    padding: 12,
+    padding: 16, // Increased padding
     borderRadius: 12,
     gap: 12,
     borderWidth: 1,
     borderColor: Colors.dark.border,
+    marginBottom: 8,
   },
   linkedIngredientName: {
     flex: 1,
@@ -1299,22 +1380,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.dark.border,
     borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    width: 80,
-    fontSize: 16,
+    paddingVertical: 12, // Larger touch target
+    paddingHorizontal: 16,
+    width: 100, // Slightly wider
+    fontSize: 18,
     textAlign: 'center',
+    fontWeight: 'bold',
   },
-  linkedIngredientUnit: {
+  linkedIngredientUnit: { // Kept for types but unused in new UI
     color: Colors.dark.textSecondary,
     fontSize: 14,
     fontWeight: '500',
     width: 40,
   },
   removeIngredientButton: {
-    padding: 8,
+    padding: 12, // Larger hit slop
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
 
   suggestionList: {

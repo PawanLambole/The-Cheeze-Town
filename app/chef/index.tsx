@@ -35,6 +35,7 @@ interface Order {
     order_time: string | null;
     created_at: string | null;
     order_items?: OrderItem[];
+    payments?: any[]; // Added payments relation
 }
 
 export default function ChefDashboard() {
@@ -396,7 +397,9 @@ export default function ChefDashboard() {
                 .from('orders')
                 .select(`
                     id, order_number, table_id, status, total_amount, notes, order_time, created_at, prepared_time,
-                    order_items (id, order_id, menu_item_name, quantity, special_instructions, created_at)
+                    order_items (id, order_id, menu_item_name, quantity, special_instructions, created_at),
+                    order_items (id, order_id, menu_item_name, quantity, special_instructions, created_at),
+                    payments (status, payment_method)
                 `)
                 .in('status', ['pending', 'preparing', 'paid'])
                 .gte('created_at', start)
@@ -408,7 +411,9 @@ export default function ChefDashboard() {
                 .from('orders')
                 .select(`
                     id, order_number, table_id, status, total_amount, notes, order_time, created_at, prepared_time,
-                    order_items (id, order_id, menu_item_name, quantity, special_instructions, created_at)
+                    order_items (id, order_id, menu_item_name, quantity, special_instructions, created_at),
+                    order_items (id, order_id, menu_item_name, quantity, special_instructions, created_at),
+                    payments (status, payment_method)
                 `)
                 .in('status', ['ready', 'served', 'completed'])
                 .gte('created_at', start)
@@ -448,10 +453,18 @@ export default function ChefDashboard() {
     const confirmMarkServed = async () => {
         if (selectedOrder) {
             try {
-                // Check if order is already paid (Web orders)
-                const isPaid = selectedOrder.status === 'paid';
+                // Check if order is already paid (Web orders or Paid Dine-in)
+                // We check the payments relation we fetched
+                const payment = selectedOrder.payments && selectedOrder.payments.length > 0 ? selectedOrder.payments[0] : null;
 
-                // If paid, mark as completed directly. Else mark as ready.
+                // Match Manager logic: Check for 'online' method OR 'paid' status.
+                const paymentMethod = payment ? payment.payment_method : null;
+                const isOnlinePayment = paymentMethod && paymentMethod !== 'cash';
+                const isPaid = selectedOrder.status === 'paid' ||
+                    (payment && (payment.status === 'completed' || payment.status === 'confirmed')) ||
+                    isOnlinePayment;
+
+                // If paid/online, mark as completed directly. Else mark as ready.
                 const newStatus = isPaid ? 'completed' : 'ready';
 
                 const updateData: any = {

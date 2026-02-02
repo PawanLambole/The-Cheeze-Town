@@ -702,14 +702,25 @@ export default function OrdersScreen({ createOrderPath = '/manager/create-order'
         const order = orders.find(o => o.id === orderId);
         if (!order || order.isCompleted) return;
 
-        const newStatus = order.isServed ? 'pending' : 'ready'; // Toggle between ready/pending
+        const isServing = !order.isServed;
+        let newStatus = isServing ? 'ready' : 'pending'; // Toggle between ready/pending
+
+        // Web Order Logic: If paid/online, go directly to completed when served
+        // Check for 'online' method OR 'paid' status.
+        // Also check if existing payment record implies online (e.g. if paymentMethod is 'upi', 'card', etc. and not 'cash')
+        const isOnlinePayment = order.paymentMethod && order.paymentMethod !== 'cash';
+        const isWebOrder = order.isPaid || isOnlinePayment || order.status === 'paid' || order.paymentMethod === 'online';
+
+        if (isServing && isWebOrder) {
+            newStatus = 'completed';
+        }
 
         try {
             const { error } = await supabase
                 .from('orders')
                 .update({
                     status: newStatus,
-                    is_served: !order.isServed
+                    is_served: isServing
                 })
                 .eq('id', Number(orderId));
 

@@ -158,7 +158,12 @@ export default function OwnerDashboardScreen() {
       validOrders.forEach((o: any) => {
         if (!paidOrderIds.has(o.id)) {
           const amt = Number(o.total_amount) || 0;
-          if (o.status === 'paid') {
+          const notes = o.notes ? o.notes.toLowerCase() : '';
+
+          // Check for Razorpay in notes or status
+          const isRazorpay = notes.includes('razorpay') || notes.includes('online');
+
+          if (o.status === 'paid' || isRazorpay) {
             onlineRev += amt;
           } else if (o.status === 'completed') {
             cashRev += amt;
@@ -271,7 +276,7 @@ export default function OwnerDashboardScreen() {
               icon={<Wallet size={22} color="#3B82F6" />}
               title="Online Payment"
               value={`₹${stats.onlineRevenue.toLocaleString()}`}
-              subtitle="UPI / Card / Web"
+              subtitle="UPI / Card / Razorpay"
               onPress={() => router.push('/owner/payment-history?mode=online')}
             />
           </View>

@@ -46,15 +46,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const mountedRef = useRef(false);
     const latestProfileRequestRef = useRef(0);
+    const pushTokenSyncInFlightRef = useRef(false);
+
+    // Keep strict track of user ID for logout cleanup without stale closures
+    const userIdRef = useRef<string | null>(null);
+    useEffect(() => { userIdRef.current = userData?.id || null; }, [userData?.id]);
 
     const signOut = useCallback(async () => {
         try {
+            const currentUserId = userIdRef.current;
+            if (currentUserId) {
+                console.log('🧹 Clearing push token for user:', currentUserId);
+                await supabase.from('users').update({ expo_push_token: null } as any).eq('id', currentUserId);
+            }
             await supabase.auth.signOut();
         } catch (error) {
             console.error('Error signing out from Supabase:', error);
         } finally {
-            await AsyncStorage.removeItem(LOGIN_TIMESTAMP_KEY); // Clear timestamp on logout
+            await AsyncStorage.removeItem(LOGIN_TIMESTAMP_KEY);
+            await AsyncStorage.removeItem('last_dashboard_route');
             setUserData(null);
+            userIdRef.current = null;
         }
     }, []);
 
@@ -98,13 +110,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (profile) {
                     setUserData((prev) => (prev ? ({ ...prev, ...(profile as AppUser) }) : (profile as AppUser)));
                 } else if (enforceExistence) {
-                    // Start: Profile Check Implementation
-                    // User is authenticated in Auth system but has no record in 'users' table.
-                    // This is an invalid state (e.g., user deleted from DB but has valid token).
                     console.warn('⚠️ User authenticated but no profile found in database. Auto-logging out.');
                     await signOut();
                     return;
-                    // End: Profile Check Implementation
                 }
 
                 return;
@@ -117,7 +125,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     continue;
                 }
 
-                // On final timeout or non-timeout errors, log once and stop.
                 if (isTimeout) {
                     console.warn('Profile fetch timeout (giving up):', error);
                 } else {
@@ -128,9 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [signOut]);
 
-    const pushTokenSyncInFlightRef = useRef(false);
-
-    const syncChefPushToken = useCallback(async (userId: string) => {
+    const syncPushToken = useCallback(async (userId: string) => {
         if (pushTokenSyncInFlightRef.current) return;
         pushTokenSyncInFlightRef.current = true;
 
@@ -138,6 +143,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const token = await notificationService.registerForPushNotificationsAsync();
             if (!token) return;
 
+            // 1. Check if token actually needs updating to avoid redundant writes
+            const { data: existingUser } = await supabase
+                .from('users')
+                .select('expo_push_token')
+                .eq('id', userId)
+                .single();
+
+            if (existingUser && existingUser.expo_push_token === token) {
+                console.log('✅ Push token already synced and up-to-date.');
+                return;
+            }
+
+            // 2. Update if different
+            console.log('🔄 Syncing new push token...');
             const { error } = await supabase
                 .from('users')
                 .update({ expo_push_token: token } as any)
@@ -146,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (error) {
                 console.error('Failed to update push token:', error);
             } else {
-                console.log('✅ Push token synced to user profile');
+                console.log('✅ Push token synced successfully');
             }
         } catch (e) {
             console.warn('Push token sync failed:', e);
@@ -155,16 +174,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    // When profile loads and user is a chef, ensure push token is registered/synced.
+    // When profile loads and user has a valid role, ensure push token is synced.
+    // Retry logic is implicit via useEffect dependency: if role updates, we retry.
     useEffect(() => {
         if (!userData?.id) return;
-        if (userData.role !== 'chef') return;
-        void syncChefPushToken(userData.id);
-    }, [userData?.id, userData?.role, syncChefPushToken]);
+
+        const allowedRoles = ['chef', 'manager', 'owner'];
+        if (!userData.role || !allowedRoles.includes(userData.role)) return;
+
+        void syncPushToken(userData.id);
+    }, [userData?.id, userData?.role, syncPushToken]);
 
     const checkSession = useCallback(async () => {
         try {
-            // Start: 24-Hour Inactivity Timeout Implementation
             const storedTimestamp = await AsyncStorage.getItem(LOGIN_TIMESTAMP_KEY);
             const now = Date.now();
 
@@ -178,11 +200,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             }
 
-            // Update timestamp to now (Sliding Window)
             await AsyncStorage.setItem(LOGIN_TIMESTAMP_KEY, now.toString());
-            // End: 24-Hour Inactivity Timeout Implementation
 
-            // Prefer getSession() on boot: it's local storage based and avoids hanging on network.
             const { data: sessionResult, error: sessionError } = await withTimeout(
                 supabase.auth.getSession(),
                 5000,
@@ -196,7 +215,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const sessionUser = sessionResult?.session?.user;
 
             if (sessionUser) {
-                // Allow app to proceed immediately; profile can load in background.
                 setUserData({
                     id: sessionUser.id,
                     email: sessionUser.email ?? '',
@@ -205,7 +223,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     phone: null,
                 });
 
-                // Fetch full profile (bounded) without blocking loading.
                 void fetchAndSetProfile(sessionUser.id);
             } else {
                 setUserData(null);
@@ -213,7 +230,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error: any) {
             console.error('Session check error:', error);
 
-            // Handle invalid refresh token specifically
             if (error?.message?.includes('Refresh Token Not Found') ||
                 error?.name === 'AuthApiError' ||
                 JSON.stringify(error).includes('Invalid Refresh Token')) {
@@ -226,14 +242,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [fetchAndSetProfile, signOut]);
 
-    // Listen for AppState changes to trigger checks on resume
     useEffect(() => {
         const handleAppStateChange = async (nextAppState: AppStateStatus) => {
             if (nextAppState === 'active') {
                 console.log('📱 App resumed, checking session...');
                 await checkSession();
             } else if (nextAppState === 'background' || nextAppState === 'inactive') {
-                // Update timestamp when leaving app so the timer counts TRUE inactivity duration
                 await AsyncStorage.setItem(LOGIN_TIMESTAMP_KEY, Date.now().toString());
             }
         };
@@ -246,13 +260,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [checkSession]);
 
     useEffect(() => {
-        // Initial check on mount
         checkSession();
 
-        // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user) {
-                // Seed minimal userData quickly; then fetch profile in background.
                 setUserData((prev) => prev?.id === session.user.id ? prev : ({
                     id: session.user.id,
                     email: session.user.email ?? '',
@@ -277,7 +288,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const startTotal = Date.now();
 
         try {
-            // 1. Auth Login
             console.log('⏳ Starting Supabase Auth...');
             const startAuth = Date.now();
 
@@ -286,12 +296,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const endAuth = Date.now();
             console.log(`✅ Supabase Auth completed in ${endAuth - startAuth}ms`);
 
-            console.log('Auth result:', result.error ? '❌ Error: ' + result.error.message : '✅ Success');
-
             if (result.data?.user) {
-                console.log('👤 User ID:', result.data.user.id);
-
-                // Seed minimal auth state immediately; profile loads in background.
                 setUserData({
                     id: result.data.user.id,
                     email: result.data.user.email ?? email,
@@ -300,14 +305,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     phone: null,
                 });
 
-                // 2. Profile Fetch
                 console.log('⏳ Fetching user profile...');
                 const startProfile = Date.now();
 
-                // Start: 24-Hour Timeout Implementation
-                // Set login timestamp on successful login
                 await AsyncStorage.setItem(LOGIN_TIMESTAMP_KEY, Date.now().toString());
-                // End: 24-Hour Timeout Implementation
 
                 void fetchAndSetProfile(result.data.user.id, false).finally(() => {
                     const endProfile = Date.now();
@@ -319,7 +320,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return result;
         } catch (error: any) {
             console.error('Sign in exception:', error);
-            // Return error format matching Supabase response so UI handles it
             return { data: { user: null, session: null }, error: error };
         }
     };

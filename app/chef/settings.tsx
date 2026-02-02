@@ -8,6 +8,7 @@ import { useNotificationSettings } from '@/contexts/NotificationSettingsContext'
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '@/i18n';
+import { UpdateChecker } from '@/components/UpdateChecker';
 
 interface SettingItemProps {
     icon: React.ReactNode;
@@ -127,7 +128,7 @@ export default function ChefSettings() {
 
     return (
         <View style={styles.container}>
-            <View style={[styles.header, { paddingTop: insets.top + 16 }]}> 
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
                 <TouchableOpacity onPress={() => router.back()}>
                     <ArrowLeft size={24} color={Colors.dark.text} />
                 </TouchableOpacity>
@@ -191,14 +192,20 @@ export default function ChefSettings() {
                     </View>
                 </View>
 
+
+
+                <View style={{ marginTop: 16, paddingHorizontal: 20 }}>
+                    <UpdateChecker />
+                </View>
+
                 <View style={styles.logoutSection}>
                     <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                         <LogOut size={20} color="#EF4444" />
                         <Text style={styles.logoutText}>{t('chef.settings.logout')}</Text>
                     </TouchableOpacity>
                 </View>
-            </ScrollView>
-        </View>
+            </ScrollView >
+        </View >
     );
 }
 

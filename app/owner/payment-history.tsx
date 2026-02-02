@@ -46,14 +46,14 @@ export default function PaymentHistoryScreen() {
 
             // 2. Fetch order details for these payments (to check status for inference)
             const paymentOrderIds = Array.from(new Set((payments || []).map((p: any) => p.order_id).filter(id => id)));
-            
+
             let orderStatusMap = new Map<number, string>();
             if (paymentOrderIds.length > 0) {
                 const { data: orderStatuses } = await supabase
                     .from('orders')
                     .select('id, status')
                     .in('id', paymentOrderIds);
-                
+
                 (orderStatuses || []).forEach((o: any) => {
                     orderStatusMap.set(o.id, o.status);
                 });
@@ -85,7 +85,7 @@ export default function PaymentHistoryScreen() {
                 const date = getLocalDateStr(p.payment_date);
                 const amt = Number(p.amount) || 0;
                 const orderId = p.order_id;
-                
+
                 // Determine Mode (Cash/Online) matching OrderHistory logic
                 const pMethod = p.payment_method?.toLowerCase() || '';
                 const relatedOrderStatus = orderStatusMap.get(orderId);
@@ -100,7 +100,7 @@ export default function PaymentHistoryScreen() {
                     if (relatedOrderStatus === 'completed') isCash = true;
                     if (relatedOrderStatus === 'paid') isOnline = true;
                     // Default default if still unknown? Payment History legacy assumed Cash.
-                    if (!isCash && !isOnline) isCash = true; 
+                    if (!isCash && !isOnline) isCash = true;
                 }
 
                 let isMatch = false;
@@ -125,14 +125,18 @@ export default function PaymentHistoryScreen() {
 
                 const date = getLocalDateStr(o.created_at);
                 const amt = Number(o.total_amount) || 0;
-                
+
+                // Inference from notes
+                const notes = o.notes ? o.notes.toLowerCase() : '';
+                const isRazorpay = notes.includes('razorpay') || notes.includes('online');
+
                 let isMatch = false;
                 if (mode === 'cash') {
-                    // Fallback: Status completed (implies Cash)
-                    if (o.status === 'completed') isMatch = true;
+                    // Fallback: Status completed (implies Cash) UNLESS razorpay detected
+                    if (o.status === 'completed' && !isRazorpay) isMatch = true;
                 } else if (mode === 'online') {
-                    // Fallback: Status paid (implies Online)
-                    if (o.status === 'paid') isMatch = true;
+                    // Fallback: Status paid (implies Online) OR razorpay detected
+                    if (o.status === 'paid' || isRazorpay) isMatch = true;
                 }
 
                 if (isMatch) {

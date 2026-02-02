@@ -4,11 +4,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    // Include custom auth header so browser-based testing doesn't fail preflight.
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-order-notification-secret',
 };
 
 serve(async (req: Request) => {
+    // 1. Trace ID
+    const traceId = crypto.randomUUID();
+    console.log(`[${traceId}] 🚀 Function invoked`);
+
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -18,10 +21,7 @@ serve(async (req: Request) => {
         const providedSecret = req.headers.get('x-order-notification-secret') ?? '';
 
         if (!expectedSecret || providedSecret !== expectedSecret) {
-            console.warn('Unauthorized order-notification request', {
-                hasExpectedSecret: Boolean(expectedSecret),
-                hasProvidedSecret: Boolean(providedSecret),
-            });
+            console.warn(`[${traceId}] ⛔ Unauthorized request`);
             return new Response(JSON.stringify({ error: 'Unauthorized' }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 401,
@@ -38,14 +38,14 @@ serve(async (req: Request) => {
         const eventType = payload?.eventType ?? 'ORDER_INSERT';
 
         if (!record) {
-            // Just a ping or invalid data
+            console.log(`[${traceId}] ⚠️ No record data in payload`);
             return new Response(JSON.stringify({ message: "No record data" }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 200,
             });
         }
 
-        // Determine the order context for the notification.
+        // Logic to determine order context
         let orderForNotification: any = null;
         let title: string;
         let body: string;
@@ -54,7 +54,7 @@ serve(async (req: Request) => {
         if (eventType === 'ORDER_ITEM_INSERT') {
             const orderId = record.order_id;
             if (!orderId) {
-                return new Response(JSON.stringify({ message: 'No order_id on order item record' }), {
+                return new Response(JSON.stringify({ message: 'No order_id on order item' }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                     status: 200,
                 });
@@ -67,11 +67,11 @@ serve(async (req: Request) => {
                 .maybeSingle();
 
             if (orderError) {
-                throw new Error(`Error fetching order for item insert: ${orderError.message}`);
+                console.error(`[${traceId}] Error fetching order:`, orderError);
+                throw new Error(`Error fetching order: ${orderError.message}`);
             }
 
             orderForNotification = orderRow ?? { id: orderId };
-
             title = `Order Updated #${orderForNotification.order_number || orderForNotification.id} ✏️`;
             body = `+${record.quantity || 1} ${record.menu_item_name || 'item'} (Table ${orderForNotification.table_id || 'N/A'})`;
             data = { orderId: orderForNotification.id, type: 'update' };
@@ -82,72 +82,110 @@ serve(async (req: Request) => {
                     status: 200,
                 });
             }
-
             orderForNotification = record;
             title = `New Order #${record.order_number || record.id} 🍔`;
             body = `Table ${record.table_id || 'N/A'} - ₹${record.total_amount}`;
             data = { orderId: record.id, type: 'new' };
         }
 
-        console.log(`🔔 Processing notification. eventType=${eventType} orderId=${orderForNotification?.id ?? record?.id}`);
+        console.log(`[${traceId}] 🔔 Processing notification for Order #${orderForNotification?.id}`);
 
-        // 1. Fetch Chef users with push tokens
+        // Fetch Tokens
         const { data: users, error: userError } = await supabaseClient
             .from('users')
-            .select('expo_push_token')
+            .select('id, expo_push_token')
             .in('role', ['chef', 'manager', 'owner'])
             .not('expo_push_token', 'is', null);
 
-        if (userError) {
-            throw new Error(`Error fetching users: ${userError.message}`);
-        }
+        if (userError) throw new Error(`Error fetching users: ${userError.message}`);
 
         if (!users || users.length === 0) {
-            console.log('No users with push tokens found.');
+            console.log(`[${traceId}] ℹ️ No users to notify.`);
             return new Response(JSON.stringify({ message: "No users to notify" }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 200,
             });
         }
 
-        // 2. Prepare Notifications
-        const messages = users.map((user: any) => {
-            if (!user.expo_push_token) return null;
-            return {
-                to: user.expo_push_token,
-                sound: 'default',
-                title,
-                body,
-                data,
-                channelId: 'Orders_v4',      // MATCHES CLIENT CHANNEL
-                priority: 'high',            // MAX PRIORITY
-            };
-        }).filter(Boolean);
+        // Deduplication & Validation
+        const validTokens = new Set<string>();
+        users.forEach((u: any) => {
+            const t = u.expo_push_token;
+            if (t && typeof t === 'string' && (t.startsWith('ExponentPushToken') || t.startsWith('ExpoPushToken'))) {
+                validTokens.add(t);
+            }
+        });
 
-        // 3. Send to Expo
+        const uniqueTokens = Array.from(validTokens);
+        console.log(`[${traceId}] 🎯 Found ${uniqueTokens.length} unique tokens to notify.`);
+
+        if (uniqueTokens.length === 0) {
+            return new Response(JSON.stringify({ message: "No valid tokens found" }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200,
+            });
+        }
+
+        // Prepare batches (max 100 per batch)
+        const messages = uniqueTokens.map(token => ({
+            to: token,
+            sound: 'default', // Matches NotificationService config
+            title,
+            body,
+            data,
+            channelId: 'Orders_v4', // Matches fixed client channel
+            priority: 'high',
+        }));
+
         const chunks = [];
         while (messages.length > 0) {
             chunks.push(messages.splice(0, 100));
         }
 
-        const expoResults: any[] = [];
+        const results = [];
+        const tokensToRemove = new Set<string>();
 
         for (const chunk of chunks) {
-            const response = await fetch('https://exp.host/--/api/v2/push/send', {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'Accept-encoding': 'gzip, deflate',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(chunk),
-            });
-            const result = await response.json();
-            console.log('Expo Response:', JSON.stringify(result));
-            expoResults.push(result);
+            try {
+                const response = await fetch('https://exp.host/--/api/v2/push/send', {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Accept-encoding': 'gzip, deflate',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(chunk),
+                });
+
+                const result = await response.json();
+                results.push(result);
+
+                // Handle DeviceNotRegistered
+                if (result.data && Array.isArray(result.data)) {
+                    result.data.forEach((ticket: any, index: number) => {
+                        if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+                            const badToken = chunk[index].to;
+                            console.log(`[${traceId}] 🗑️ Token invalid (DeviceNotRegistered): ${badToken}`);
+                            tokensToRemove.add(badToken);
+                        }
+                    });
+                }
+
+            } catch (e) {
+                console.error(`[${traceId}] Expo API Request failed:`, e);
+            }
         }
 
-        return new Response(JSON.stringify({ message: "Notifications sent!", eventType, recipients: users.length, expoResults }), {
+        // Cleanup Invalid Tokens
+        if (tokensToRemove.size > 0) {
+            console.log(`[${traceId}] 🧹 Removing ${tokensToRemove.size} stale tokens...`);
+            await supabaseClient
+                .from('users')
+                .update({ expo_push_token: null })
+                .in('expo_push_token', Array.from(tokensToRemove));
+        }
+
+        return new Response(JSON.stringify({ message: "Notifications processed", traceId, results }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         });

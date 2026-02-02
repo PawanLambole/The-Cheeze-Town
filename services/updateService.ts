@@ -129,28 +129,32 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
     const platform = getPlatform();
 
     try {
-        // Call Supabase function to check for updates
-        // Call Supabase function to check for updates with timeout
-        // @ts-ignore - Type will be available after database migration
-        const rpcPromise = (supabase.rpc as any)('check_update_required', {
-            p_current_version_code: currentVersion.code,
-            p_platform: platform,
-        });
+        // Direct Query Strategy (Bypass RPC)
 
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Update check timed out')), 3000)
-        );
+        // 1. Get Global Config
+        const { data: configData, error: configError } = await supabase
+            .from('app_config')
+            .select('min_supported_version_code')
+            .limit(1)
+            .single();
 
-        const { data, error } = await Promise.race([rpcPromise, timeoutPromise]) as any;
+        if (configError) throw configError;
 
-        if (error) {
-            console.error('Error checking for update:', error);
-            throw error;
-        }
+        // 2. Find Latest Active Version
+        const { data: latestVersionData, error: versionError } = await supabase
+            .from('app_versions')
+            .select('*')
+            .eq('is_active', true)
+            // @ts-ignore
+            .gt('version_code', currentVersion.code) // Only look for newer versions
+            .order('version_code', { ascending: false })
+            .limit(1);
+
+        if (versionError) throw versionError;
 
         await recordUpdateCheck();
 
-        if (!data || data.length === 0) {
+        if (!latestVersionData || latestVersionData.length === 0) {
             return {
                 updateRequired: false,
                 isMandatory: false,
@@ -159,44 +163,27 @@ export const checkForUpdate = async (): Promise<UpdateCheckResult> => {
             };
         }
 
-        const updateInfo = data[0];
-
-        // SAFETY VALVE: Client-side Version Check
-        // If current version code is >= latest version code, we are up to date!
-        if (currentVersion.code >= updateInfo.latest_version_code) {
-            return {
-                updateRequired: false,
-                isMandatory: false,
-                latestVersion: null,
-                currentVersion,
-            };
-        }
-
-        // Clear dismissed update if this is mandatory
-        if (updateInfo.is_mandatory) {
-            await clearDismissedUpdate();
-        }
+        const latestVersion = latestVersionData[0];
+        const minSupportedCode = configData?.min_supported_version_code || 0;
+        const isMandatory = latestVersion.is_mandatory || (minSupportedCode > currentVersion.code);
 
         return {
-            updateRequired: updateInfo.update_required,
-            isMandatory: updateInfo.is_mandatory,
-            latestVersion: updateInfo.update_required ? {
-                version_name: updateInfo.latest_version_name,
-                version_code: updateInfo.latest_version_code,
-                update_type: updateInfo.update_type,
-                is_mandatory: updateInfo.is_mandatory,
-                download_url: updateInfo.update_type === 'native' ? LANDING_PAGE_URL : updateInfo.download_url,
-                release_notes: null,
-                update_message: updateInfo.update_message,
-            } : null,
+            updateRequired: true,
+            isMandatory: isMandatory,
+            latestVersion: {
+                version_name: latestVersion.version_name,
+                version_code: latestVersion.version_code,
+                update_type: latestVersion.update_type as 'ota' | 'native',
+                is_mandatory: isMandatory,
+                download_url: latestVersion.update_type === 'native' ? LANDING_PAGE_URL : latestVersion.download_url,
+                release_notes: latestVersion.release_notes,
+                update_message: latestVersion.update_message,
+            },
             currentVersion,
         };
+
     } catch (error: any) {
-        if (error.message === 'Update check timed out') {
-            console.warn('⚠️ Update check timed out - skipping update check.');
-        } else {
-            console.error('Error in checkForUpdate:', error);
-        }
+        console.error('Error in checkForUpdate:', error);
         return {
             updateRequired: false,
             isMandatory: false,

@@ -34,6 +34,21 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
                 return;
             }
 
+            // LOOP PREVENTION: Check if we just updated
+            const justUpdatedVersion = await updateService.checkJustUpdated();
+            if (justUpdatedVersion) {
+                console.log('App just updated, skipping boot checks to prevent loop.');
+
+                // Show verification aid directly
+                Alert.alert(
+                    t('common.updatedSuccess', { defaultValue: 'Update Successful' }),
+                    t('common.appUpdatedMessage', { defaultValue: 'The app has been updated to the latest version.' })
+                );
+
+                setIsReady(true);
+                return;
+            }
+
             // Parallelize checks to reduce wait time
             const [nativeCheckResult, otaCheckResult] = await Promise.allSettled([
                 updateService.checkForUpdate(),
@@ -76,16 +91,6 @@ export const BootUpdateGate: React.FC<BootUpdateGateProps> = ({ children }) => {
 
     useEffect(() => {
         checkBootUpdates();
-
-        // Check if we just updated
-        updateService.checkJustUpdated().then((version) => {
-            if (version) {
-                Alert.alert(
-                    t('common.updatedSuccess', { defaultValue: 'Update Successful' }),
-                    t('common.appUpdatedMessage', { defaultValue: 'The app has been updated to the latest version.' })
-                );
-            }
-        });
 
         // Failsafe: Force ready after 8 seconds if checks hang
         const failsafeTimeout = setTimeout(() => {

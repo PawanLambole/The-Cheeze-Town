@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, View, Animated, Dimensions, Image } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -22,11 +23,9 @@ export default function AnimatedSplashScreen({ children, onAnimationComplete }: 
 
     useEffect(() => {
         // Simulate/Wait for app initialization
-        // In a real app, you might wait for fonts or auth checks here
         async function prepare() {
             try {
                 // No artificial delay needed for production
-                // await new Promise(resolve => setTimeout(resolve, 2000));
             } catch (e) {
                 console.warn(e);
             } finally {
@@ -39,18 +38,16 @@ export default function AnimatedSplashScreen({ children, onAnimationComplete }: 
 
     useEffect(() => {
         if (appReady) {
-            // 1. Hide the native splash screen immediately
             SplashScreen.hideAsync().then(() => {
-                // 2. Start our JS-based animation from the same state
                 Animated.parallel([
                     Animated.timing(scaleAnim, {
-                        toValue: 20, // Zoom out effect
-                        duration: 500,
+                        toValue: 20,
+                        duration: 600,
                         useNativeDriver: true,
                     }),
                     Animated.timing(fadeAnim, {
                         toValue: 0,
-                        duration: 500,
+                        duration: 600,
                         useNativeDriver: true,
                     }),
                 ]).start(() => {
@@ -69,13 +66,6 @@ export default function AnimatedSplashScreen({ children, onAnimationComplete }: 
 
     return (
         <View style={styles.container}>
-            {/* 
-        This view sits behind the splash image. 
-        Once the splash fades out, the children (App) will be revealed underneath if we structured it that way,
-        but here we render children conditionally or absolute. 
-        Actually, simplest is to render children absolutely *behind* the splash, 
-        or just switch over. Transitioning is smoother if children are rendered.
-      */}
             <View style={styles.appContainer}>
                 {children}
             </View>
@@ -85,10 +75,23 @@ export default function AnimatedSplashScreen({ children, onAnimationComplete }: 
                     styles.splashContainer,
                     {
                         opacity: fadeAnim,
-                        // pointerEvents: 'none', // Ensure it doesn't block touches if it lingers
                     },
                 ]}
             >
+                {/* Background Gradient */}
+                {/* Note: We use absolute View with background color if LinearGradient isn't available, 
+                     but here we assume it is since app uses it. 
+                     However, `AnimatedSplashScreen` acts as top-level.
+                 */}
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }]}>
+                    {/* shapes */}
+                    <View style={styles.backgroundShape1} />
+                    <View style={styles.backgroundShape2} />
+                </View>
+
+                {/* Logo Glow */}
+                <Animated.View style={[styles.logoGlow, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]} />
+
                 <Animated.Image
                     source={require('@/assets/images/logo.png')}
                     style={[
@@ -107,20 +110,51 @@ export default function AnimatedSplashScreen({ children, onAnimationComplete }: 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#121212', // Match your app theme
+        backgroundColor: '#0F0F0F',
     },
     appContainer: {
         flex: 1,
     },
     splashContainer: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: '#121212', // Match your splash background color
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 99999,
     },
     image: {
-        width: 200, // Match the size of your icon on the native splash slightly needed
-        height: 200,
+        width: 180,
+        height: 180,
+    },
+    // Background Elements (Matches Login)
+    backgroundShape1: {
+        position: 'absolute',
+        top: -100,
+        left: -100,
+        width: 300,
+        height: 300,
+        borderRadius: 150,
+        backgroundColor: '#EAB308', // Primary Color
+        opacity: 0.15,
+        transform: [{ scale: 1.5 }],
+    },
+    backgroundShape2: {
+        position: 'absolute',
+        bottom: -50,
+        right: -50,
+        width: 250,
+        height: 250,
+        borderRadius: 125,
+        backgroundColor: '#EAB308', // Gold
+        opacity: 0.1,
+        transform: [{ scale: 1.2 }],
+    },
+    logoGlow: {
+        position: 'absolute',
+        width: 160,
+        height: 160,
+        borderRadius: 80,
+        backgroundColor: '#EAB308',
+        opacity: 0.2,
+        transform: [{ scale: 1.5 }],
     },
 });

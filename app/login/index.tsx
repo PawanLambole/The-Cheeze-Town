@@ -25,20 +25,22 @@ export default function LoginScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showRoleDropdown, setShowRoleDropdown] = useState(false);
 
-    const navigateToDashboard = async (userRole: string) => {
+    const navigateToDashboard = async (userRole: string, isManualLogin: boolean = false) => {
         switch (userRole) {
             case 'owner':
-                // Check if user was last in Manager View
-                try {
-                    const lastRoute = await AsyncStorage.getItem('last_dashboard_route');
-                    if (lastRoute === '/manager') {
-                        router.replace('/manager');
-                    } else {
-                        router.replace('/owner');
+                // Only check persistence if this IS NOT a manual login (e.g. reload/auto-auth)
+                if (!isManualLogin) {
+                    try {
+                        const lastRoute = await AsyncStorage.getItem('last_dashboard_route');
+                        if (lastRoute === '/manager') {
+                            router.replace('/manager');
+                            return;
+                        }
+                    } catch (e) {
+                        // ignore error, default to owner
                     }
-                } catch (e) {
-                    router.replace('/owner');
                 }
+                router.replace('/owner');
                 break;
             case 'manager':
                 router.replace('/manager');
@@ -57,7 +59,7 @@ export default function LoginScreen() {
     useEffect(() => {
         // Auto-redirect if already authenticated and NOT currently processing a manual login
         if (isAuthenticated && userData?.role && !loading) {
-            navigateToDashboard(userData.role);
+            navigateToDashboard(userData.role, false); // Auto-login check
         }
     }, [isAuthenticated, userData, loading]);
 
@@ -154,7 +156,7 @@ export default function LoginScreen() {
                 }
 
                 // 4. Success - Role matches!
-                navigateToDashboard(dbRole);
+                navigateToDashboard(dbRole, true);
             }
         } catch (error: any) {
             console.error('Login error:', error);
