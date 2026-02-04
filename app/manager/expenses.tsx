@@ -34,22 +34,53 @@ export default function ExpensesScreen() {
 
     const fetchExpenses = async () => {
         try {
-            const { data, error } = await supabase
+            // 1. Fetch Purchases
+            const { data: purchasesData, error: purchasesError } = await supabase
                 .from('purchases')
                 .select('*')
                 .order('purchase_date', { ascending: false });
 
-            if (error) throw error;
+            if (purchasesError) throw purchasesError;
 
-            const mapped: ExpenseItem[] = (data || []).map((p: any) => ({
-                id: p.id,
+            // 2. Fetch Staff Payments (Salaries)
+            const { data: salaryData, error: salaryError } = await supabase
+                .from('staff_payments')
+                .select(`
+                    id,
+                    amount,
+                    payment_date,
+                    payment_type,
+                    notes,
+                    staff:staff_id ( user_id )
+                `)
+                .order('payment_date', { ascending: false });
+
+            if (salaryError) throw salaryError;
+
+            // Map Purchases
+            const mappedPurchases: ExpenseItem[] = (purchasesData || []).map((p: any) => ({
+                id: `purchase-${p.id}`,
                 category: p.category,
                 amount: Number(p.total_amount),
                 date: p.purchase_date,
                 description: p.item_name
             }));
 
-            setExpenses(mapped);
+            // Map Salaries
+            const mappedSalaries: ExpenseItem[] = (salaryData || []).map((s: any) => ({
+                id: `salary-${s.id}`,
+                category: 'salaries',
+                amount: Number(s.amount),
+                date: s.payment_date,
+                description: `${s.payment_type === 'advance' ? 'Advance' : 'Salary Payment'}${s.notes ? ` - ${s.notes}` : ''}`
+            }));
+
+            // Combine and Sort
+            const allExpenses = [...mappedPurchases, ...mappedSalaries].sort((a, b) =>
+                new Date(b.date).getTime() - new Date(a.date).getTime()
+            );
+
+            setExpenses(allExpenses);
 
         } catch (e) {
             console.error("Error fetching expenses", e);

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Image, RefreshControl, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Plus, Search, Edit2, Trash2, X, Camera, Image as ImageIcon } from 'lucide-react-native';
@@ -67,6 +67,8 @@ export default function MenuScreen() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsItem, setDetailsItem] = useState<MenuItem | null>(null);
   const [detailsIngredients, setDetailsIngredients] = useState<IngredientLink[]>([]);
+  const [loadingIngredients, setLoadingIngredients] = useState(false);
+  const [inventoryLoaded, setInventoryLoaded] = useState(false);
 
   // Reusable Ingredient Fetcher
   const fetchIngredientsForMenuItem = async (itemId: string): Promise<IngredientLink[]> => {
@@ -111,11 +113,14 @@ export default function MenuScreen() {
     }
   };
 
-  useEffect(() => {
-    if (showAddModal || showEditModal) {
-      fetchInventory();
-    }
-  }, [showAddModal, showEditModal]);
+  // Fetch inventory once on focus instead of every modal open
+  useFocusEffect(
+    useCallback(() => {
+      if (!inventoryLoaded) {
+        fetchInventory().then(() => setInventoryLoaded(true));
+      }
+    }, [inventoryLoaded])
+  );
 
   useEffect(() => {
     if (ingredientSearchQuery.trim()) {
@@ -257,11 +262,13 @@ export default function MenuScreen() {
     }, [])
   );
 
-  const filteredItems = menuItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredItems = useMemo(() => {
+    return menuItems.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [menuItems, searchQuery, selectedCategory]);
 
   const resetForm = () => {
     setFormName('');
@@ -349,25 +356,32 @@ export default function MenuScreen() {
     }
   };
 
-  const handleOpenEdit = async (item: MenuItem) => {
+  const handleOpenEdit = (item: MenuItem) => {
     setEditItem(item);
     setFormName(item.name);
     setFormCategory(item.category);
     setFormPrice(String(item.price));
     setFormImage(item.image);
-
-    // Fetch existing ingredients using reusable function
-    const ingredients = await fetchIngredientsForMenuItem(item.id);
-    setLinkedIngredients(ingredients);
-
+    setLinkedIngredients([]);
     setShowEditModal(true);
+
+    // Fetch ingredients in background after modal opens
+    setLoadingIngredients(true);
+    fetchIngredientsForMenuItem(item.id)
+      .then(setLinkedIngredients)
+      .finally(() => setLoadingIngredients(false));
   };
 
-  const handleOpenDetails = async (item: MenuItem) => {
+  const handleOpenDetails = (item: MenuItem) => {
     setDetailsItem(item);
+    setDetailsIngredients([]);
     setShowDetailsModal(true);
-    const ingredients = await fetchIngredientsForMenuItem(item.id);
-    setDetailsIngredients(ingredients);
+
+    // Load ingredients in background
+    setLoadingIngredients(true);
+    fetchIngredientsForMenuItem(item.id)
+      .then(setDetailsIngredients)
+      .finally(() => setLoadingIngredients(false));
   };
 
   const handleSaveEdit = async () => {
@@ -466,13 +480,13 @@ export default function MenuScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity activeOpacity={0.6} onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors.dark.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {isOwnerView ? t('menu.management.title') : t('menu.management.titleManager')}
         </Text>
-        <TouchableOpacity onPress={handleOpenAdd} style={styles.addButtonHeader}>
+        <TouchableOpacity activeOpacity={0.7} onPress={handleOpenAdd} style={styles.addButtonHeader}>
           <Plus size={24} color="#000" />
         </TouchableOpacity>
       </View>
@@ -493,6 +507,7 @@ export default function MenuScreen() {
           {categories.map(category => (
             <TouchableOpacity
               key={category}
+              activeOpacity={0.7}
               style={[styles.categoryChip, selectedCategory === category && styles.categoryChipActive]}
               onPress={() => setSelectedCategory(category)}
             >
@@ -519,7 +534,7 @@ export default function MenuScreen() {
             {filteredItems.map(item => (
               <TouchableOpacity
                 key={item.id}
-                activeOpacity={0.9}
+                activeOpacity={0.8}
                 onPress={() => handleOpenDetails(item)}
                 style={styles.card}
               >
@@ -538,12 +553,14 @@ export default function MenuScreen() {
                       <Text style={styles.cardPrice}>₹{item.price}</Text>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <TouchableOpacity
+                          activeOpacity={0.7}
                           style={{ padding: 6, backgroundColor: Colors.dark.secondary, borderRadius: 6 }}
                           onPress={() => handleOpenEdit(item)}
                         >
                           <Edit2 size={16} color={Colors.dark.text} />
                         </TouchableOpacity>
                         <TouchableOpacity
+                          activeOpacity={0.7}
                           style={{ padding: 6, backgroundColor: '#EF4444', borderRadius: 6 }}
                           onPress={() => handleDelete(item)}
                         >
@@ -562,12 +579,12 @@ export default function MenuScreen() {
         </ScrollView>
       </View>
 
-      <Modal visible={showAddModal} animationType="slide" transparent>
+      <Modal visible={showAddModal} animationType="none" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('menu.management.addMenuItem')}</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setShowAddModal(false)}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -585,7 +602,7 @@ export default function MenuScreen() {
                     setCategorySuggestions(filtered);
                     setShowCategorySuggestions(true);
                   }}
-                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 300)}
+                  onBlur={() => setShowCategorySuggestions(false)}
                 />
                 {showCategorySuggestions && categorySuggestions.length > 0 && (
                   <ScrollView style={styles.suggestionList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
@@ -605,11 +622,11 @@ export default function MenuScreen() {
 
               <Text style={styles.photoLabel}>{t('menu.management.itemPhoto')}</Text>
               <View style={styles.photoButtons}>
-                <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.photoButton} onPress={takePhoto}>
                   <Camera size={20} color="#000" />
                   <Text style={styles.photoButtonText}>{t('menu.management.camera')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.photoButton} onPress={pickImage}>
                   <ImageIcon size={20} color="#000" />
                   <Text style={styles.photoButtonText}>{t('menu.management.gallery')}</Text>
                 </TouchableOpacity>
@@ -689,19 +706,19 @@ export default function MenuScreen() {
                 </View>
               )}
 
-              <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
+              <TouchableOpacity activeOpacity={0.6} style={styles.addButton} onPress={handleAddItem}>
                 <Text style={styles.addButtonText}>{t('menu.management.addItem')}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
-      <Modal visible={showEditModal} animationType="slide" transparent>
+      <Modal visible={showEditModal} animationType="none" transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('menu.management.editMenuItem')}</Text>
-              <TouchableOpacity onPress={() => { setShowEditModal(false); setEditItem(null); }}>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => { setShowEditModal(false); setEditItem(null); }}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -719,7 +736,7 @@ export default function MenuScreen() {
                     setCategorySuggestions(filtered);
                     setShowCategorySuggestions(true);
                   }}
-                  onBlur={() => setTimeout(() => setShowCategorySuggestions(false), 300)}
+                  onBlur={() => setShowCategorySuggestions(false)}
                 />
                 {showCategorySuggestions && categorySuggestions.length > 0 && (
                   <ScrollView style={styles.suggestionList} nestedScrollEnabled keyboardShouldPersistTaps="handled">
@@ -739,11 +756,11 @@ export default function MenuScreen() {
 
               <Text style={styles.photoLabel}>{t('menu.management.itemPhoto')}</Text>
               <View style={styles.photoButtons}>
-                <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.photoButton} onPress={takePhoto}>
                   <Camera size={20} color="#000" />
                   <Text style={styles.photoButtonText}>{t('menu.management.camera')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.photoButton} onPress={pickImage}>
                   <ImageIcon size={20} color="#000" />
                   <Text style={styles.photoButtonText}>{t('menu.management.gallery')}</Text>
                 </TouchableOpacity>
@@ -834,7 +851,7 @@ export default function MenuScreen() {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal visible={showDeleteModal} animationType="fade" transparent>
+      <Modal visible={showDeleteModal} animationType="none" transparent>
         <View style={styles.deleteModalOverlay}>
           <View style={styles.deleteModalContent}>
             <Text style={styles.deleteModalTitle}>{t('menu.management.deleteConfirm')}</Text>
@@ -842,10 +859,10 @@ export default function MenuScreen() {
               {t('menu.management.deleteMessage', { name: deleteItem?.name })}
             </Text>
             <View style={styles.deleteModalButtons}>
-              <TouchableOpacity style={styles.cancelButton} onPress={cancelDelete}>
+              <TouchableOpacity activeOpacity={0.7} style={styles.cancelButton} onPress={cancelDelete}>
                 <Text style={styles.cancelButtonText}>{t('menu.management.cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton} onPress={confirmDelete}>
+              <TouchableOpacity activeOpacity={0.7} style={styles.deleteButton} onPress={confirmDelete}>
                 <Text style={styles.deleteButtonText}>{t('menu.management.delete')}</Text>
               </TouchableOpacity>
             </View>
@@ -854,12 +871,12 @@ export default function MenuScreen() {
       </Modal>
 
       {/* Details Modal */}
-      <Modal visible={showDetailsModal} animationType="fade" transparent>
+      <Modal visible={showDetailsModal} animationType="none" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{t('menu.management.itemDetails')}</Text>
-              <TouchableOpacity onPress={() => setShowDetailsModal(false)}>
+              <TouchableOpacity activeOpacity={0.7} onPress={() => setShowDetailsModal(false)}>
                 <X size={24} color={Colors.dark.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -883,7 +900,14 @@ export default function MenuScreen() {
 
                 <Text style={styles.sectionLabel}>{t('menu.management.recipe')}</Text>
 
-                {detailsIngredients.length > 0 ? (
+                {loadingIngredients && detailsIngredients.length === 0 ? (
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <ActivityIndicator color={Colors.dark.primary} size="small" />
+                    <Text style={{ color: Colors.dark.textSecondary, marginTop: 8 }}>
+                      {t('menu.management.loadingIngredients', 'Loading ingredients...')}
+                    </Text>
+                  </View>
+                ) : detailsIngredients.length > 0 ? (
                   <View style={styles.detailsIngredientsList}>
                     {detailsIngredients.map((ing, index) => (
                       <View key={index} style={styles.detailsIngredientRow}>

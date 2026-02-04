@@ -38,3 +38,7 @@ SUPABASE_ACCESS_TOKEN.txt
 
 # typescript
 *.tsbuildinfo
+
+# temporary migration scripts
+apply-migration.*
+supabase/.temp/

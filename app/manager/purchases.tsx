@@ -413,7 +413,7 @@ export default function PurchasesScreen() {
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <Text style={[styles.statValue, { color: Colors.dark.primary }]}>â‚¹{totalSpent.toLocaleString()}</Text>
+                        <Text style={[styles.statValue, { color: Colors.dark.primary }]}>{'\u20B9'}{totalSpent.toLocaleString()}</Text>
                         <Text style={styles.statLabel}>{t('manager.purchases.totalSpent')}</Text>
                     </View>
                 </View>
@@ -474,7 +474,7 @@ export default function PurchasesScreen() {
                                     </View>
                                 </View>
                             </View>
-                            <Text style={styles.purchasePrice}>â‚¹{purchase.totalPrice.toLocaleString()}</Text>
+                            <Text style={styles.purchasePrice}>{'\u20B9'}{purchase.totalPrice.toLocaleString()}</Text>
                         </View>
 
                         <View style={styles.purchaseDetails}>
@@ -700,7 +700,7 @@ export default function PurchasesScreen() {
                                 <View style={styles.totalAmountDisplay}>
                                     <Text style={styles.totalAmountLabel}>{t('manager.purchases.totalAmount')}:</Text>
                                     <Text style={styles.totalAmountValue}>
-                                        â‚¹{(parseFloat(formPrice) * parseFloat(formQuantity)).toFixed(2)}
+                                        {'\u20B9'}{(parseFloat(formPrice) * parseFloat(formQuantity)).toFixed(2)}
                                     </Text>
                                 </View>
                             )}

@@ -175,8 +175,19 @@ export default function OwnerDashboardScreen() {
       // Process Active Orders Count
       const pendingCount = activeOrders.length;
 
-      // Process Expenses
-      const expenses = todaysPurchases.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
+
+      // Process Expenses from Purchases
+      const purchaseExpenses = todaysPurchases.reduce((sum: number, p: any) => sum + (Number(p.total_amount) || 0), 0);
+
+      // Fetch Staff Payments (Salaries/Advances) for today
+      const { data: staffPayments } = await supabase
+        .from('staff_payments')
+        .select('amount')
+        .gte('payment_date', todayISO);
+
+      const salaryExpenses = (staffPayments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+
+      const totalActiveExpense = purchaseExpenses + salaryExpenses;
 
       setStats({
         totalRevenue: totalRev,
@@ -184,7 +195,7 @@ export default function OwnerDashboardScreen() {
         cashRevenue: cashRev,
         totalOrders: ordersCount,
         pendingOrders: pendingCount,
-        totalExpense: expenses
+        totalExpense: totalActiveExpense
       });
 
     } catch (error) {
