@@ -13,7 +13,7 @@ module.exports = ({ config }) => {
 
     const androidVersionCode = intOrFallback(
         process.env.EXPO_PUBLIC_ANDROID_VERSION_CODE,
-        3
+        4
     );
 
     const iosBuildNumber = process.env.EXPO_PUBLIC_IOS_BUILD_NUMBER;
@@ -64,6 +64,7 @@ module.exports = ({ config }) => {
                 'WRITE_EXTERNAL_STORAGE',
                 'android.permission.READ_EXTERNAL_STORAGE',
                 'android.permission.WRITE_EXTERNAL_STORAGE',
+                'android.permission.POST_NOTIFICATIONS',
                 'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
                 'android.permission.READ_MEDIA_IMAGES',
                 'android.permission.READ_MEDIA_VIDEO',

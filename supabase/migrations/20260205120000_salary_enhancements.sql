@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.salary_logs (
 ALTER TABLE public.salary_logs ENABLE ROW LEVEL SECURITY;
 
 -- Allow owners to read/write all logs
+DROP POLICY IF EXISTS "Owners can manage all salary logs" ON public.salary_logs;
 CREATE POLICY "Owners can manage all salary logs" ON public.salary_logs
     FOR ALL
     USING (
@@ -34,6 +35,7 @@ CREATE POLICY "Owners can manage all salary logs" ON public.salary_logs
 -- but effectively the UI hides it. 
 -- Actually, let's keep it restricted to Owner for safety as salary is sensitive.)
 
+DROP POLICY IF EXISTS "Managers can view salary logs" ON public.salary_logs;
 CREATE POLICY "Managers can view salary logs" ON public.salary_logs
     FOR SELECT
     USING (

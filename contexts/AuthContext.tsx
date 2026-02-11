@@ -47,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const mountedRef = useRef(false);
     const latestProfileRequestRef = useRef(0);
     const pushTokenSyncInFlightRef = useRef(false);
+    const currentPushTokenRef = useRef<string | null>(null);
 
     // Keep strict track of user ID for logout cleanup without stale closures
     const userIdRef = useRef<string | null>(null);
@@ -55,9 +56,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = useCallback(async () => {
         try {
             const currentUserId = userIdRef.current;
-            if (currentUserId) {
-                console.log('🧹 Clearing push token for user:', currentUserId);
-                await supabase.from('users').update({ expo_push_token: null } as any).eq('id', currentUserId);
+            const tokenToDelete = currentPushTokenRef.current;
+
+            if (currentUserId && tokenToDelete) {
+                console.log('🧹 Clearing push token for user/device:', currentUserId);
+                // Delete only this device's token
+                await (supabase as any)
+                    .from('user_push_tokens')
+                    .delete()
+                    .eq('user_id', currentUserId)
+                    .eq('token', tokenToDelete);
             }
             await supabase.auth.signOut();
         } catch (error) {
@@ -143,29 +151,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const token = await notificationService.registerForPushNotificationsAsync();
             if (!token) return;
 
-            // 1. Check if token actually needs updating to avoid redundant writes
-            const { data: existingUser } = await supabase
-                .from('users')
-                .select('expo_push_token')
-                .eq('id', userId)
-                .single();
+            // Store locally for logout cleanup
+            currentPushTokenRef.current = token;
 
-            if (existingUser && existingUser.expo_push_token === token) {
-                console.log('✅ Push token already synced and up-to-date.');
-                return;
-            }
-
-            // 2. Update if different
-            console.log('🔄 Syncing new push token...');
-            const { error } = await supabase
-                .from('users')
-                .update({ expo_push_token: token } as any)
-                .eq('id', userId);
+            // 1. Upsert token into user_push_tokens
+            console.log('🔄 Registering push token for device...');
+            const { error } = await (supabase as any)
+                .from('user_push_tokens')
+                .upsert({
+                    user_id: userId,
+                    token: token,
+                    last_used_at: new Date().toISOString()
+                }, { onConflict: 'user_id, token' });
 
             if (error) {
-                console.error('Failed to update push token:', error);
+                console.error('Failed to register push token:', error);
             } else {
-                console.log('✅ Push token synced successfully');
+                console.log('✅ Push token registered successfully');
             }
         } catch (e) {
             console.warn('Push token sync failed:', e);

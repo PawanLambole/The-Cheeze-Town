@@ -90,27 +90,30 @@ serve(async (req: Request) => {
 
         console.log(`[${traceId}] 🔔 Processing notification for Order #${orderForNotification?.id}`);
 
-        // Fetch Tokens
-        const { data: users, error: userError } = await supabaseClient
-            .from('users')
-            .select('id, expo_push_token')
-            .in('role', ['chef', 'manager', 'owner'])
-            .not('expo_push_token', 'is', null);
+        // Fetch Tokens from new 'user_push_tokens' table
+        // We INNER JOIN 'users' to filter by role
+        const { data: tokenRows, error: tokenError } = await supabaseClient
+            .from('user_push_tokens')
+            .select('token, users!inner(role)')
+            .in('users.role', ['chef', 'manager', 'owner']);
 
-        if (userError) throw new Error(`Error fetching users: ${userError.message}`);
+        if (tokenError) {
+            console.error(`[${traceId}] Error fetching tokens:`, tokenError);
+            throw new Error(`Error fetching tokens: ${tokenError.message}`);
+        }
 
-        if (!users || users.length === 0) {
-            console.log(`[${traceId}] ℹ️ No users to notify.`);
-            return new Response(JSON.stringify({ message: "No users to notify" }), {
+        if (!tokenRows || tokenRows.length === 0) {
+            console.log(`[${traceId}] ℹ️ No devices to notify.`);
+            return new Response(JSON.stringify({ message: "No devices to notify" }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 200,
             });
         }
 
-        // Deduplication & Validation
+        // Validate Tokens
         const validTokens = new Set<string>();
-        users.forEach((u: any) => {
-            const t = u.expo_push_token;
+        tokenRows.forEach((row: any) => {
+            const t = row.token;
             if (t && typeof t === 'string' && (t.startsWith('ExponentPushToken') || t.startsWith('ExpoPushToken'))) {
                 validTokens.add(t);
             }
@@ -176,13 +179,17 @@ serve(async (req: Request) => {
             }
         }
 
-        // Cleanup Invalid Tokens
+        // Cleanup Invalid Tokens from user_push_tokens table
         if (tokensToRemove.size > 0) {
             console.log(`[${traceId}] 🧹 Removing ${tokensToRemove.size} stale tokens...`);
-            await supabaseClient
-                .from('users')
-                .update({ expo_push_token: null })
-                .in('expo_push_token', Array.from(tokensToRemove));
+            const { error: deleteError } = await supabaseClient
+                .from('user_push_tokens')
+                .delete()
+                .in('token', Array.from(tokensToRemove));
+
+            if (deleteError) {
+                console.error(`[${traceId}] Failed to remove stale tokens:`, deleteError);
+            }
         }
 
         return new Response(JSON.stringify({ message: "Notifications processed", traceId, results }), {
