@@ -12,7 +12,7 @@ module.exports = ({ config }) => {
     const envAppVersion = process.env.EXPO_PUBLIC_APP_VERSION || '1.0.0';
 
     const androidVersionCode = intOrFallback(
-        process.env.EXPO_PUBLIC_ANDROID_VERSION_CODE,
+        process.env.EXPO_PUBLIC_APP_VERSION_CODE || process.env.EXPO_PUBLIC_ANDROID_VERSION_CODE,
         4
     );
 
