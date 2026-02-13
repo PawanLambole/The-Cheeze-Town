@@ -645,7 +645,11 @@
         "new": "नवीन",
         "maybeLater": "कदाचित नंतर",
         "required": "अपडेट आवश्यक",
-        "download": "अपडेट डाउनलोड करा"
+        "download": "अपडेट डाउनलोड करा",
+        "updateRequired": "Update Required",
+        "mandatoryUpdateMessage": "A new version of the app is available. You must update to continue using The Cheese Town.",
+        "version": "Version",
+        "downloadUpdate": "Download Update"
     },
     "payment": {
         "generating": "जनरेट होत आहे...",

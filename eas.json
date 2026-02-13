@@ -23,6 +23,10 @@
                 "buildType": "apk"
             },
             "channel": "production",
+            "env": {
+                "EXPO_PUBLIC_APP_VERSION_CODE": "113",
+                "EXPO_PUBLIC_APP_VERSION": "1.0.13"
+            },
             "cache": {
                 "key": "production-cache",
                 "paths": [
