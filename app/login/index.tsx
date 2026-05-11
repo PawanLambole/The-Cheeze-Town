@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar, Image, ActivityIndicator, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Added import
-import { Ionicons } from '@expo/vector-icons';
+import { AlertCircle, ChevronUp, ChevronDown, Check, Mail, Lock, EyeOff, Eye, ArrowRight, Award, User, Utensils } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
@@ -65,10 +65,20 @@ export default function LoginScreen() {
 
     const getRoleIcon = (r: string) => {
         switch (r) {
-            case 'owner': return 'ribbon-outline';
-            case 'manager': return 'person-outline';
-            case 'chef': return 'restaurant-outline';
-            default: return 'person-outline';
+            case 'owner': return <Award size={20} color="#FFF" />;
+            case 'manager': return <User size={20} color="#FFF" />;
+            case 'chef': return <Utensils size={20} color="#FFF" />;
+            default: return <User size={20} color="#FFF" />;
+        }
+    };
+
+    const getRoleDropdownIcon = (r: string, isSelected: boolean) => {
+        const color = isSelected ? Colors.dark.primary : 'rgba(255,255,255,0.6)';
+        switch (r) {
+            case 'owner': return <Award size={18} color={color} />;
+            case 'manager': return <User size={18} color={color} />;
+            case 'chef': return <Utensils size={18} color={color} />;
+            default: return <User size={18} color={color} />;
         }
     };
 
@@ -202,7 +212,7 @@ export default function LoginScreen() {
                             <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
                             <Animated.View entering={FadeInDown.springify()} style={styles.modalCard}>
                                 <View style={styles.errorIconContainer}>
-                                    <Ionicons name="alert-circle" size={32} color="#EF4444" />
+                                    <AlertCircle size={32} color="#EF4444" />
                                 </View>
                                 <Text style={styles.modalTitle}>{t('login.error') || 'Attention'}</Text>
                                 <Text style={styles.modalMessage}>{errorModalMessage}</Text>
@@ -228,7 +238,7 @@ export default function LoginScreen() {
                                     <Image
                                         source={require('@/assets/images/logo.png')}
                                         style={styles.logo}
-                                        resizeMode="cover"
+                                        resizeMode="contain"
                                     />
                                 </View>
                                 <Text style={styles.appTitle}>THE CHEEZE TOWN</Text>
@@ -248,14 +258,14 @@ export default function LoginScreen() {
                                             activeOpacity={0.8}
                                         >
                                             <View style={styles.roleTriggerContent}>
-                                                <Ionicons name={getRoleIcon(role) as any} size={20} color="#FFF" />
+                                                {getRoleIcon(role)}
                                                 <Text style={styles.roleTriggerText}>{getRoleLabel(role)}</Text>
                                             </View>
-                                            <Ionicons
-                                                name={showRoleDropdown ? "chevron-up" : "chevron-down"}
-                                                size={20}
-                                                color="rgba(255,255,255,0.6)"
-                                            />
+                                            {showRoleDropdown ? (
+                                                <ChevronUp size={20} color="rgba(255,255,255,0.6)" />
+                                            ) : (
+                                                <ChevronDown size={20} color="rgba(255,255,255,0.6)" />
+                                            )}
                                         </TouchableOpacity>
                                     </View>
 
@@ -278,11 +288,7 @@ export default function LoginScreen() {
                                                     }}
                                                 >
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                                                        <Ionicons
-                                                            name={getRoleIcon(r) as any}
-                                                            size={18}
-                                                            color={role === r ? Colors.dark.primary : 'rgba(255,255,255,0.6)'}
-                                                        />
+                                                        {getRoleDropdownIcon(r, role === r)}
                                                         <Text style={[
                                                             styles.dropdownOptionText,
                                                             role === r && styles.dropdownOptionTextActive
@@ -291,7 +297,7 @@ export default function LoginScreen() {
                                                         </Text>
                                                     </View>
                                                     {role === r && (
-                                                        <Ionicons name="checkmark" size={18} color={Colors.dark.primary} />
+                                                        <Check size={18} color={Colors.dark.primary} />
                                                     )}
                                                 </TouchableOpacity>
                                             ))}
@@ -301,8 +307,8 @@ export default function LoginScreen() {
 
                                 {/* Inputs */}
                                 <View style={styles.inputsWrapper}>
-                                    <BlurView intensity={20} tint="light" style={styles.inputField}>
-                                        <Ionicons name="mail-outline" size={20} color="rgba(255,255,255,0.5)" />
+                                    <View style={styles.inputField}>
+                                        <Mail size={20} color="rgba(255,255,255,0.5)" />
                                         <TextInput
                                             style={styles.input}
                                             placeholder={t('login.email')}
@@ -313,10 +319,10 @@ export default function LoginScreen() {
                                             autoCapitalize="none"
                                             editable={!loading}
                                         />
-                                    </BlurView>
+                                    </View>
 
-                                    <BlurView intensity={20} tint="light" style={styles.inputField}>
-                                        <Ionicons name="lock-closed-outline" size={20} color="rgba(255,255,255,0.5)" />
+                                    <View style={styles.inputField}>
+                                        <Lock size={20} color="rgba(255,255,255,0.5)" />
                                         <TextInput
                                             style={styles.input}
                                             placeholder={t('login.password')}
@@ -327,13 +333,13 @@ export default function LoginScreen() {
                                             editable={!loading}
                                         />
                                         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                            <Ionicons
-                                                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                                                size={20}
-                                                color="rgba(255,255,255,0.5)"
-                                            />
+                                            {showPassword ? (
+                                                <EyeOff size={20} color="rgba(255,255,255,0.5)" />
+                                            ) : (
+                                                <Eye size={20} color="rgba(255,255,255,0.5)" />
+                                            )}
                                         </TouchableOpacity>
-                                    </BlurView>
+                                    </View>
                                 </View>
 
                                 {/* Action Buttons */}
@@ -354,7 +360,7 @@ export default function LoginScreen() {
                                         ) : (
                                             <View style={styles.loginBtnContent}>
                                                 <Text style={styles.loginButtonText}>{t('login.login')}</Text>
-                                                <Ionicons name="arrow-forward" color="#000" size={20} />
+                                                <ArrowRight color="#000" size={20} />
                                             </View>
                                         )}
                                     </LinearGradient>
@@ -446,6 +452,8 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
+        borderRadius: 40,
     },
     logoGlow: {
         position: 'absolute',
